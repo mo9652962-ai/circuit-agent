@@ -48,8 +48,10 @@ Natural language prompt
 ```bash
 git clone https://github.com/mo9652962-ai/circuit-agent.git
 cd circuit-agent
-pip install -r requirements.txt
 ```
+
+零运行时依赖 —— 纯标准库实现，无需 `pip install` 即可直接使用。
+跑测试才需要装 dev extra：`pip install -e ".[dev]"`
 
 ### 1 · 一句话生成硬件网表
 

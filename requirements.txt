@@ -1,4 +1,6 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.30.0
-pydantic>=2.7.0
-requests>=2.31.0
+# CircuitAgent Community Edition has zero runtime dependencies.
+# The DSL, the LCSC client and the contracts are pure standard library,
+# which is why this install is a no-op.
+#
+# Test tooling lives in the `dev` extra (see pyproject.toml):
+#     pip install -e ".[dev]"
