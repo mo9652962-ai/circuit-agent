@@ -31,6 +31,9 @@ from .circuit_blocks import (
     block_i2c_header,
     block_led,
     block_power_ldo_3v3,
+    block_rs485_transceiver,
+    block_can_transceiver,
+    block_battery_tp4056,
     block_usb_c_power,
 )
 
@@ -51,6 +54,9 @@ _BUZZER_TOKENS = ("蜂鸣器", "buzzer", "报警")
 _I2C_TOKENS = ("i2c", "i²c", "传感器", "sensor", "温湿度", "oled")
 _BUTTON_TOKENS = ("按键", "按钮", "button", "key")
 _CRYSTAL_TOKENS = ("晶振", "crystal", "外部时钟", "振荡器")
+_RS485_TOKENS = ("rs485", "485", "max485", "sp3485", "差分串口", "modbus")
+_CAN_TOKENS = ("can", "can总线", "canbus", "can-bus", "tja1050", "sn65hvd230")
+_BATTERY_TOKENS = ("battery", "锂电池", "充电", "tp4056", "电池供电", "充放电", "单节锂电")
 
 _CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "两": 2}
 
@@ -129,6 +135,16 @@ def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
         blocks.append(block_crystal_clock())
     else:
         unmatched.append("crystal")
+
+    # --- industrial fieldbuses & battery ----------------------------------
+    if _has(prompt_lower, prompt, _RS485_TOKENS):
+        blocks.append(block_rs485_transceiver())
+
+    if _has(prompt_lower, prompt, _CAN_TOKENS):
+        blocks.append(block_can_transceiver())
+
+    if _has(prompt_lower, prompt, _BATTERY_TOKENS):
+        blocks.append(block_battery_tp4056())
 
     # --- flatten (insertion order is deterministic) ------------------------
     modules: dict[str, Any] = {}

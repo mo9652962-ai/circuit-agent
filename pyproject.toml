@@ -26,6 +26,9 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
+[project.scripts]
+circuit-agent-mcp = "client.mcp_server:run_stdio_server"
+
 [project.urls]
 Homepage = "https://github.com/mo9652962-ai/circuit-agent"
 Issues = "https://github.com/mo9652962-ai/circuit-agent/issues"

@@ -10,7 +10,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-83%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-110%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -125,10 +125,43 @@ for comp in blk.components:
 | `block_led` | 状态指示灯 | 限流电阻 + 颜色/阻值可参数化 |
 | `block_buzzer` | 蜂鸣器驱动 | S8050 NPN + 1N4148W 反向续流二极管 |
 | `block_i2c_header` | I2C 扩展排针 | SCL/SDA 各 4.7k 上拉 |
+| `block_rs485_transceiver` | SP3485 半双工差分串口 | 120Ω 终端电阻 + 100nF 去耦 + 3P 排针引出 |
+| `block_can_transceiver` | SN65HVD230 3.3V CAN 节点 | 120Ω 终端匹配 + 10k 斜率控制 (高速模式) |
+| `block_battery_tp4056` | TP4056 1A 线性锂电充电 | 1.2k 限流 + 充/满双色指示灯 + 2P 电池端子 |
 
 每个积木的引脚号、LCSC 料号、封装名在冻结前均对照数据手册与立创商城列表核验过。
 `tests/test_circuit_blocks.py` 会强制校验：位号唯一、每个元件都有封装与料号、
 网络端点必须指向已声明的元件、每个积木都必须接 `/GND`。
+
+---
+
+## MCP Server (AI Agent 工具服务)
+
+CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
+
+### 运行方式
+```bash
+python -m client.mcp_server
+```
+
+### Claude Desktop 配置 (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "circuit-agent": {
+      "command": "python",
+      "args": ["-m", "client.mcp_server"],
+      "cwd": "/path/to/circuit-agent"
+    }
+  }
+}
+```
+
+### 暴露的工具 (Tools)
+1. `synthesize_circuit`: 输入自然语言，输出确定性硬件网表与积木清单。
+2. `search_lcsc_parts`: 免 Key 实时查询立创商城的元器件库存、封装、阶梯单价与基础库/扩展库属性。
+3. `list_circuit_blocks`: 列出 DSL 中全部可用的 10 大已审计电路积木规格。
+4. `validate_netlist`: 根据正式 JSON Schema 校验网表数据结构合法性。
 
 ---
 
@@ -143,7 +176,7 @@ for comp in blk.components:
 ## 测试与 CI
 
 ```bash
-pytest tests/ -q      # 83 passed
+pytest tests/ -q      # 110 passed
 ```
 
 CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量测试，
@@ -153,7 +186,7 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 
 ## 范围与路线图 (Scope & Roadmap)
 
-**本仓库包含**：硬件 DSL 与积木库、立创实时选型客户端、网表/CPL 数据契约、REST/MCP 交互接口。
+**本仓库包含**：硬件 DSL 与积木库、立创实时选型客户端、网表/CPL 数据契约、标准 MCP Server、REST 交互接口。
 
 **暂不包含**：多层板物理布局与布线求解、参数化 3D 壳体布尔几何、Senior EE 物理规则门禁。
 这些是上游编译器的高级能力，仍在开发中；本仓库通过稳定的数据契约与客户端接口与其对接，
@@ -164,9 +197,11 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 - [x] 积木库 + 确定性映射 + 单元测试
 - [x] 立创实时选型客户端（重试/缓存/降级）
 - [x] JSON Schema + 三份参考样例 + CI
-- [ ] 更多积木（RS485 / CAN / 电源监控 / 电机驱动）
-- [ ] MCP server 示例实现
-- [ ] 英文文档
+- [x] 工业级实用积木（RS485 / CAN / TP4056 锂电）
+- [x] 标准 MCP Server 实现（纯标准库，4 大工具）
+- [x] 中英双语文档与官方门面 (Banner + Demo GIF)
+- [ ] 更多传感器积木（AHT20 温湿度 / MPU6050 六轴）
+- [ ] 支持自定义第三方芯片引脚分配映射规则
 
 ---
 

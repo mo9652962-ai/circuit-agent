@@ -10,7 +10,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-83%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-110%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -119,6 +119,39 @@ for comp in blk.components:
 | `block_led` | Status Indicator | Series current-limiting resistor |
 | `block_buzzer` | Active Buzzer | S8050 NPN driver + 1N4148W freewheeling diode |
 | `block_i2c_header` | I2C Header Socket | Dual 4.7k pull-ups on SCL/SDA |
+| `block_rs485_transceiver` | SP3485 RS485 Fieldbus | 120Ω differential termination + 100nF decoupling + 3P header |
+| `block_can_transceiver` | SN65HVD230 3.3V CAN Node | 120Ω termination + 10k slope control (High-speed mode) |
+| `block_battery_tp4056` | TP4056 1A Li-Ion Charger | 1.2k current limit + dual CHG/STD LEDs + 2P battery terminal |
+
+---
+
+## MCP Server (AI Agent Integration)
+
+CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
+
+### Start stdio Server
+```bash
+python -m client.mcp_server
+```
+
+### Claude Desktop Configuration (`claude_desktop_config.json`)
+```json
+{
+  "mcpServers": {
+    "circuit-agent": {
+      "command": "python",
+      "args": ["-m", "client.mcp_server"],
+      "cwd": "/path/to/circuit-agent"
+    }
+  }
+}
+```
+
+### Exposed Tools
+1. `synthesize_circuit`: Natural-language prompt to deterministic netlist & module specification.
+2. `search_lcsc_parts`: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging.
+3. `list_circuit_blocks`: List all 10 pre-validated hardware DSL blocks.
+4. `validate_netlist`: Validate netlists against the formal CircuitAgent JSON Schema.
 
 ---
 
@@ -133,7 +166,7 @@ for comp in blk.components:
 ## Test Suite & CI
 
 ```bash
-pytest tests/ -q      # 83 passed
+pytest tests/ -q      # 110 passed
 ```
 
 GitHub Actions matrix tests against `ubuntu-latest` and `windows-latest` across Python 3.10, 3.11, and 3.12.
@@ -143,7 +176,7 @@ GitHub Actions matrix tests against `ubuntu-latest` and `windows-latest` across 
 ## Scope & Roadmap
 
 **Included in this community repository**:
-Hardware DSL and building blocks, key-free LCSC live parts client, netlist & CPL specifications, REST/MCP client bridges.
+Hardware DSL and building blocks, key-free LCSC live parts client, netlist & CPL specifications, standard MCP Server, REST client bridges.
 
 **High-level compiler stages (In active development)**:
 Multi-layer physical placement & auto-routing solver, parametric 3D enclosure Boolean geometry, Senior EE physical rule DRC gate.
@@ -152,8 +185,11 @@ Multi-layer physical placement & auto-routing solver, parametric 3D enclosure Bo
 - [x] LCSC live parts client (retry / cache / fallback)
 - [x] Formal JSON Schema + 3 MCU golden examples + CI matrix
 - [x] CircuitAgent Pro dark industrial web interface (`web/index.html`)
-- [ ] Additional industrial blocks (RS485, CAN bus, Motor driver)
-- [ ] Reference MCP server implementation
+- [x] Industrial fieldbus & power blocks (RS485, CAN bus, TP4056 Li-Ion)
+- [x] Standard stdio MCP Server implementation (4 core tools)
+- [x] Bilingual documentation & official branding
+- [ ] Additional sensor blocks (AHT20, MPU6050)
+- [ ] Custom MCU pin-mapping override engine
 
 ---
 

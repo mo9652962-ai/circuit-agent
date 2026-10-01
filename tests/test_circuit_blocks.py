@@ -22,6 +22,9 @@ BLOCK_FACTORIES = [
     cb.block_led,
     cb.block_buzzer,
     cb.block_i2c_header,
+    cb.block_rs485_transceiver,
+    cb.block_can_transceiver,
+    cb.block_battery_tp4056,
 ]
 
 
@@ -73,7 +76,39 @@ def test_ground_net_is_reachable(factory):
 def test_crystal_declares_guard_ring():
     blk = cb.block_crystal_clock()
     assert blk.properties.get("guard_ring") is True
-    assert blk.properties.get("guard_ring_radius_mm", 0) > 0
+    assert blk.properties.get("guard_ring_radius_mm") == 8.0
+
+
+def test_rs485_block_properties():
+    blk = cb.block_rs485_transceiver()
+    assert blk.properties.get("differential_impedance") == 120
+    assert "/485_A" in blk.nets and "/485_B" in blk.nets
+    assert "U_485" in {c.ref for c in blk.components}
+
+
+def test_can_block_properties():
+    blk = cb.block_can_transceiver()
+    assert blk.properties.get("differential_impedance") == 120
+    assert "/CAN_H" in blk.nets and "/CAN_L" in blk.nets
+    assert "U_CAN" in {c.ref for c in blk.components}
+
+
+def test_battery_tp4056_properties():
+    blk = cb.block_battery_tp4056()
+    assert blk.properties.get("battery_chemistry") == "Li-Ion"
+    assert blk.properties.get("charge_voltage") == 4.2
+    assert "U_BAT1" in {c.ref for c in blk.components}
+
+
+def test_synthesizer_supports_industrial_intents():
+    spec = synthesize_from_prompt("基于 STM32F103 的工业网关，带 RS485、CAN总线 和 锂电池充电")
+    refs = spec["modules"].keys()
+    assert "U_485" in refs
+    assert "U_CAN" in refs
+    assert "U_BAT1" in refs
+    assert "/485_A" in [c["net"] for c in spec["netlist"]["connections"]]
+    assert "/CAN_H" in [c["net"] for c in spec["netlist"]["connections"]]
+    assert "/VBAT" in [c["net"] for c in spec["netlist"]["connections"]]
 
 
 def test_button_count_parameterizes_designator():

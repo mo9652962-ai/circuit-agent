@@ -23,6 +23,9 @@ __all__ = [
     "block_led",
     "block_buzzer",
     "block_i2c_header",
+    "block_rs485_transceiver",
+    "block_can_transceiver",
+    "block_battery_tp4056",
 ]
 
 
@@ -208,4 +211,113 @@ def block_i2c_header(hdr_ref: str = "J_I2C1", vcc_net: str = "/+3.3V",
             "/SCL": [f"{hdr_ref}.3", "R_SCL1.2"],
             "/SDA": [f"{hdr_ref}.4", "R_SDA1.2"],
         },
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Industrial fieldbuses & Power storage
+# --------------------------------------------------------------------------- #
+def block_rs485_transceiver(ic_ref: str = "U_485", hdr_ref: str = "J_485",
+                            vcc_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
+    """SP3485 3.3V half-duplex RS485 transceiver with 120R differential termination."""
+    return CircuitBlock(
+        name="RS485_Transceiver",
+        description="SP3485 3.3V RS485 transceiver with differential termination",
+        components=[
+            CircuitComponent(ic_ref, "IC", "SP3485EN", "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+                             "C2692302", {"1": "/485_RO", "2": "/485_RE_DE", "3": "/485_RE_DE",
+                                          "4": "/485_DI", "5": gnd_net, "6": "/485_A",
+                                          "7": "/485_B", "8": vcc_net}),
+            CircuitComponent("C_485", "CAPACITOR", "100nF", "C0603", "C14663",
+                             {"1": vcc_net, "2": gnd_net}),
+            CircuitComponent("R_485_TERM", "RESISTOR", "120R", "R0603", "C245186",
+                             {"1": "/485_A", "2": "/485_B"}),
+            CircuitComponent(hdr_ref, "CONNECTOR", "HDR-3P-2.54", "HDR-1X3-2.54", "C5383112",
+                             {"1": "/485_A", "2": "/485_B", "3": gnd_net}),
+        ],
+        nets={
+            vcc_net: [f"{ic_ref}.8", "C_485.1"],
+            gnd_net: [f"{ic_ref}.5", "C_485.2", f"{hdr_ref}.3"],
+            "/485_RO": [f"{ic_ref}.1"],
+            "/485_RE_DE": [f"{ic_ref}.2", f"{ic_ref}.3"],
+            "/485_DI": [f"{ic_ref}.4"],
+            "/485_A": [f"{ic_ref}.6", "R_485_TERM.1", f"{hdr_ref}.1"],
+            "/485_B": [f"{ic_ref}.7", "R_485_TERM.2", f"{hdr_ref}.2"],
+        },
+        properties={"differential_pair": ["/485_A", "/485_B"], "differential_impedance": 120},
+    )
+
+
+def block_can_transceiver(ic_ref: str = "U_CAN", hdr_ref: str = "J_CAN",
+                          vcc_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
+    """SN65HVD230 3.3V CAN bus transceiver with 120R termination."""
+    return CircuitBlock(
+        name="CAN_Transceiver",
+        description="SN65HVD230 3.3V CAN transceiver with 120R termination",
+        components=[
+            CircuitComponent(ic_ref, "IC", "SN65HVD230DR", "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+                             "C1544959", {"1": "/CAN_TX", "2": gnd_net, "3": vcc_net,
+                                          "4": "/CAN_RX", "5": "/CAN_VREF", "6": "/CAN_L",
+                                          "7": "/CAN_H", "8": "/CAN_RS"}),
+            CircuitComponent("C_CAN", "CAPACITOR", "100nF", "C0603", "C14663",
+                             {"1": vcc_net, "2": gnd_net}),
+            CircuitComponent("R_CAN_RS", "RESISTOR", "10k", "R0603", "C25804",
+                             {"1": "/CAN_RS", "2": gnd_net}),
+            CircuitComponent("R_CAN_TERM", "RESISTOR", "120R", "R0603", "C245186",
+                             {"1": "/CAN_H", "2": "/CAN_L"}),
+            CircuitComponent(hdr_ref, "CONNECTOR", "HDR-3P-2.54", "HDR-1X3-2.54", "C5383112",
+                             {"1": "/CAN_H", "2": "/CAN_L", "3": gnd_net}),
+        ],
+        nets={
+            vcc_net: [f"{ic_ref}.3", "C_CAN.1"],
+            gnd_net: [f"{ic_ref}.2", "C_CAN.2", "R_CAN_RS.2", f"{hdr_ref}.3"],
+            "/CAN_TX": [f"{ic_ref}.1"],
+            "/CAN_RX": [f"{ic_ref}.4"],
+            "/CAN_RS": [f"{ic_ref}.8", "R_CAN_RS.1"],
+            "/CAN_H": [f"{ic_ref}.7", "R_CAN_TERM.1", f"{hdr_ref}.1"],
+            "/CAN_L": [f"{ic_ref}.6", "R_CAN_TERM.2", f"{hdr_ref}.2"],
+        },
+        properties={"differential_pair": ["/CAN_H", "/CAN_L"], "differential_impedance": 120},
+    )
+
+
+def block_battery_tp4056(ic_ref: str = "U_BAT1", vbus_net: str = "/VBUS",
+                         vbat_net: str = "/VBAT", gnd_net: str = "/GND") -> CircuitBlock:
+    """TP4056 1A linear Li-Ion battery charger with dual status indicators."""
+    return CircuitBlock(
+        name="Battery_TP4056",
+        description="TP4056 1A standalone linear Li-Ion charger with charge/standby LEDs",
+        components=[
+            CircuitComponent(ic_ref, "IC", "TP4056-42", "ESOP-8_L4.9-W3.9-P1.27-LS6.0-BL-EP",
+                             "C16581", {"1": gnd_net, "2": "/CHG_PROG", "3": gnd_net,
+                                        "4": vbus_net, "5": vbat_net, "6": "/CHG_STDBY",
+                                        "7": "/CHG_ACT", "8": vbus_net}),
+            CircuitComponent("R_PROG1", "RESISTOR", "1.2k", "R0603", "C269681",
+                             {"1": "/CHG_PROG", "2": gnd_net}),
+            CircuitComponent("C_VIN_BAT", "CAPACITOR", "10uF", "C0805", "C15849",
+                             {"1": vbus_net, "2": gnd_net}),
+            CircuitComponent("C_BAT1", "CAPACITOR", "10uF", "C0805", "C15849",
+                             {"1": vbat_net, "2": gnd_net}),
+            CircuitComponent("D_CHG1", "LED", "RED", "LED0603", "C72044",
+                             {"A": "/LED_CHG_A", "K": "/CHG_ACT"}),
+            CircuitComponent("R_CHG1", "RESISTOR", "1k", "R0603", "C21190",
+                             {"1": vbus_net, "2": "/LED_CHG_A"}),
+            CircuitComponent("D_STD1", "LED", "GREEN", "LED0603", "C72043",
+                             {"A": "/LED_STD_A", "K": "/CHG_STDBY"}),
+            CircuitComponent("R_STD1", "RESISTOR", "1k", "R0603", "C21190",
+                             {"1": vbus_net, "2": "/LED_STD_A"}),
+            CircuitComponent("J_BAT1", "CONNECTOR", "HDR-2P-2.54", "HDR-1X2-2.54", "C5383113",
+                             {"1": vbat_net, "2": gnd_net}),
+        ],
+        nets={
+            vbus_net: [f"{ic_ref}.4", f"{ic_ref}.8", "C_VIN_BAT.1", "R_CHG1.1", "R_STD1.1"],
+            vbat_net: [f"{ic_ref}.5", "C_BAT1.1", "J_BAT1.1"],
+            gnd_net: [f"{ic_ref}.1", f"{ic_ref}.3", "R_PROG1.2", "C_VIN_BAT.2", "C_BAT1.2", "J_BAT1.2"],
+            "/CHG_PROG": [f"{ic_ref}.2", "R_PROG1.1"],
+            "/CHG_ACT": [f"{ic_ref}.7", "D_CHG1.K"],
+            "/CHG_STDBY": [f"{ic_ref}.6", "D_STD1.K"],
+            "/LED_CHG_A": ["R_CHG1.2", "D_CHG1.A"],
+            "/LED_STD_A": ["R_STD1.2", "D_STD1.A"],
+        },
+        properties={"battery_chemistry": "Li-Ion", "charge_voltage": 4.2, "charge_current_ma": 1000},
     )
