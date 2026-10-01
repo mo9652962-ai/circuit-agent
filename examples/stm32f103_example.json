@@ -1,0 +1,199 @@
+{
+  "chip_id": "STM32F103C8T6",
+  "prompt": "基于 STM32F103C8T6 的工业控制板，带 Type-C 供电、8MHz 晶振、指示灯和2个按键",
+  "modules": {
+    "J_USB1": {
+      "kind": "CONNECTOR",
+      "value": "USB-C-16P",
+      "package": "USB-C-16P-SMD",
+      "lcsc": "C7204555"
+    },
+    "R_CC1": {
+      "kind": "RESISTOR",
+      "value": "5.1k",
+      "package": "R0603",
+      "lcsc": "C23186"
+    },
+    "R_CC2": {
+      "kind": "RESISTOR",
+      "value": "5.1k",
+      "package": "R0603",
+      "lcsc": "C23186"
+    },
+    "U_LDO1": {
+      "kind": "IC",
+      "value": "AMS1117-3.3",
+      "package": "SOT-223",
+      "lcsc": "C6186"
+    },
+    "C_IN1": {
+      "kind": "CAPACITOR",
+      "value": "10uF",
+      "package": "C0805",
+      "lcsc": "C15849"
+    },
+    "C_OUT1": {
+      "kind": "CAPACITOR",
+      "value": "10uF",
+      "package": "C0805",
+      "lcsc": "C15849"
+    },
+    "SW1": {
+      "kind": "SWITCH",
+      "value": "TactSwitch",
+      "package": "SW-SMD_4P-3X6",
+      "lcsc": "C26638"
+    },
+    "R_SW1": {
+      "kind": "RESISTOR",
+      "value": "10k",
+      "package": "R0603",
+      "lcsc": "C25804"
+    },
+    "C_SW1": {
+      "kind": "CAPACITOR",
+      "value": "100nF",
+      "package": "C0603",
+      "lcsc": "C14663"
+    },
+    "SW2": {
+      "kind": "SWITCH",
+      "value": "TactSwitch",
+      "package": "SW-SMD_4P-3X6",
+      "lcsc": "C26638"
+    },
+    "R_SW2": {
+      "kind": "RESISTOR",
+      "value": "10k",
+      "package": "R0603",
+      "lcsc": "C25804"
+    },
+    "C_SW2": {
+      "kind": "CAPACITOR",
+      "value": "100nF",
+      "package": "C0603",
+      "lcsc": "C14663"
+    },
+    "D1": {
+      "kind": "LED",
+      "value": "GREEN",
+      "package": "LED0603",
+      "lcsc": "C72043"
+    },
+    "R_D1": {
+      "kind": "RESISTOR",
+      "value": "1k",
+      "package": "R0603",
+      "lcsc": "C21190"
+    },
+    "Y1": {
+      "kind": "CRYSTAL",
+      "value": "8MHz",
+      "package": "HC-49S-SMD",
+      "lcsc": "C115962"
+    },
+    "C_X1": {
+      "kind": "CAPACITOR",
+      "value": "22pF",
+      "package": "C0603",
+      "lcsc": "C1653"
+    },
+    "C_X2": {
+      "kind": "CAPACITOR",
+      "value": "22pF",
+      "package": "C0603",
+      "lcsc": "C1653"
+    }
+  },
+  "netlist": {
+    "connections": [
+      {
+        "net": "/VBUS",
+        "points": [
+          "J_USB1.VBUS",
+          "U_LDO1.3",
+          "C_IN1.1"
+        ]
+      },
+      {
+        "net": "/GND",
+        "points": [
+          "J_USB1.GND",
+          "R_CC1.2",
+          "R_CC2.2",
+          "U_LDO1.1",
+          "C_IN1.2",
+          "C_OUT1.2",
+          "SW1.2",
+          "C_SW1.2",
+          "SW2.2",
+          "C_SW2.2",
+          "D1.K",
+          "C_X1.2",
+          "C_X2.2"
+        ]
+      },
+      {
+        "net": "/CC1",
+        "points": [
+          "J_USB1.A5",
+          "R_CC1.1"
+        ]
+      },
+      {
+        "net": "/CC2",
+        "points": [
+          "J_USB1.B5",
+          "R_CC2.1"
+        ]
+      },
+      {
+        "net": "/+3.3V",
+        "points": [
+          "U_LDO1.2",
+          "C_OUT1.1",
+          "R_SW1.2",
+          "R_SW2.2",
+          "R_D1.1"
+        ]
+      },
+      {
+        "net": "/BTN1",
+        "points": [
+          "SW1.1",
+          "R_SW1.1",
+          "C_SW1.1"
+        ]
+      },
+      {
+        "net": "/BTN2",
+        "points": [
+          "SW2.1",
+          "R_SW2.1",
+          "C_SW2.1"
+        ]
+      },
+      {
+        "net": "/LED_DRV",
+        "points": [
+          "D1.A",
+          "R_D1.2"
+        ]
+      },
+      {
+        "net": "/XTAL_IN",
+        "points": [
+          "Y1.1",
+          "C_X1.1"
+        ]
+      },
+      {
+        "net": "/XTAL_OUT",
+        "points": [
+          "Y1.2",
+          "C_X2.1"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests (py${{ matrix.python-version }} / ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run test suite
+        run: pytest tests/ -v
+
+  examples:
+    name: Validate examples against schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Check every example conforms to specs/netlist_schema.json
+        run: pytest tests/test_examples_schema.py -v
+
+  client-smoke:
+    name: Client smoke (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Synthesize a board from a prompt (README quickstart)
+        run: |
+          python -c "
+          from client.synthesizer import synthesize_from_prompt
+          spec = synthesize_from_prompt('基于 ESP32-C3 的环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键')
+          assert spec['modules'], 'no modules produced'
+          assert spec['netlist']['connections'], 'no nets produced'
+          print('OK:', spec['chip_id'], len(spec['modules']), 'modules')
+          "
+
+      - name: LCSC client degrades gracefully with no network
+        run: |
+          python -c "
+          import client.lcsc_client as m
+          m._fetch_raw = lambda *a, **k: None
+          assert m.search_lcsc_parts('CH340N') == []
+          print('OK: offline degradation verified')
+          "

@@ -1,0 +1,199 @@
+{
+  "chip_id": "RP2040",
+  "prompt": "RP2040 双核控制板，Type-C 供电，I2C 传感器插座，蜂鸣器报警，1个按键",
+  "modules": {
+    "J_USB1": {
+      "kind": "CONNECTOR",
+      "value": "USB-C-16P",
+      "package": "USB-C-16P-SMD",
+      "lcsc": "C7204555"
+    },
+    "R_CC1": {
+      "kind": "RESISTOR",
+      "value": "5.1k",
+      "package": "R0603",
+      "lcsc": "C23186"
+    },
+    "R_CC2": {
+      "kind": "RESISTOR",
+      "value": "5.1k",
+      "package": "R0603",
+      "lcsc": "C23186"
+    },
+    "U_LDO1": {
+      "kind": "IC",
+      "value": "AMS1117-3.3",
+      "package": "SOT-223",
+      "lcsc": "C6186"
+    },
+    "C_IN1": {
+      "kind": "CAPACITOR",
+      "value": "10uF",
+      "package": "C0805",
+      "lcsc": "C15849"
+    },
+    "C_OUT1": {
+      "kind": "CAPACITOR",
+      "value": "10uF",
+      "package": "C0805",
+      "lcsc": "C15849"
+    },
+    "SW1": {
+      "kind": "SWITCH",
+      "value": "TactSwitch",
+      "package": "SW-SMD_4P-3X6",
+      "lcsc": "C26638"
+    },
+    "R_SW1": {
+      "kind": "RESISTOR",
+      "value": "10k",
+      "package": "R0603",
+      "lcsc": "C25804"
+    },
+    "C_SW1": {
+      "kind": "CAPACITOR",
+      "value": "100nF",
+      "package": "C0603",
+      "lcsc": "C14663"
+    },
+    "BZ1": {
+      "kind": "BUZZER",
+      "value": "ActiveBuzzer",
+      "package": "BUZ-SMD-9.6MM",
+      "lcsc": "C42420997"
+    },
+    "Q_BZ1": {
+      "kind": "TRANSISTOR",
+      "value": "S8050",
+      "package": "SOT-23",
+      "lcsc": "C2146"
+    },
+    "R_BZ1": {
+      "kind": "RESISTOR",
+      "value": "1k",
+      "package": "R0603",
+      "lcsc": "C21190"
+    },
+    "D_BZ1": {
+      "kind": "DIODE",
+      "value": "1N4148W",
+      "package": "SOD-123",
+      "lcsc": "C81598"
+    },
+    "J_I2C1": {
+      "kind": "CONNECTOR",
+      "value": "HDR-4P-2.54",
+      "package": "HDR-1X4-2.54",
+      "lcsc": "C5383111"
+    },
+    "R_SCL1": {
+      "kind": "RESISTOR",
+      "value": "4.7k",
+      "package": "R0603",
+      "lcsc": "C23162"
+    },
+    "R_SDA1": {
+      "kind": "RESISTOR",
+      "value": "4.7k",
+      "package": "R0603",
+      "lcsc": "C23162"
+    }
+  },
+  "netlist": {
+    "connections": [
+      {
+        "net": "/VBUS",
+        "points": [
+          "J_USB1.VBUS",
+          "U_LDO1.3",
+          "C_IN1.1"
+        ]
+      },
+      {
+        "net": "/GND",
+        "points": [
+          "J_USB1.GND",
+          "R_CC1.2",
+          "R_CC2.2",
+          "U_LDO1.1",
+          "C_IN1.2",
+          "C_OUT1.2",
+          "SW1.2",
+          "C_SW1.2",
+          "Q_BZ1.2",
+          "J_I2C1.2"
+        ]
+      },
+      {
+        "net": "/CC1",
+        "points": [
+          "J_USB1.A5",
+          "R_CC1.1"
+        ]
+      },
+      {
+        "net": "/CC2",
+        "points": [
+          "J_USB1.B5",
+          "R_CC2.1"
+        ]
+      },
+      {
+        "net": "/+3.3V",
+        "points": [
+          "U_LDO1.2",
+          "C_OUT1.1",
+          "R_SW1.2",
+          "BZ1.1",
+          "D_BZ1.K",
+          "J_I2C1.1",
+          "R_SCL1.1",
+          "R_SDA1.1"
+        ]
+      },
+      {
+        "net": "/BTN1",
+        "points": [
+          "SW1.1",
+          "R_SW1.1",
+          "C_SW1.1"
+        ]
+      },
+      {
+        "net": "/BUZZ_CTRL",
+        "points": [
+          "R_BZ1.1"
+        ]
+      },
+      {
+        "net": "/BUZZ_BASE",
+        "points": [
+          "R_BZ1.2",
+          "Q_BZ1.1"
+        ]
+      },
+      {
+        "net": "/BUZZ_K",
+        "points": [
+          "BZ1.2",
+          "Q_BZ1.3",
+          "D_BZ1.A"
+        ]
+      },
+      {
+        "net": "/SCL",
+        "points": [
+          "J_I2C1.3",
+          "R_SCL1.2"
+        ]
+      },
+      {
+        "net": "/SDA",
+        "points": [
+          "J_I2C1.4",
+          "R_SDA1.2"
+        ]
+      }
+    ]
+  }
+}
