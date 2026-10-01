@@ -1,11 +1,22 @@
+<p align="center">
+  <img src="docs/images/banner-1200x640.png" alt="CircuitAgent Banner" width="100%">
+</p>
+
 # CircuitAgent · Community Edition
 
 **Prompt → Schematic → Layout → 3D Enclosure → Fabrication Bundle**
 
-[![CI](https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-83%20passing-brightgreen.svg)](tests/)
+<p align="center">
+  <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-83%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
+</p>
+
+<p align="center">
+  <a href="README.md"><b>中文说明</b></a> | <a href="README_EN.md"><b>English</b></a>
+</p>
 
 > **Status: alpha.** This repository is the open community layer of CircuitAgent: the
 > hardware DSL, the LCSC live-selection client, and the data contracts that the
@@ -19,6 +30,10 @@
 让大语言模型直接生成底层走线、焊盘与封装，几乎必然产出非法几何或引脚短路。
 CircuitAgent 的做法是把 LLM 的输出**约束在预验证的电路积木上**，再用 Pydantic
 契约把它变成确定性网表 —— 模型只负责"选积木"，不负责"画线"。
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="CircuitAgent Pro 工作台演示" width="85%">
+</p>
 
 ```text
 Natural language prompt

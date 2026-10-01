@@ -1,26 +1,154 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CircuitAgent Netlist Specification",
+  "$id": "https://raw.githubusercontent.com/mo9652962-ai/circuit-agent/main/specs/netlist_schema.json",
+  "title": "CircuitAgent Netlist & Circuit Specification",
+  "description": "Standardized schema for CircuitBlocks intermediate representation (IR), connecting prompt synthesizers with EDA routing compilers.",
   "type": "object",
-  "required": ["connections"],
+  "required": [
+    "connections"
+  ],
   "properties": {
+    "chip_id": {
+      "type": "string",
+      "description": "Target microcontroller or SoC identifier.",
+      "enum": [
+        "ESP32-C3",
+        "ESP32-S3",
+        "RP2040",
+        "STM32F103C8T6",
+        "STC89C52RC",
+        "CUSTOM"
+      ]
+    },
+    "prompt": {
+      "type": "string",
+      "description": "Human natural-language prompt or intent description that generated this specification."
+    },
+    "board": {
+      "type": "object",
+      "description": "Physical board constraints and PCB layer configuration.",
+      "properties": {
+        "layers": {
+          "type": "integer",
+          "description": "Number of copper layers (e.g. 2 for basic boards, 4 for JLC04161H impedance-controlled boards).",
+          "enum": [
+            2,
+            4,
+            6
+          ]
+        },
+        "width_mm": {
+          "type": "number",
+          "description": "Board width in millimeters.",
+          "minimum": 10.0,
+          "maximum": 500.0
+        },
+        "height_mm": {
+          "type": "number",
+          "description": "Board height in millimeters.",
+          "minimum": 10.0,
+          "maximum": 500.0
+        },
+        "stackup": {
+          "type": "string",
+          "description": "Layer stackup standard identifier.",
+          "enum": [
+            "JLC04161H",
+            "STANDARD_2LAYER",
+            "CUSTOM"
+          ]
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "description": "Key-value dictionary mapping component reference designators to their electrical specifications.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "kind",
+          "package"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Component electrical class or architectural block type.",
+            "enum": [
+              "MCU",
+              "CONNECTOR",
+              "IC",
+              "LDO",
+              "POWER",
+              "RESISTOR",
+              "CAPACITOR",
+              "INDUCTOR",
+              "LED",
+              "DIODE",
+              "CRYSTAL",
+              "OSCILLATOR",
+              "BUTTON",
+              "SWITCH",
+              "BUZZER",
+              "SENSOR",
+              "HEADER"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "description": "Component nominal value or part model (e.g. 10k, 100nF, AMS1117-3.3, BLUE)."
+          },
+          "package": {
+            "type": "string",
+            "description": "Standardized EDA footprint / package identifier (e.g. R0603, C0603, SOT-223, QFN-32_EP)."
+          },
+          "lcsc": {
+            "type": "string",
+            "description": "LCSC / JLCPCB Part Number prefix with C followed by digits (e.g. C25804, C6186).",
+            "pattern": "^C[0-9]+$"
+          },
+          "designator": {
+            "type": "string",
+            "description": "Explicit reference designator (e.g. U1, R1, C1, J1)."
+          }
+        }
+      }
+    },
     "connections": {
       "type": "array",
+      "description": "Complete netlist connections across physical pins and signals.",
       "items": {
         "type": "object",
-        "required": ["net", "points"],
+        "required": [
+          "net",
+          "points"
+        ],
         "properties": {
           "net": {
             "type": "string",
-            "description": "Net name (e.g. /GND, /+3.3V, /SWCLK)"
+            "description": "Normalized net identifier (e.g. /GND, /+3.3V, /VBUS, /SWDIO).",
+            "pattern": "^/[A-Za-z0-9_+.-]+$"
+          },
+          "class": {
+            "type": "string",
+            "description": "Netclass governing trace width, clearance, and routing constraints.",
+            "enum": [
+              "POWER",
+              "GROUND",
+              "SIGNAL",
+              "USB_DIFF_90",
+              "CLOCK_HF",
+              "ANALOG"
+            ]
           },
           "points": {
             "type": "array",
+            "description": "Component pin endpoints participating in this electrical node.",
+            "minItems": 2,
             "items": {
               "type": "string",
+              "description": "Physical component endpoint in DESIGNATOR.PIN format (e.g. U1.1, J_USB1.VBUS).",
               "pattern": "^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)?$"
-            },
-            "description": "List of component pin references (e.g. ['U1.1', 'C1.1'])"
+            }
           }
         }
       }

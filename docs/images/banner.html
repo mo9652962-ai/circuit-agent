@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1200px;height:640px;overflow:hidden;background:#0A0B0E;font-family:Inter,"Segoe UI","Noto Sans SC","Microsoft YaHei",sans-serif;position:relative}
+.grid{position:absolute;inset:0;background-image:repeating-linear-gradient(to right,rgba(59,130,246,.06) 0 1px,transparent 1px 80px),repeating-linear-gradient(to bottom,rgba(59,130,246,.06) 0 1px,transparent 1px 80px)}
+.glow{position:absolute;width:960px;height:960px;left:50%;top:-480px;transform:translateX(-50%);background:radial-gradient(circle,rgba(59,130,246,.18),transparent 65%)}
+.copperglow{position:absolute;width:560px;height:560px;right:-120px;bottom:-240px;background:radial-gradient(circle,rgba(234,179,8,.10),transparent 60%)}
+.wrap{position:absolute;inset:0;display:flex;align-items:center;gap:64px;padding:0 84px}
+.mark{width:210px;height:210px;flex:none;filter:drop-shadow(0 0 32px rgba(59,130,246,.45))}
+.txt{display:flex;flex-direction:column;gap:14px}
+.title{font:800 74px/1.05 Inter,Arial,sans-serif;letter-spacing:.05em;color:#F1F5F9}
+.title b{color:#3B82F6;font-weight:800}
+.cn{font:700 36px/1.25 "Noto Sans SC","Microsoft YaHei",sans-serif;color:#CBD5E1;letter-spacing:.02em}
+.tagline{font:400 24px/1.4 Inter,"Noto Sans SC",sans-serif;color:#94A3B8}
+.chips{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+.chip{font:600 19px "JetBrains Mono",monospace;color:#38BDF8;background:rgba(18,21,28,.85);border:1px solid rgba(59,130,246,.35);border-radius:9999px;padding:8px 18px;letter-spacing:.03em}
+.foot{position:absolute;left:84px;bottom:36px;right:84px;display:flex;justify-content:space-between;font:500 19px "JetBrains Mono",monospace;color:#64748B;letter-spacing:.04em}
+.badge{display:inline-flex;align-items:center;gap:8px}
+.badge i{width:10px;height:10px;border-radius:50%;background:#10B981;box-shadow:0 0 10px #10B981;display:inline-block}
+</style></head><body>
+<div class="grid"></div><div class="glow"></div><div class="copperglow"></div>
+<div class="wrap">
+  <svg class="mark" viewBox="0 0 512 512"><path d="M128 128 H384 V384 H128 Z" fill="none" stroke="#3b82f6" stroke-width="24" rx="16" stroke-linejoin="round"/>
+<path d="M176 176 H336 V336 H176 Z" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="16" rx="8"/>
+<circle cx="256" cy="256" r="28" fill="#3b82f6"/>
+<path d="M64 192 H128 M64 256 H128 M64 320 H128" stroke="#10b981" stroke-width="20" stroke-linecap="round"/>
+<path d="M384 192 H448 M384 256 H448 M384 320 H448" stroke="#10b981" stroke-width="20" stroke-linecap="round"/>
+<path d="M192 64 V128 M256 64 V128 M320 64 V128" stroke="#eab308" stroke-width="20" stroke-linecap="round"/>
+<path d="M192 384 V448 M256 384 V448 M320 384 V448" stroke="#eab308" stroke-width="20" stroke-linecap="round"/></svg>
+  <div class="txt">
+    <div class="title">CIRCUIT <b>AGENT</b></div>
+    <div class="cn">AI 硬件自动化全流程合成引擎</div>
+    <div class="tagline">Prompt → Schematic → Layout → 3D Enclosure · 嘉立创 SMT 制造闭环</div>
+    <div class="chips"><span class="chip">CircuitBlocks DSL</span><span class="chip">LCSC Live BOM</span><span class="chip">KiCad 10.0</span><span class="chip">4-Layer PCB</span><span class="chip">Senior EE Gate</span><span class="chip">3D Shell</span></div>
+  </div>
+</div>
+<div class="foot"><span class="badge"><i></i>github.com/mo9652962-ai/circuit-agent</span><span>MIT · Zero Runtime Dependencies</span></div>
+</body></html>
