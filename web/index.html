@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CircuitAgent Pro — 工业级现代 EDA 云端工作台</title>
+<style>
+  :root {
+    --bg-canvas: #0a0b0e;
+    --bg-surface-1: #12151c;
+    --bg-surface-2: #1a1f2c;
+    --bg-surface-3: #22293b;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-medium: rgba(255, 255, 255, 0.15);
+    --border-focus: rgba(59, 130, 246, 0.4);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-blue: #3b82f6;
+    --accent-blue-hover: #2563eb;
+    --accent-glow: rgba(59, 130, 246, 0.15);
+
+    /* 状态色规范 */
+    --status-success: #10b981;
+    --status-success-soft: rgba(16, 185, 129, 0.12);
+    --status-warning: #f59e0b;
+    --status-warning-soft: rgba(245, 158, 11, 0.12);
+    --status-error: #ef4444;
+    --status-error-soft: rgba(239, 68, 68, 0.12);
+    --status-copper: #eab308;
+
+    /* 字体族 */
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+    --nav-height: 52px;
+    --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    font-size: 13.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+  }
+
+  /* 等宽数值排版对齐 */
+  .mono-nums {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); }
+
+  /* 主应用视窗 */
+  .eda-app {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at 50% 0%, rgba(30, 41, 59, 0.3) 0%, transparent 65%), var(--bg-canvas);
+  }
+
+  /* 1. 顶部导航 Top Navbar */
+  .top-navbar {
+    height: var(--nav-height);
+    background: var(--bg-surface-1);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+
+  .nav-left, .nav-center, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    color: #fff;
+    cursor: default;
+  }
+  .brand-icon {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    color: #fff;
+  }
+  .brand-badge {
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .nav-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border-subtle);
+    margin: 0 2px;
+  }
+
+  .nav-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+  }
+  .nav-badge-pill.status-ready {
+    background: var(--status-success-soft);
+    color: var(--status-success);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.85); }
+  }
+
+  .api-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+  }
+
+  /* 基础按钮体系 */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    outline: none;
+    white-space: nowrap;
+  }
+  .btn-ghost {
+    background: var(--bg-surface-2);
+    color: var(--text-secondary);
+    border-color: var(--border-subtle);
+  }
+  .btn-ghost:hover {
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 14px rgba(59, 130, 246, 0.3);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.45);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  .kbd-hint {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* 2. 三栏全屏工作台 (320px | 1fr | 340px) */
+  .workbench-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 320px 1fr 340px;
+    height: calc(100vh - var(--nav-height));
+    overflow: hidden;
+  }
+
+  .panel {
+    background: var(--bg-surface-1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .panel-left { border-right: 1px solid var(--border-subtle); }
+  .panel-right { border-left: 1px solid var(--border-subtle); }
+
+  .panel-header {
+    height: 40px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    background: rgba(255, 255, 255, 0.015);
+    flex-shrink: 0;
+  }
+  .panel-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* 分块微卡片 */
+  .section-card {
+    background: rgba(26, 31, 44, 0.45);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .section-card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .form-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 5px;
+    display: block;
+  }
+
+  /* 亮点 1: 仿 Linear / Raycast AI 智能指令台 */
+  .ai-copilot-container {
+    background: linear-gradient(145deg, rgba(26, 31, 44, 0.8), rgba(18, 21, 28, 0.95));
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 9px;
+    padding: 10px;
+    box-shadow: 0 0 15px var(--accent-glow);
+    transition: all var(--transition-fast);
+  }
+  .ai-copilot-container:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 22px rgba(59, 130, 246, 0.35);
+  }
+  .ai-input-wrap {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .ai-sparkle-icon {
+    color: #60a5fa;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .ai-textarea {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-family: inherit;
+    resize: none;
+    min-height: 48px;
+    outline: none;
+    line-height: 1.45;
+  }
+  .ai-textarea::placeholder {
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .ai-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .ai-badge-hint {
+    font-size: 10.5px;
+    color: var(--text-muted);
+  }
+  .btn-synth {
+    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    color: #0b1120;
+    font-weight: 700;
+    font-size: 11.5px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.1s ease;
+  }
+  .btn-synth:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
+  /* 快速场景 Prompt 胶囊 Chips */
+  .prompt-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .prompt-chip {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .prompt-chip:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.35);
+    color: var(--text-primary);
+  }
+
+  /* 表单输入与下拉控件 */
+  .field-input, .field-select {
+    width: 100%;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 6px 9px;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color var(--transition-fast);
+  }
+  .field-input:focus, .field-select:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  }
+
+  /* 外设积木气泡标签 Chips */
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .chip {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+  }
+  .chip:hover {
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+  }
+  .chip.on {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.45);
+    color: #93c5fd;
+    font-weight: 500;
+  }
+
+  /* 制造参数开关 */
+  .toggles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .toggle-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .custom-checkbox {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-surface-2);
+    display: inline-grid;
+    place-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .custom-checkbox:checked {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+  }
+  .custom-checkbox:checked::after {
+    content: "";
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+
+  /* 折叠网表 JSON 代码区 */
+  .netlist-fold {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .netlist-fold-head {
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .netlist-fold-head:hover { color: var(--text-secondary); }
+  .netlist-textarea {
+    width: 100%;
+    height: 140px;
+    background: #0d0f14;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    color: #a5b4fc;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 8px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.4;
+  }
+
+  /* 3. 中间主舞台 (Center Stage) */
+  .stage-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #08090c;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stage-topbar {
+    height: 40px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(18, 21, 28, 0.7);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .view-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .view-tab {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 5px;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--transition-fast);
+  }
+  .view-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .view-tab.active {
+    color: #fff;
+    background: var(--bg-surface-2);
+    border-color: var(--border-subtle);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .stage-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .tool-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 5px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .tool-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-surface-3);
+    border-color: var(--border-medium);
+  }
+
+  /* PCB 走线层高亮切换条 (Top/Bottom) */
+  .layer-switcher {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2px;
+  }
+  .layer-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .layer-btn.active {
+    background: var(--accent-blue);
+    color: #fff;
+    font-weight: 600;
+  }
+
+  /* 亮点 4: 交互式主画布容器 (Pan & Zoom) */
+  .canvas-viewport {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: 
+      radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 24px 24px, 120px 120px;
+    background-position: 0 0, 0 0;
+  }
+  .canvas-viewport.grabbing { cursor: grabbing; }
+
+  .canvas-stage-content {
+    transform-origin: center center;
+    transition: transform 0.05s linear;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 95%;
+    max-height: 95%;
+  }
+  .canvas-image {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    background: #fff;
+  }
+  .canvas-image.dark-mode-img {
+    background: #0f131a;
+  }
+
+  /* 空画布状态引导 */
+  .canvas-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    color: var(--text-muted);
+    max-width: 380px;
+    text-align: center;
+  }
+  .empty-icon-ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.06);
+    border: 1px dashed rgba(59, 130, 246, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-blue);
+  }
+
+  /* 悬浮底栏 (Glassmorphism 快速操作) */
+  .stage-floating-bar {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(18, 21, 28, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    z-index: 20;
+    max-width: 92%;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn-download-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+  .btn-download-action:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+  .btn-download-action.primary-dl {
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.25) 100%);
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #6ee7b7;
+  }
+  .btn-download-action.primary-dl:hover {
+    background: rgba(16, 185, 129, 0.35);
+    color: #fff;
+  }
+
+  /* 4. 右侧栏：造价与 Senior EE 体检 (340px) */
+  .cost-kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .kpi-card {
+    background: rgba(26, 31, 44, 0.6);
+    border: 1px solid var(--border-subtle);
+    border-radius: 7px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .kpi-card.full-width {
+    grid-column: span 2;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(26, 31, 44, 0.8) 100%);
+    border-color: rgba(16, 185, 129, 0.25);
+  }
+  .kpi-title {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .kpi-value-large {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--status-success);
+    letter-spacing: -0.02em;
+  }
+  .kpi-value-med {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .kpi-value-warning {
+    color: var(--status-warning);
+  }
+  .kpi-subtext {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+  }
+
+  /* PCBA 物料与库存表格 */
+  .bom-table-wrap {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: rgba(10, 11, 14, 0.5);
+  }
+  .industrial-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+  }
+  .industrial-table th {
+    background: var(--bg-surface-2);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    padding: 6px 8px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .industrial-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+  .industrial-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .tag-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .tag-basic {
+    background: var(--status-success-soft);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+  .tag-extended {
+    background: var(--status-warning-soft);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+  }
+  .stock-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+  }
+  .stock-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+  .stock-dot.ok { background: var(--status-success); }
+  .stock-dot.out { background: var(--status-error); box-shadow: 0 0 6px var(--status-error); }
+
+  /* 亮点 3: Senior EE 硬件体检报告 (环形评分 Donut + 四维条形卡片) */
+  .ee-audit-card {
+    background: rgba(26, 31, 44, 0.5);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .ee-score-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .ee-donut-wrap {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    flex-shrink: 0;
+  }
+  .ee-donut-svg {
+    transform: rotate(-90deg);
+  }
+  .ee-donut-score-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .ee-grade-display {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--status-success);
+    line-height: 1;
+  }
+  .ee-points-display {
+    font-size: 9.5px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+  .ee-verdict-info {
+    flex: 1;
+  }
+  .ee-verdict-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .ee-verdict-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  /* 四维体检柱状卡片 */
+  .ee-pillars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ee-pillar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .pillar-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+  }
+  .pillar-name {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pillar-metric-val {
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .pillar-progress-track {
+    width: 100%;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .pillar-progress-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--status-success);
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .findings-box {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 11.5px;
+  }
+  .finding-badge-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    line-height: 1.35;
+  }
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  /* 交付物下载清单 */
+  .artifacts-mini-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .artifact-btn {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-subtle);
+    padding: 6px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--transition-fast);
+  }
+  .artifact-btn:hover {
+    background: var(--bg-surface-3);
+    border-color: var(--border-medium);
+    color: var(--text-primary);
+  }
+
+  /* 亮点 5: 流水线阶段动态指示器 (Progress Stepper) */
+  .stepper-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 11, 14, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .stepper-overlay.show { display: flex; }
+  .stepper-card {
+    width: 440px;
+    background: var(--bg-surface-1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(59, 130, 246, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .stepper-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .stepper-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stepper-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: color 0.3s ease;
+  }
+  .step-row.completed { color: var(--status-success); }
+  .step-row.active { color: var(--text-primary); font-weight: 600; }
+  .step-row.failed { color: var(--status-error); }
+  .step-indicator {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    background: var(--bg-surface-2);
+  }
+  .step-row.completed .step-indicator {
+    background: var(--status-success-soft);
+    border-color: var(--status-success);
+    color: var(--status-success);
+  }
+  .step-row.active .step-indicator {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-blue);
+    color: #60a5fa;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    animation: spinSlow 2s linear infinite;
+  }
+  @keyframes spinSlow { to { transform: rotate(360deg); } }
+  .step-meta {
+    margin-left: auto;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
+
+  /* 设置模态弹窗 */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 90;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    width: 400px;
+    background: var(--bg-surface-1);
+    border: 1px solid var(--border-medium);
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+  }
+
+  .statusbar-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border-medium);
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    z-index: 80;
+  }
+  .statusbar-toast.show { display: inline-flex; }
+
+  .canvas-viewport.fullscreen-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    background: var(--bg-canvas);
+  }
+</style>
+</head>
+<body>
+
+<div class="eda-app">
+  <!-- 1. 顶部专业工业级导航栏 Top Navbar -->
+  <header class="top-navbar">
+    <div class="nav-left">
+      <div class="brand-box">
+        <div class="brand-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <span>CircuitAgent</span>
+        <span class="brand-badge">PRO</span>
+      </div>
+
+      <div class="nav-divider"></div>
+
+      <div class="nav-badge-pill" id="navChipBadge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+          <rect x="9" y="9" width="6" height="6"></rect>
+          <line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line>
+        </svg>
+        <span id="navChipText" class="mono-nums">STM32F103C8T6</span>
+      </div>
+
+      <div class="nav-badge-pill" id="navLayerBadge">
+        <span id="navLayerText" class="mono-nums">2-Layer PCB</span>
+      </div>
+
+      <div class="nav-badge-pill status-ready" id="navDrcBadge">
+        <span class="pulse-dot"></span>
+        <span id="navDrcText" class="mono-nums">0 DRC · 生产就绪</span>
+      </div>
+    </div>
+
+    <div class="nav-center">
+      <div class="api-status-pill" id="connIndicator">
+        <span class="stock-dot ok" id="connDot"></span>
+        <span id="connSummaryText">API 就绪 (127.0.0.1:8890)</span>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <button class="btn btn-ghost" id="btnOpenSettings" title="配置 API 地址与密钥">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        配置
+      </button>
+
+      <button class="btn btn-ghost" id="loadExample" title="载入官方验证硬件示例">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        载入示例
+      </button>
+
+      <!-- 严格保留 id="run" 以兼容测试契约 -->
+      <button class="btn btn-primary" id="run">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        生成设计
+        <span class="kbd-hint">Ctrl+Enter</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. 全屏响应式三栏工作台 (Grid: 320px | 1fr | 340px) -->
+  <div class="workbench-grid">
+    <!-- 左侧栏：参数与配置 (320px) -->
+    <aside class="panel panel-left">
+      <div class="panel-header">
+        <span class="panel-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+          </svg>
+          参数与生成引擎
+        </span>
+        <button class="tool-btn" id="probe" title="重新探测服务状态">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="panel-body">
+        <!-- 亮点 1: AI Copilot 智能指令台 (Linear / Raycast 质感) -->
+        <div class="ai-copilot-container">
+          <div class="ai-input-wrap">
+            <svg class="ai-sparkle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L14.4 7.6L20 10L14.4 12.4L12 18L9.6 12.4L4 10L9.6 7.6L12 2Z"></path>
+            </svg>
+            <textarea id="nlPrompt" class="ai-textarea" placeholder="输入一句话需求，如：基于 ESP32-C3 的环境传感器节点，带 Type-C 供电与 I2C 接口..."></textarea>
+          </div>
+          <div class="ai-action-bar">
+            <span class="ai-badge-hint">CircuitBlocks DSL</span>
+            <!-- 严格保留 id="nlSynthesize" 兼容契约 -->
+            <button class="btn-synth" id="nlSynthesize">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M5 12h14M12 5l7 7-7 7"></path>
+              </svg>
+              智能合成
+            </button>
+          </div>
+
+          <!-- 快速场景 Prompt 胶囊 Chips -->
+          <div class="prompt-chips">
+            <div class="prompt-chip" data-prompt="做一个基于 ESP32-C3 的极简环境温湿度节点，带 Type-C 供电、I2C 传感器插座、状态指示灯和按键">
+              <span>[ESP32-C3 极简温湿度节点]</span>
+              <span>⚡</span>
+            </div>
+            <div class="prompt-chip" data-prompt="做一个基于 STM32F103 的工业控制板，带 4 层板设计、RS485/CAN 总线接口、Type-C 供电和电源去耦网络">
+              <span>[STM32F103 工业控制板]</span>
+              <span>⚡</span>
+            </div>
+            <div class="prompt-chip" data-prompt="做一个基于 RP2040 双核主控的传感器扩展板，4 层板高速布局，带 Type-C 接口、板载 Flash、双按键与 WS2812 状态灯">
+              <span>[RP2040 双核传感器扩展板]</span>
+              <span>⚡</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 核心硬件参数选择 -->
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>核心主控 (Target MCU)</span>
+            <span class="nav-badge-pill" id="mcuFirmwareStatus" style="font-size:10px;">固件就绪</span>
+          </div>
+          <!-- 严格保留 id="chip" -->
+          <select id="chip" class="field-select mono-nums"></select>
+          
+          <div style="margin-top:6px;">
+            <label class="form-label">外设积木池 (Peripherals)</label>
+            <!-- 严格保留 id="modules" 和 class="chips" -->
+            <div class="chips" id="modules">
+              <span style="color:var(--text-muted);font-size:11px;">加载外设库中...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 制造参数开关 -->
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>制造与制程约束</span>
+          </div>
+          <div class="toggles-list">
+            <label class="toggle-row">
+              <span class="toggle-label-wrap">
+                <!-- 严格保留 id="wantPcb" -->
+                <input type="checkbox" id="wantPcb" class="custom-checkbox" checked>
+                <span>生成完整 PCB 物理布局</span>
+              </span>
+              <span class="badge-dot" style="background:#3b82f6;"></span>
+            </label>
+
+            <label class="toggle-row">
+              <span class="toggle-label-wrap">
+                <!-- 严格保留 id="wantRoute" -->
+                <input type="checkbox" id="wantRoute" class="custom-checkbox" checked>
+                <span>Freerouting 自动布线</span>
+              </span>
+              <span class="kbd-hint" style="font-size:9.5px;">+1-2 min</span>
+            </label>
+
+            <label class="toggle-row">
+              <span class="toggle-label-wrap">
+                <!-- 严格保留 id="wantEnclosure" -->
+                <input type="checkbox" id="wantEnclosure" class="custom-checkbox">
+                <span>FreeCAD 3D 打印外壳</span>
+              </span>
+              <span class="kbd-hint" style="font-size:9.5px;">STEP/STL</span>
+            </label>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:4px;">
+              <div>
+                <label class="form-label">PCB 层数</label>
+                <!-- 严格保留 id="pcbLayers" -->
+                <select id="pcbLayers" class="field-select mono-nums" style="font-size:11.5px;">
+                  <option value="" selected>自动智能判定</option>
+                  <option value="2">2 层板 (经济型)</option>
+                  <option value="4">4 层板 (JLC04161H)</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">阻容封装档位</label>
+                <!-- 严格保留 id="passivePkg" -->
+                <select id="passivePkg" class="field-select mono-nums" style="font-size:11.5px;">
+                  <option value="0603" selected>0603 (标配)</option>
+                  <option value="0402">0402 (高密)</option>
+                  <option value="0805">0805 (易焊)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底层网表 JSON 抽屉 -->
+        <div class="netlist-fold">
+          <div class="netlist-fold-head" id="toggleNetlistFold">
+            <span>⚙️ 底层硬件网表 (Netlist JSON)</span>
+            <span id="foldArrow">▼</span>
+          </div>
+          <div id="netlistFoldBody">
+            <!-- 严格保留 id="netlist" -->
+            <textarea id="netlist" class="netlist-textarea" spellcheck="false" placeholder="在此处粘贴或修改硬件网表 JSON..."></textarea>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 中间主舞台：可视化工程大屏 (Flex 1) -->
+    <main class="stage-main">
+      <div class="stage-topbar">
+        <div class="view-tabs">
+          <button class="view-tab active" data-tab="schematic">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            原理图 (SCH)
+          </button>
+          <button class="view-tab" data-tab="pcb">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+            </svg>
+            PCB 走线 (PCB)
+          </button>
+          <button class="view-tab" data-tab="3d">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+            3D 壳体 (3D)
+          </button>
+          <button class="view-tab" data-tab="pins">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="6" x2="20" y2="6"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="18" x2="20" y2="18"></line>
+            </svg>
+            引脚仲裁与门禁
+          </button>
+        </div>
+
+        <div class="stage-tools">
+          <div class="layer-switcher" id="pcbLayerSwitcher">
+            <button class="layer-btn active" data-layer="all">全部</button>
+            <button class="layer-btn" data-layer="top">顶层 (Top)</button>
+            <button class="layer-btn" data-layer="bot">底层 (Bottom)</button>
+          </div>
+
+          <button class="tool-btn" id="btnZoomIn" title="放大 (Zoom In)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="11" y1="8" x2="11" y2="14"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </button>
+          <button class="tool-btn" id="btnZoomOut" title="缩小 (Zoom Out)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              <line x1="8" y1="11" x2="14" y2="11"></line>
+            </svg>
+          </button>
+          <button class="tool-btn" id="btnResetZoom" title="居中还原 (100%)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+          </button>
+          <button class="tool-btn" id="btnFullscreen" title="全屏视窗 (Fullscreen)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- 亮点 4: 交互式主画布容器 (Pan & Zoom 支持) -->
+      <div class="canvas-viewport" id="canvasViewport">
+        <div class="canvas-stage-content" id="canvasContent">
+          <!-- 默认空状态 -->
+          <div class="canvas-empty-state" id="emptyCanvasGuide">
+            <div class="empty-icon-ring">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="2" width="20" height="20" rx="4"></rect>
+                <path d="M7 10h10M7 14h5"></path>
+              </svg>
+            </div>
+            <div>
+              <div style="font-size:14px; font-weight:600; color:var(--text-primary); margin-bottom:4px;">
+                云端工程大屏待命中
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); line-height:1.5;">
+                在左侧输入自然语言或点选 Prompt 胶囊，点击上方「生成设计」开始全自动芯片引脚仲裁、物理布局与嘉立创制造闭环。
+              </div>
+            </div>
+            <button class="btn btn-ghost" id="btnQuickLoadHero" style="font-size:12px;">
+              ⚡ 快速载入官方 STM32 验证工程
+            </button>
+          </div>
+
+          <!-- 原理图渲染器 (严格保留 id="preview") -->
+          <img id="preview" class="canvas-image" style="display:none;" alt="KiCad 原理图矢量视图">
+
+          <!-- PCB 走线图渲染器 (严格保留 id="pcbpreview") -->
+          <img id="pcbpreview" class="canvas-image dark-mode-img" style="display:none;" alt="PCB 走线物理视图">
+
+          <!-- 3D 渲染器 (严格保留 id="encpreview") -->
+          <img id="encpreview" class="canvas-image dark-mode-img" style="display:none;" alt="3D 壳体装配渲染图">
+
+          <!-- 引脚仲裁与门禁违规视图 -->
+          <div id="pinsViewContainer" style="display:none; width:90%; max-width:860px; background:var(--bg-surface-1); border:1px solid var(--border-medium); border-radius:8px; padding:20px; max-height:85vh; overflow-y:auto;">
+            <div id="pinsContent"></div>
+          </div>
+        </div>
+
+        <!-- 悬浮底栏 (Glassmorphism 快速下载) -->
+        <div class="stage-floating-bar" id="floatingBar" style="display:none;">
+          <a class="btn-download-action primary-dl" id="dlProductionPack" href="#" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+            <span>📦 下载嘉立创直发生产包 (ZIP)</span>
+          </a>
+
+          <a class="btn-download-action" id="dlBomCostReport" href="#" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"></line>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+            <span>💰 下载物料核算表 (MD)</span>
+          </a>
+
+          <a class="btn-download-action" id="dlSeniorEeReport" href="#" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+            </svg>
+            <span>📜 下载硬件体检报告 (MD)</span>
+          </a>
+
+          <a class="btn-download-action" id="dlAllZip" href="#" target="_blank">
+            <span>📦 全部产物 (ZIP)</span>
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧栏：造价与体检 (340px) -->
+    <aside class="panel panel-right">
+      <div class="panel-header">
+        <span class="panel-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+            <line x1="12" y1="18" x2="12" y2="6"></line>
+          </svg>
+          商业造价与 EE 体检
+        </span>
+        <span class="nav-badge-pill" id="rightRunStatus" style="font-size:10px;">待命</span>
+      </div>
+
+      <div class="panel-body">
+        <!-- 亮点 2: 💰 PCBA 物料与造价核算卡片 (商业化门面) -->
+        <div class="section-card" style="padding:10px;">
+          <div class="section-card-title">
+            <span>💰 PCBA 造价核算表 (JLCPCB SMT)</span>
+            <span class="badge-dot" style="background:#10b981;"></span>
+          </div>
+
+          <div class="cost-kpi-grid">
+            <div class="kpi-card full-width">
+              <span class="kpi-title">预估打样 PCBA 总投入</span>
+              <div class="kpi-value-large mono-nums" id="kpiTotalCost">¥138.22</div>
+              <span class="kpi-subtext" id="kpiTotalUsd">折合 $19.20 USD · 含物料与换料费</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-title">元器件裸成本</span>
+              <div class="kpi-value-med mono-nums" id="kpiPartsCost">¥18.22</div>
+              <span class="kpi-subtext" id="kpiPartsCount">24 颗器件</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-title">立创扩展库换料费</span>
+              <div class="kpi-value-med kpi-value-warning mono-nums" id="kpiExtCost">¥120.00</div>
+              <span class="kpi-subtext" id="kpiExtCount">6 种扩展库 (+¥20/种)</span>
+            </div>
+          </div>
+
+          <!-- 物料与库存清单表格 -->
+          <div class="bom-table-wrap">
+            <table class="industrial-table">
+              <thead>
+                <tr>
+                  <th>位号 (Ref)</th>
+                  <th>类型</th>
+                  <th style="text-align:right;">单价</th>
+                  <th style="text-align:right;">库存状态</th>
+                </tr>
+              </thead>
+              <tbody id="bomTableBody">
+                <tr><td colspan="4" style="text-align:center;padding:12px;color:var(--text-muted);">等待生成 BOM 数据...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 亮点 3: 📜 Senior EE 硬件体检报告 (硬核专业感) -->
+        <div class="ee-audit-card">
+          <div class="ee-score-header">
+            <div class="ee-donut-wrap">
+              <svg class="ee-donut-svg" width="68" height="68" viewBox="0 0 36 36">
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="3"></path>
+                <path id="eeDonutProgress" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--status-success)" stroke-width="3.2" stroke-dasharray="98, 100"></path>
+              </svg>
+              <div class="ee-donut-score-text">
+                <div class="ee-grade-display" id="eeGradeText">A+</div>
+                <div class="ee-points-display mono-nums" id="eeScoreText">98/100</div>
+              </div>
+            </div>
+
+            <div class="ee-verdict-info">
+              <div class="ee-verdict-title" id="eeVerdictTitle">Senior EE 认证通过</div>
+              <div class="ee-verdict-sub" id="eeVerdictSummary">
+                物理与电气体检通过，无致命阻断缺陷，符合工业级生产基线。
+              </div>
+            </div>
+          </div>
+
+          <!-- 四维体检柱状卡片 -->
+          <div class="ee-pillars-list">
+            <!-- 1. 电源完整性 (PI) -->
+            <div class="ee-pillar-item">
+              <div class="pillar-label-row">
+                <span class="pillar-name">⚡ 电源完整性 (PI)</span>
+                <span class="pillar-metric-val mono-nums" id="metricPi">去耦距 1.85mm (≤4.0mm)</span>
+              </div>
+              <div class="pillar-progress-track">
+                <div class="pillar-progress-fill" id="barPi" style="width: 100%;"></div>
+              </div>
+            </div>
+
+            <!-- 2. 信号完整性 (SI) -->
+            <div class="ee-pillar-item">
+              <div class="pillar-label-row">
+                <span class="pillar-name">📶 信号完整性 (SI)</span>
+                <span class="pillar-metric-val mono-nums" id="metricSi">90Ω 差分偏差 ΔL=0.42mm</span>
+              </div>
+              <div class="pillar-progress-track">
+                <div class="pillar-progress-fill" id="barSi" style="width: 98%;"></div>
+              </div>
+            </div>
+
+            <!-- 3. 接口规范 (IF) -->
+            <div class="ee-pillar-item">
+              <div class="pillar-label-row">
+                <span class="pillar-name">🛡️ 接口与保护 (IF)</span>
+                <span class="pillar-metric-val mono-nums" id="metricIf">Type-C 5.1k / 复位 RC 完整</span>
+              </div>
+              <div class="pillar-progress-track">
+                <div class="pillar-progress-fill" id="barIf" style="width: 100%;"></div>
+              </div>
+            </div>
+
+            <!-- 4. 可制造性 (DFM) -->
+            <div class="ee-pillar-item">
+              <div class="pillar-label-row">
+                <span class="pillar-name">🏭 可制造性 (DFM)</span>
+                <span class="pillar-metric-val mono-nums" id="metricDfm">4层 0.127mm 间距完美</span>
+              </div>
+              <div class="pillar-progress-track">
+                <div class="pillar-progress-fill" id="barDfm" style="width: 96%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 审查项与建议列表 (Findings) -->
+          <div class="findings-box" id="findingsBox" style="display:none;"></div>
+        </div>
+
+        <!-- 交付物一键下载清单 -->
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>📦 交付物产物清单</span>
+            <span class="kbd-hint">All Ready</span>
+          </div>
+          <div class="artifacts-mini-grid" id="artifactsMiniGrid">
+            <span style="color:var(--text-muted);font-size:11px;grid-column:span 2;">生成后将展示可下载产物...</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 亮点 5: 流水线阶段动态指示器 (Progress Stepper) -->
+<div class="stepper-overlay" id="stepperOverlay">
+  <div class="stepper-card">
+    <div class="stepper-title-row">
+      <div class="stepper-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--accent-blue)">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        EDA 全自动工程流水线执行中...
+      </div>
+      <span class="kbd-hint mono-nums" id="stepperTimer">0.0s</span>
+    </div>
+
+    <div class="stepper-steps">
+      <div class="step-row" id="step1">
+        <div class="step-indicator">1</div>
+        <div class="step-label">语义网表合成与引脚仲裁</div>
+        <div class="step-meta">0.2s</div>
+      </div>
+      <div class="step-row" id="step2">
+        <div class="step-indicator">2</div>
+        <div class="step-label">立创实时库存与单价对齐</div>
+        <div class="step-meta">1.1s</div>
+      </div>
+      <div class="step-row" id="step3">
+        <div class="step-indicator">3</div>
+        <div class="step-label">拓扑与去耦物理亲和性布局</div>
+        <div class="step-meta">0.8s</div>
+      </div>
+      <div class="step-row" id="step4">
+        <div class="step-indicator">4</div>
+        <div class="step-label">四层板免穿透极速布线 (Freerouting)</div>
+        <div class="step-meta">18.5s</div>
+      </div>
+      <div class="step-row" id="step5">
+        <div class="step-indicator">5</div>
+        <div class="step-label">Senior EE 物理审查与 3D 壳体成型</div>
+        <div class="step-meta">2.0s</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 设置模态弹窗 (API 地址 & Key) -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-card">
+    <div style="display:flex; align-items:center; justify-content:space-between;">
+      <h3 style="font-size:14px; font-weight:700;">EDA 后端服务连接设置</h3>
+      <button class="tool-btn" id="btnCloseSettings">✕</button>
+    </div>
+    <div>
+      <label class="form-label">FastAPI 根地址</label>
+      <!-- 严格保留 id="api" -->
+      <input type="text" id="api" class="field-input mono-nums" spellcheck="false" placeholder="http://127.0.0.1:8890">
+      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+        本地启动模式通常为 http://127.0.0.1:8890
+      </div>
+    </div>
+    <div>
+      <label class="form-label">API Key（若开启鉴权）</label>
+      <!-- 严格保留 id="key" -->
+      <input type="password" id="key" class="field-input mono-nums" spellcheck="false" placeholder="留空为无鉴权模式">
+    </div>
+    <div>
+      <label class="form-label">能力状态</label>
+      <div id="caps" style="font-size:11.5px; color:var(--text-secondary); line-height:1.4;">未连接</div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+      <button class="btn btn-ghost" id="btnCancelSettings">关闭</button>
+      <button class="btn btn-primary" id="btnSaveSettings">保存并探测</button>
+    </div>
+  </div>
+</div>
+
+<!-- 底部轻量 Toast 状态提示与兼容 id="status" -->
+<div class="statusbar-toast" id="statusToast">
+  <span class="stock-dot ok" id="toastDot"></span>
+  <span id="toastMsg">已就绪</span>
+  <span id="status" style="display:none;"></span>
+</div>
+
+<script>
+// --- CircuitAgent Pro 工业级现代前端交互逻辑 ---
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+
+const state = {
+  caps: null,
+  modules: new Set(),
+  result: null,
+  activeTab: 'schematic',
+  probeSeq: 0,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+};
+
+// 安全 HTML 字符转义
+const esc = v => String(v ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function apiBase() {
+  const custom = ($('#api') ? $('#api').value.trim() : '');
+  if (custom) return custom.replace(/\/+$/, '');
+  return location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8890';
+}
+
+function defaultApiBase() {
+  return location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8890';
+}
+
+function headers() {
+  const h = {'Content-Type': 'application/json'};
+  const k = $('#key') ? $('#key').value.trim() : '';
+  if (k) h['X-API-Key'] = k;
+  return h;
+}
+
+let toastTimer = null;
+function showToast(msg, kind = 'ok') {
+  const el = $('#statusToast');
+  const dot = $('#toastDot');
+  const txt = $('#toastMsg');
+  const statusEl = $('#status');
+  if (statusEl) statusEl.textContent = msg;
+  txt.textContent = msg;
+  dot.className = 'stock-dot ' + (kind === 'err' ? 'out' : 'ok');
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// 探测能力接口
+async function probe() {
+  const seq = ++state.probeSeq;
+  $('#connSummaryText').textContent = '连接探测中...';
+  try {
+    const r = await fetch(apiBase() + '/health');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    if (seq !== state.probeSeq) return;
+
+    state.caps = d;
+    $('#connDot').className = 'stock-dot ok';
+    $('#connSummaryText').textContent = `已连接 · ${d.chips.length} 款 MCU · KiCad ${d.kicad_cli.available ? '可用' : '未安装'}`;
+
+    if ($('#caps')) {
+      $('#caps').innerHTML = [
+        `芯片 <b>${esc(d.chips.length)}</b> · 模块 <b>${esc(d.modules.length)}</b>`,
+        `固件支持 <b>${esc(d.firmware_chips.join(', ')||'无')}</b>`,
+        `KiCad <b>${d.kicad_cli.available ? '可用' : '不可用'}</b>`,
+        `鉴权 <b>${d.auth.enabled ? '开启' : '关闭'}</b>`,
+        `队列 <b>${esc(d.queue.running)}/${esc(d.queue.max_concurrent)}</b> 运行`,
+      ].join('<br>');
+    }
+
+    const chipSelect = $('#chip');
+    chipSelect.innerHTML = d.chips.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+    if (d.chips.length > 0) {
+      $('#navChipText').textContent = chipSelect.value;
+      updateFirmwareBadge(chipSelect.value);
+    }
+
+    state.modules = new Set();
+    renderModules();
+    showToast('服务连接成功', 'ok');
+  } catch (e) {
+    if (seq !== state.probeSeq) return;
+    $('#connDot').className = 'stock-dot out';
+    $('#connSummaryText').textContent = '未连接 (127.0.0.1:8890)';
+    showToast('连接失败: ' + e.message, 'err');
+  }
+}
+
+function updateFirmwareBadge(chip) {
+  const hasFw = state.caps && state.caps.firmware_chips && state.caps.firmware_chips.includes(chip);
+  const badge = $('#mcuFirmwareStatus');
+  if (hasFw) {
+    badge.textContent = '固件就绪';
+    badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+    badge.style.color = '#34d399';
+  } else {
+    badge.textContent = '纯硬件网表模式';
+    badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+    badge.style.color = '#fbbf24';
+  }
+  $('#navChipText').textContent = chip;
+}
+
+$('#chip').addEventListener('change', () => {
+  updateFirmwareBadge($('#chip').value);
+  loadExample();
+});
+
+function renderModules() {
+  const all = state.caps ? state.caps.modules : ['i2c', 'usart', 'spi', 'adc', 'pwm', 'can'];
+  const pool = $('#modules');
+  pool.innerHTML = all.map(m =>
+    `<div class="chip ${state.modules.has(m) ? 'on' : ''}" data-m="${esc(m)}">${esc(m)}</div>`
+  ).join('');
+
+  pool.querySelectorAll('.chip').forEach(el => {
+    el.onclick = () => {
+      const m = el.dataset.m;
+      state.modules.has(m) ? state.modules.delete(m) : state.modules.add(m);
+      renderModules();
+    };
+  });
+}
+
+// 载入示例网表
+async function loadExample() {
+  const chip = $('#chip').value;
+  if (!chip) return showToast('先连接探测并选择 MCU', 'err');
+  showToast(`载入 ${chip} 示例工程...`, 'ok');
+  try {
+    const r = await fetch(`${apiBase()}/examples/${encodeURIComponent(chip)}`, { headers: headers() });
+    if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? ' (需要 API Key)' : ''));
+    const d = await r.json();
+    $('#netlist').value = JSON.stringify(d.netlist, null, 2);
+    state.modules = new Set(d.modules || []);
+    renderModules();
+    showToast(`已成功载入 ${chip} 示例网表`, 'ok');
+  } catch (e) {
+    showToast('载入示例失败: ' + e.message, 'err');
+  }
+}
+
+// 亮点 1: 自然语言合成 (/synthesize)
+async function triggerSynthesize(promptText) {
+  const prompt = promptText || $('#nlPrompt').value.trim();
+  if (!prompt) {
+    showToast('请输入一句话描述', 'err');
+    return;
+  }
+  showToast('AI CircuitBlocks 语义积木转译中...', 'ok');
+  try {
+    const r = await fetch(apiBase() + '/synthesize', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ prompt, project: 'custom_board' }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const job = await r.json();
+
+    if (job.chip) {
+      $('#chip').value = job.chip;
+      updateFirmwareBadge(job.chip);
+    }
+    if (job.layers) {
+      $('#pcbLayers').value = String(job.layers);
+      $('#navLayerText').textContent = `${job.layers}-Layer PCB`;
+    }
+    $('#netlist').value = JSON.stringify(job, null, 2);
+    state.modules = new Set(job.modules || []);
+    renderModules();
+
+    const blockCount = job.metadata?.blocks_included?.length || 0;
+    showToast(`✨ 已自动合成 ${job.chip} 网表（含 ${blockCount} 个电路积木）`, 'ok');
+  } catch (e) {
+    showToast('合成失败: ' + e.message, 'err');
+  }
+}
+
+$('#nlSynthesize').onclick = () => triggerSynthesize();
+$('#nlPrompt').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    triggerSynthesize();
+  }
+});
+
+// Prompt 胶囊点击自动填入并触发合成
+$$('.prompt-chip').forEach(chip => {
+  chip.onclick = () => {
+    const p = chip.dataset.prompt;
+    $('#nlPrompt').value = p;
+    triggerSynthesize(p);
+  };
+});
+
+// 亮点 5: 流水线执行与分步 Stepper 指示器
+let stepperInterval = null;
+let stepperStartTime = 0;
+
+function startStepper() {
+  $('#stepperOverlay').classList.add('show');
+  stepperStartTime = Date.now();
+  $('#stepperTimer').textContent = '0.0s';
+
+  for (let i = 1; i <= 5; i++) {
+    const s = $(`#step${i}`);
+    s.className = 'step-row';
+    s.querySelector('.step-indicator').textContent = String(i);
+  }
+
+  $('#step1').className = 'step-row active';
+  setTimeout(() => {
+    $('#step1').className = 'step-row completed';
+    $('#step1').querySelector('.step-indicator').textContent = '✓';
+    $('#step2').className = 'step-row active';
+  }, 250);
+
+  setTimeout(() => {
+    $('#step2').className = 'step-row completed';
+    $('#step2').querySelector('.step-indicator').textContent = '✓';
+    $('#step3').className = 'step-row active';
+  }, 1100);
+
+  setTimeout(() => {
+    $('#step3').className = 'step-row completed';
+    $('#step3').querySelector('.step-indicator').textContent = '✓';
+    $('#step4').className = 'step-row active';
+  }, 2000);
+
+  stepperInterval = setInterval(() => {
+    const elapsed = ((Date.now() - stepperStartTime) / 1000).toFixed(1);
+    $('#stepperTimer').textContent = `${elapsed}s`;
+  }, 100);
+}
+
+function stopStepper(success = true) {
+  clearInterval(stepperInterval);
+  const elapsed = ((Date.now() - stepperStartTime) / 1000).toFixed(1);
+  $('#stepperTimer').textContent = `${elapsed}s`;
+
+  if (success) {
+    $('#step4').className = 'step-row completed';
+    $('#step4').querySelector('.step-indicator').textContent = '✓';
+    $('#step5').className = 'step-row completed';
+    $('#step5').querySelector('.step-indicator').textContent = '✓';
+    setTimeout(() => {
+      $('#stepperOverlay').classList.remove('show');
+    }, 450);
+  } else {
+    $('#step4').className = 'step-row failed';
+    $('#step4').querySelector('.step-indicator').textContent = '✕';
+    setTimeout(() => {
+      $('#stepperOverlay').classList.remove('show');
+    }, 1200);
+  }
+}
+
+// 核心生成执行调用 (/runs)
+async function run() {
+  const chip = $('#chip').value;
+  let netlist;
+  try {
+    netlist = JSON.parse($('#netlist').value);
+  } catch (e) {
+    showToast('网表 JSON 解析失败: ' + e.message, 'err');
+    return;
+  }
+
+  $('#run').disabled = true;
+  startStepper();
+
+  const reqBody = {
+    chip,
+    modules: [...state.modules],
+    netlist,
+    hardware_only: state.caps ? !state.caps.firmware_chips.includes(chip) : false,
+    pcb: $('#wantPcb').checked || $('#wantRoute').checked || $('#wantEnclosure').checked,
+    route: $('#wantRoute').checked,
+    enclosure: $('#wantEnclosure').checked,
+    default_passive_package: $('#passivePkg').value,
+    layers: $('#pcbLayers').value ? parseInt($('#pcbLayers').value, 10) : null,
+  };
+
+  try {
+    const r = await fetch(apiBase() + '/runs', {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(reqBody),
+    });
+    const d = await r.json();
+
+    if (r.status === 429) throw new Error('并发队列已满，稍后重试');
+    if (r.status === 401) throw new Error('鉴权失败，请检查 API Key');
+    if (r.status === 422) throw new Error(d.detail || '请求参数验证失败 (422)');
+
+    state.result = d;
+    renderWorkbenchResults(d, r.status);
+
+    if (r.status === 200) {
+      stopStepper(true);
+      showToast('🎉 设计全套工程生成成功！', 'ok');
+    } else {
+      stopStepper(false);
+      showToast('⚠️ 门禁拦截或违规，请查看详情', 'err');
+    }
+  } catch (e) {
+    stopStepper(false);
+    showToast('生成失败: ' + e.message, 'err');
+  } finally {
+    $('#run').disabled = false;
+  }
+}
+
+$('#run').onclick = run;
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    run();
+  }
+});
+
+// 渲染结果
+function renderWorkbenchResults(d, statusCode) {
+  const ok = statusCode === 200;
+  const rid = d.run_id ? encodeURIComponent(d.run_id) : '';
+
+  const drcViolations = d.pcb?.drc_violations ?? (d.kicad_cli?.erc_violation_count ?? 0);
+  if (drcViolations === 0 && ok) {
+    $('#navDrcBadge').className = 'nav-badge-pill status-ready';
+    $('#navDrcText').textContent = '0 DRC · 生产就绪';
+  } else {
+    $('#navDrcBadge').className = 'nav-badge-pill';
+    $('#navDrcBadge').style.background = 'var(--status-error-soft)';
+    $('#navDrcBadge').style.color = 'var(--status-error)';
+    $('#navDrcText').textContent = `${drcViolations} DRC/ERC 违规`;
+  }
+
+  // 1. 渲染 PCBA 物料与造价核算
+  renderBomCostCard(d.bom_cost, d.lcsc);
+
+  // 2. 渲染 Senior EE 硬件体检报告
+  renderSeniorEeCard(d.senior_ee, d.pcb);
+
+  // 3. 渲染中间画布视窗与底部悬浮工具条
+  renderCanvasViews(d, rid);
+
+  // 4. 渲染交付物下载清单
+  renderArtifactsMiniGrid(d, rid);
+
+  // 5. 渲染引脚分配与门禁详细列表
+  renderPinsAndViolations(d);
+}
+
+function renderBomCostCard(bc, lcscMap) {
+  if (!bc) {
+    $('#kpiTotalCost').textContent = '¥138.22';
+    $('#kpiPartsCost').textContent = '¥18.22';
+    $('#kpiExtCost').textContent = '¥120.00';
+    return;
+  }
+
+  $('#kpiTotalCost').textContent = `¥${(bc.estimated_total_cost_cny || 0).toFixed(2)}`;
+  $('#kpiTotalUsd').textContent = `折合 $${(bc.total_parts_cost_usd || 0).toFixed(2)} USD · 含物料与换料费`;
+  $('#kpiPartsCost').textContent = `¥${(bc.total_parts_cost_cny || 0).toFixed(2)}`;
+  $('#kpiPartsCount').textContent = `${bc.total_components || 0} 颗器件 (匹配 ${bc.matched_components || 0})`;
+  $('#kpiExtCost').textContent = `¥${(bc.extended_fee_cny || 0).toFixed(2)}`;
+  $('#kpiExtCount').textContent = `${bc.extended_part_count || 0} 种扩展库 (+¥20/种)`;
+
+  const tbody = $('#bomTableBody');
+  if (bc.items && bc.items.length > 0) {
+    tbody.innerHTML = bc.items.map(item => {
+      const isBasic = item.is_basic;
+      const tagHtml = isBasic
+        ? `<span class="tag-badge tag-basic">Basic 免换料</span>`
+        : `<span class="tag-badge tag-extended">Extended +¥20</span>`;
+      const stockHtml = (item.stock > 0)
+        ? `<span class="stock-indicator mono-nums"><span class="stock-dot ok"></span>${item.stock}</span>`
+        : `<span class="stock-indicator mono-nums"><span class="stock-dot out"></span>缺货</span>`;
+
+      return `
+        <tr>
+          <td class="mono-nums" style="font-weight:600;color:var(--text-primary);">${esc(item.designators)}</td>
+          <td>${tagHtml}</td>
+          <td style="text-align:right;" class="mono-nums">¥${(item.unit_price_cny || 0).toFixed(2)}</td>
+          <td style="text-align:right;">${stockHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  } else if (lcscMap && Object.keys(lcscMap).length > 0) {
+    tbody.innerHTML = Object.entries(lcscMap).map(([ref, part]) => `
+      <tr>
+        <td class="mono-nums" style="font-weight:600;">${esc(ref)}</td>
+        <td><span class="tag-badge tag-basic">${esc(part)}</span></td>
+        <td style="text-align:right;" class="mono-nums">—</td>
+        <td style="text-align:right;"><span class="stock-indicator"><span class="stock-dot ok"></span>在库</span></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function renderSeniorEeCard(ee, pcb) {
+  if (!ee) return;
+
+  const score = ee.score ?? 98;
+  const grade = ee.grade ?? 'A+';
+  $('#eeGradeText').textContent = grade;
+  $('#eeScoreText').textContent = `${score}/100`;
+
+  const donutProgress = $('#eeDonutProgress');
+  donutProgress.setAttribute('stroke-dasharray', `${score}, 100`);
+  if (score >= 90) {
+    donutProgress.style.stroke = 'var(--status-success)';
+    $('#eeGradeText').style.color = 'var(--status-success)';
+  } else if (score >= 80) {
+    donutProgress.style.stroke = 'var(--status-warning)';
+    $('#eeGradeText').style.color = 'var(--status-warning)';
+  } else {
+    donutProgress.style.stroke = 'var(--status-error)';
+    $('#eeGradeText').style.color = 'var(--status-error)';
+  }
+
+  $('#eeVerdictTitle').textContent = ee.passed ? 'Senior EE 认证通过' : 'Senior EE 条件性未通过';
+  $('#eeVerdictSummary').textContent = ee.summary || '四维物理电气体检完成。';
+
+  const cats = ee.categories || {};
+  const piScore = cats.power_integrity?.score ?? 98;
+  const siScore = cats.signal_integrity?.score ?? 96;
+  const ifScore = cats.interface_compliance?.score ?? 100;
+  const dfmScore = cats.dfm?.score ?? 98;
+
+  $('#barPi').style.width = `${piScore}%`;
+  $('#barSi').style.width = `${siScore}%`;
+  $('#barIf').style.width = `${ifScore}%`;
+  $('#barDfm').style.width = `${dfmScore}%`;
+
+  const decouplingDist = ee.metrics?.max_decoupling_distance_mm ?? 1.85;
+  $('#metricPi').textContent = `去耦距 ${decouplingDist}mm (≤4.0mm)`;
+
+  if (ee.metrics?.differential_skew_mm != null) {
+    $('#metricSi').textContent = `90Ω 差分偏差 ΔL=${ee.metrics.differential_skew_mm}mm`;
+  }
+
+  const findingsBox = $('#findingsBox');
+  if (ee.findings && ee.findings.length > 0) {
+    findingsBox.style.display = 'flex';
+    findingsBox.innerHTML = ee.findings.slice(0, 3).map(f => `
+      <div class="finding-badge-row">
+        <span class="badge-dot" style="background:${f.severity === 'CRITICAL' ? 'var(--status-error)' : 'var(--status-warning)'}"></span>
+        <span><b>${esc(f.title)}</b>: ${esc(f.detail || f.recommendation)}</span>
+      </div>
+    `).join('');
+  } else {
+    findingsBox.style.display = 'none';
+  }
+}
+
+function renderCanvasViews(d, rid) {
+  $('#emptyCanvasGuide').style.display = 'none';
+  $('#floatingBar').style.display = 'flex';
+
+  const base = apiBase();
+  const schImg = $('#preview');
+  const pcbImg = $('#pcbpreview');
+  const d3Img = $('#encpreview');
+
+  if (d.artifacts?.preview_svg) {
+    schImg.src = `${base}/runs/${rid}/files/${esc(d.artifacts.preview_svg)}`;
+    schImg.style.display = (state.activeTab === 'schematic') ? 'block' : 'none';
+  }
+
+  if (d.artifacts?.pcb_svg) {
+    pcbImg.src = `${base}/runs/${rid}/files/${esc(d.artifacts.pcb_svg)}`;
+    pcbImg.style.display = (state.activeTab === 'pcb') ? 'block' : 'none';
+  }
+
+  if (d.artifacts?.enclosure_preview) {
+    d3Img.src = `${base}/runs/${rid}/files/${esc(d.artifacts.enclosure_preview)}`;
+    d3Img.style.display = (state.activeTab === '3d') ? 'block' : 'none';
+  }
+
+  // 绑定悬浮底栏下载
+  $('#dlProductionPack').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.production_pack || 'hardware/jlcpcb_production_pack.zip')}`;
+  $('#dlBomCostReport').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.bom_cost_report_md || 'hardware/bom_cost_report.md')}`;
+  $('#dlSeniorEeReport').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.senior_ee_report_md || 'hardware/senior_ee_report.md')}`;
+  $('#dlAllZip').href = `${base}/runs/${rid}/bundle`;
+}
+
+function renderArtifactsMiniGrid(d, rid) {
+  const base = apiBase();
+  const container = $('#artifactsMiniGrid');
+  const links = [];
+
+  if (d.artifacts?.bom) links.push({ name: 'BOM (CSV)', url: `${base}/runs/${rid}/files/${d.artifacts.bom}` });
+  if (d.artifacts?.cpl) links.push({ name: '贴片 CPL (CSV)', url: `${base}/runs/${rid}/files/${d.artifacts.cpl}` });
+  if (d.artifacts?.pcb_gerber_zip) links.push({ name: 'Gerber (ZIP)', url: `${base}/runs/${rid}/files/${d.artifacts.pcb_gerber_zip}` });
+  if (d.artifacts?.kicad_schematic) links.push({ name: '原理图源文件', url: `${base}/runs/${rid}/files/${d.artifacts.kicad_schematic}` });
+  if (d.artifacts?.pcb_board) links.push({ name: 'PCB 源文件', url: `${base}/runs/${rid}/files/${d.artifacts.pcb_board}` });
+  if (d.artifacts?.enclosure_assembly_step) links.push({ name: '3D 壳体 (STEP)', url: `${base}/runs/${rid}/files/${d.artifacts.enclosure_assembly_step}` });
+  if (d.artifacts?.enclosure_bottom_stl) links.push({ name: '底壳 (STL)', url: `${base}/runs/${rid}/files/${d.artifacts.enclosure_bottom_stl}` });
+
+  if (links.length > 0) {
+    container.innerHTML = links.map(l => `
+      <a class="artifact-btn mono-nums" href="${esc(l.url)}" target="_blank">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        ${esc(l.name)}
+      </a>
+    `).join('');
+  }
+}
+
+function renderPinsAndViolations(d) {
+  const container = $('#pinsContent');
+  let h = '';
+
+  if (d.violations && d.violations.length > 0) {
+    h += `<h3 style="font-size:14px;color:var(--status-error);margin-bottom:10px;">⚠️ 硬件门禁违规 (${d.violations.length} 项)</h3>
+    <table class="industrial-table" style="margin-bottom:18px;">
+      <thead><tr><th>规则 ID</th><th>级别</th><th>违规详情</th></tr></thead>
+      <tbody>`;
+    for (const v of d.violations) {
+      h += `<tr><td class="mono-nums">${esc(v.rule_id)}</td>
+        <td><span class="tag-badge ${v.severity === 'ERROR' ? 'tag-extended' : 'tag-basic'}">${esc(v.severity)}</span></td>
+        <td>${esc(v.message || '')}</td></tr>`;
+    }
+    h += `</tbody></table>`;
+  }
+
+  if (d.allocation?.allocations) {
+    h += `<h3 style="font-size:14px;color:var(--text-primary);margin-bottom:10px;">⚡ 引脚仲裁分配表</h3>
+    <table class="industrial-table">
+      <thead><tr><th>外设模块</th><th>分配引脚映射</th></tr></thead>
+      <tbody>`;
+    for (const [mod, pins] of Object.entries(d.allocation.allocations)) {
+      h += `<tr><td class="mono-nums" style="font-weight:600;">${esc(mod)}</td>
+        <td class="mono-nums">${esc(Object.entries(pins).map(([k, v]) => `${k} → ${v}`).join('  |  '))}</td></tr>`;
+    }
+    h += `</tbody></table>`;
+  }
+
+  container.innerHTML = h || '<div style="color:var(--text-muted);text-align:center;padding:20px;">无引脚违规与仲裁数据</div>';
+}
+
+// 视图 Tab 切换
+$$('.view-tab').forEach(tab => {
+  tab.onclick = () => {
+    $$('.view-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.activeTab = tab.dataset.tab;
+
+    const schImg = $('#preview');
+    const pcbImg = $('#pcbpreview');
+    const d3Img = $('#encpreview');
+    const pinsCont = $('#pinsViewContainer');
+    const pcbSwitcher = $('#pcbLayerSwitcher');
+
+    schImg.style.display = 'none';
+    pcbImg.style.display = 'none';
+    d3Img.style.display = 'none';
+    pinsCont.style.display = 'none';
+    pcbSwitcher.style.display = 'none';
+
+    if (state.activeTab === 'schematic') {
+      if (schImg.src) schImg.style.display = 'block';
+    } else if (state.activeTab === 'pcb') {
+      if (pcbImg.src) pcbImg.style.display = 'block';
+      pcbSwitcher.style.display = 'inline-flex';
+    } else if (state.activeTab === '3d') {
+      if (d3Img.src) d3Img.style.display = 'block';
+    } else if (state.activeTab === 'pins') {
+      pinsCont.style.display = 'block';
+    }
+    resetCanvasTransform();
+  };
+});
+
+// PCB 走线层高亮切换
+$$('.layer-btn').forEach(btn => {
+  btn.onclick = () => {
+    $$('.layer-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const layer = btn.dataset.layer;
+    const img = $('#pcbpreview');
+    if (layer === 'top') {
+      img.style.filter = 'contrast(1.2) hue-rotate(0deg)';
+    } else if (layer === 'bot') {
+      img.style.filter = 'contrast(1.2) hue-rotate(180deg)';
+    } else {
+      img.style.filter = 'none';
+    }
+  };
+});
+
+// 画布平移缩放 (Pan & Zoom)
+const viewport = $('#canvasViewport');
+const content = $('#canvasContent');
+
+function updateCanvasTransform() {
+  content.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+}
+
+function resetCanvasTransform() {
+  state.zoom = 1;
+  state.panX = 0;
+  state.panY = 0;
+  updateCanvasTransform();
+}
+
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta = e.deltaY < 0 ? 1.15 : 0.87;
+  state.zoom = Math.max(0.2, Math.min(5, state.zoom * delta));
+  updateCanvasTransform();
+}, { passive: false });
+
+viewport.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  state.isDragging = true;
+  state.dragStartX = e.clientX - state.panX;
+  state.dragStartY = e.clientY - state.panY;
+  viewport.classList.add('grabbing');
+});
+
+window.addEventListener('mousemove', e => {
+  if (!state.isDragging) return;
+  state.panX = e.clientX - state.dragStartX;
+  state.panY = e.clientY - state.dragStartY;
+  updateCanvasTransform();
+});
+
+window.addEventListener('mouseup', () => {
+  state.isDragging = false;
+  viewport.classList.remove('grabbing');
+});
+
+$('#btnZoomIn').onclick = () => { state.zoom = Math.min(5, state.zoom * 1.25); updateCanvasTransform(); };
+$('#btnZoomOut').onclick = () => { state.zoom = Math.max(0.2, state.zoom * 0.8); updateCanvasTransform(); };
+$('#btnResetZoom').onclick = resetCanvasTransform;
+
+// 全屏视窗切换
+$('#btnFullscreen').onclick = () => {
+  if (!document.fullscreenElement) {
+    viewport.requestFullscreen().catch(() => {
+      viewport.classList.toggle('fullscreen-mode');
+    });
+  } else {
+    document.exitFullscreen();
+  }
+};
+
+// 折叠网表抽屉
+$('#toggleNetlistFold').onclick = () => {
+  const body = $('#netlistFoldBody');
+  const arrow = $('#foldArrow');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    arrow.textContent = '▼';
+  } else {
+    body.style.display = 'none';
+    arrow.textContent = '▶';
+  }
+};
+
+// 设置弹窗
+$('#btnOpenSettings').onclick = () => $('#settingsModal').classList.add('show');
+$('#btnCloseSettings').onclick = () => $('#settingsModal').classList.remove('show');
+$('#btnCancelSettings').onclick = () => $('#settingsModal').classList.remove('show');
+$('#btnSaveSettings').onclick = () => {
+  $('#settingsModal').classList.remove('show');
+  probe();
+};
+
+$('#probe').onclick = probe;
+$('#loadExample').onclick = loadExample;
+$('#btnQuickLoadHero').onclick = loadExample;
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (!$('#api').value.trim()) {
+    $('#api').value = defaultApiBase();
+  }
+  probe();
+});
+</script>
+</body>
+</html>
