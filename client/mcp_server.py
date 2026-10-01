@@ -1,16 +1,40 @@
 """Standard Model Context Protocol (MCP) Server for CircuitAgent (Community Edition).
 
+Fully compliant with the Anthropic Model Context Protocol (2024-11-05 / 2026-07-28 specifications).
+Provides the complete MCP Triad:
+    1. Tools (6 engineering tools):
+       - synthesize_circuit: Prompt to deterministic hardware netlist & modules
+       - search_lcsc_parts: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging
+       - list_circuit_blocks: Query all 10 pre-audited CircuitBlocks in the hardware DSL
+       - validate_netlist: JSON Schema verification against Draft-07 specification
+       - calculate_trace_impedance: Closed-form IPC-2141 microstrip & differential pair impedance solver
+       - calculate_bom_cost: PCBA cost estimator calculating bare parts + JLCPCB feeder surcharge
+    2. Resources (7 hardware engineering resources):
+       - circuit://specs/netlist-schema: Formal Draft-07 JSON Schema
+       - circuit://specs/cpl-standard: JLCPCB SMT CPL coordinate & rotation standard
+       - circuit://blocks/catalog: Full JSON catalogue of 10 standard CircuitBlocks
+       - circuit://rules/jlc-smt: JLCPCB SMT manufacturing rules and feeder fee structure
+       - circuit://examples/esp32c3-minimal: Minimal reference IoT node netlist
+       - circuit://examples/stm32f103-controller: Industrial controller reference netlist
+       - circuit://examples/rp2040-dualcore: Dual-core high-density reference netlist
+    3. Prompts (3 slash-command engineering workflows):
+       - design_hardware_project: End-to-end prompt for synthesizing and auditing hardware designs
+       - audit_schematic_netlist: Senior EE inspection prompt (PI/SI/DFM gates)
+       - optimize_bom_cost: Cost-reduction prompt converting Extended parts to Basic parts
+
 Runs over stdio (JSON-RPC 2.0). Compatible with Claude Desktop, Cursor, and Windsurf.
-Implemented using only Python standard library (no extra pip dependencies needed).
+Implemented using only the Python standard library (zero external pip packages required).
 
 Usage:
     python -m client.mcp_server
+    circuit-agent-mcp
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -35,8 +59,14 @@ logger = logging.getLogger("circuit_agent_mcp")
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "circuit-agent-mcp",
-    "version": "0.1.0",
+    "version": "0.1.1",
 }
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# --------------------------------------------------------------------------- #
+# Tool Definitions
+# --------------------------------------------------------------------------- #
 
 AVAILABLE_TOOLS = [
     {
@@ -81,7 +111,7 @@ AVAILABLE_TOOLS = [
     },
     {
         "name": "list_circuit_blocks",
-        "description": "List all pre-validated CircuitBlocks available in the hardware DSL catalog.",
+        "description": "List all 10 pre-validated CircuitBlocks available in the hardware DSL catalog.",
         "inputSchema": {
             "type": "object",
             "properties": {},
@@ -101,8 +131,170 @@ AVAILABLE_TOOLS = [
             },
         },
     },
+    {
+        "name": "calculate_trace_impedance",
+        "description": (
+            "Calculate characteristic impedance (Z0) or differential impedance (Zdiff) for PCB microstrip traces "
+            "using IPC-2141 / Wheeler equations. Solves exact trace width W and spacing S for target impedance (e.g. 50Ω RF, 90Ω USB, 120Ω RS485/CAN)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["mode", "target_z"],
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["single", "differential"],
+                    "description": "Trace mode: 'single' for single-ended microstrip, 'differential' for edge-coupled microstrip pair.",
+                },
+                "target_z": {
+                    "type": "number",
+                    "description": "Target impedance in ohms (e.g. 50.0 for single-ended, 90.0 for USB differential, 120.0 for CAN/RS485).",
+                },
+                "dielectric_h_mm": {
+                    "type": "number",
+                    "description": "Dielectric height between trace and reference ground plane in mm (default: 0.1mm for JLC04161H 4-layer).",
+                    "default": 0.1,
+                },
+                "dielectric_er": {
+                    "type": "number",
+                    "description": "Relative dielectric permittivity (Er) (default: 4.2 for FR4).",
+                    "default": 4.2,
+                },
+                "trace_thickness_mm": {
+                    "type": "number",
+                    "description": "Finished copper thickness in mm (default: 0.035mm for 1oz copper).",
+                    "default": 0.035,
+                },
+                "trace_gap_mm": {
+                    "type": "number",
+                    "description": "Spacing between differential traces in mm (only used in differential mode, default: 0.15mm).",
+                    "default": 0.15,
+                },
+            },
+        },
+    },
+    {
+        "name": "calculate_bom_cost",
+        "description": (
+            "Calculate PCBA component cost breakdown and estimate JLCPCB SMT manufacturing surcharges. "
+            "Identifies Basic library parts (¥0 feeder fee) vs Extended library parts (+¥20/type feeder fee) and suggests cost optimizations."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["queries"],
+            "properties": {
+                "queries": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of component names, models, or descriptions (e.g. ['STM32F103C8T6', 'SP3485', '0603 10k']).",
+                }
+            },
+        },
+    },
 ]
 
+# --------------------------------------------------------------------------- #
+# Resource Definitions
+# --------------------------------------------------------------------------- #
+
+AVAILABLE_RESOURCES = [
+    {
+        "uri": "circuit://specs/netlist-schema",
+        "name": "CircuitAgent Netlist JSON Schema (Draft-07)",
+        "description": "Formal JSON Schema specification for hardware netlists, pin connections, modules, and stackups.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "circuit://specs/cpl-standard",
+        "name": "JLCPCB SMT CPL Standard & Rotation Specification",
+        "description": "Standard Cartesian mirror and rotation angle offset specifications for JLC SMT assembly.",
+        "mimeType": "text/markdown",
+    },
+    {
+        "uri": "circuit://blocks/catalog",
+        "name": "CircuitBlocks DSL Catalogue",
+        "description": "Complete JSON catalogue of all 10 pre-audited hardware circuit blocks with pins, packages, and LCSC part numbers.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "circuit://rules/jlc-smt",
+        "name": "JLCPCB SMT Engineering Rules & Stackup",
+        "description": "Design constraints for JLCPCB manufacturing: JLC04161H 4-layer stackup, clearances, annular rings, and fee structure.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "circuit://examples/esp32c3-minimal",
+        "name": "Reference Netlist: ESP32-C3 Minimal IoT Node",
+        "description": "Complete verified reference netlist for an ESP32-C3 environmental sensor board.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "circuit://examples/stm32f103-controller",
+        "name": "Reference Netlist: STM32F103 Industrial Board",
+        "description": "Complete verified reference netlist for an STM32F103 industrial controller with Type-C, crystal, and LDO.",
+        "mimeType": "application/json",
+    },
+    {
+        "uri": "circuit://examples/rp2040-dualcore",
+        "name": "Reference Netlist: RP2040 High-Density Board",
+        "description": "Complete verified reference netlist for an RP2040 dual-core controller with 4-layer stackup constraints.",
+        "mimeType": "application/json",
+    },
+]
+
+# --------------------------------------------------------------------------- #
+# Prompt Definitions
+# --------------------------------------------------------------------------- #
+
+AVAILABLE_PROMPTS = [
+    {
+        "name": "design_hardware_project",
+        "description": "End-to-end guided workflow for synthesizing, calculating, and validating an embedded hardware design.",
+        "arguments": [
+            {
+                "name": "requirements",
+                "description": "Hardware requirements and peripherals needed (e.g. '基于 STM32F103 的 RS485 工业温湿度采集板')",
+                "required": True,
+            },
+            {
+                "name": "target_mcu",
+                "description": "Target microcontroller (STM32F103, ESP32-C3, ESP32-S3, RP2040, STC89C52)",
+                "required": False,
+            },
+            {
+                "name": "power_source",
+                "description": "Target power source (USB-C, Battery TP4056, DC 12V)",
+                "required": False,
+            },
+        ],
+    },
+    {
+        "name": "audit_schematic_netlist",
+        "description": "Senior Principal Electrical Engineer inspection prompt (PI/SI/DFM gates, decoupling rules, differential pairs).",
+        "arguments": [
+            {
+                "name": "netlist_json",
+                "description": "Hardware netlist JSON data to be audited.",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "name": "optimize_bom_cost",
+        "description": "PCBA manufacturing cost-reduction prompt converting Extended parts to Basic parts to save ¥20 feeder fees.",
+        "arguments": [
+            {
+                "name": "components",
+                "description": "List of component names or BOM description to optimize.",
+                "required": True,
+            }
+        ],
+    },
+]
+
+# --------------------------------------------------------------------------- #
+# Catalog & Impedance Solvers
+# --------------------------------------------------------------------------- #
 
 def _get_catalog() -> list[dict[str, Any]]:
     factories = [
@@ -133,61 +325,332 @@ def _get_catalog() -> list[dict[str, Any]]:
     return catalog
 
 
-def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    if name == "synthesize_circuit":
-        prompt = arguments.get("prompt", "")
-        if not prompt:
-            raise ValueError("Parameter 'prompt' is required")
-        res = synthesize_from_prompt(prompt)
-        return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
+def _solve_impedance(
+    mode: str,
+    target_z: float,
+    h_mm: float = 0.1,
+    er: float = 4.2,
+    t_mm: float = 0.035,
+    s_mm: float = 0.15,
+) -> dict[str, Any]:
+    """Solve microstrip or differential pair impedance using IPC-2141 formulation."""
+    if h_mm <= 0 or er <= 1.0 or target_z <= 0:
+        raise ValueError("Invalid physical dielectric parameters")
 
-    if name == "search_lcsc_parts":
-        query = arguments.get("query", "")
-        limit = arguments.get("limit", 5)
-        if not query:
-            raise ValueError("Parameter 'query' is required")
-        parts = search_lcsc_parts(query, limit=limit)
-        return {"content": [{"type": "text", "text": json.dumps(parts, ensure_ascii=False, indent=2)}]}
+    def calc_z(w: float) -> float:
+        denom = 0.8 * w + t_mm
+        arg = max(1.0001, (5.98 * h_mm) / max(denom, 1e-4))
+        z0 = (87.0 / math.sqrt(er + 1.41)) * math.log(arg)
+        if mode == "single":
+            return z0
+        coupling = 1.0 - 0.48 * math.exp(-0.96 * s_mm / h_mm)
+        return 2.0 * z0 * max(0.2, coupling)
 
-    if name == "list_circuit_blocks":
-        cat = _get_catalog()
-        return {"content": [{"type": "text", "text": json.dumps(cat, ensure_ascii=False, indent=2)}]}
+    low_w, high_w = 0.08, 3.0
+    best_w = low_w
+    best_z = calc_z(best_w)
 
-    if name == "validate_netlist":
-        netlist = arguments.get("netlist", {})
-        if not isinstance(netlist, dict):
-            raise ValueError("Parameter 'netlist' must be a JSON object")
-
-        schema_path = Path(__file__).resolve().parent.parent / "specs" / "netlist_schema.json"
-        errors = []
-        if schema_path.exists():
-            try:
-                import jsonschema
-                schema = json.loads(schema_path.read_text(encoding="utf-8"))
-                jsonschema.validate(instance=netlist, schema=schema)
-            except ImportError:
-                # Basic validation without external dependency
-                if "connections" not in netlist:
-                    errors.append("Missing required field 'connections'")
-                elif not isinstance(netlist["connections"], list):
-                    errors.append("Field 'connections' must be a list")
-                else:
-                    for i, c in enumerate(netlist["connections"]):
-                        if not isinstance(c, dict) or "net" not in c or "points" not in c:
-                            errors.append(f"Connection #{i} missing 'net' or 'points'")
-            except Exception as e:
-                errors.append(str(e))
+    for _ in range(60):
+        mid = (low_w + high_w) / 2.0
+        z_mid = calc_z(mid)
+        best_w = mid
+        best_z = z_mid
+        if abs(z_mid - target_z) < 0.05:
+            break
+        if z_mid > target_z:
+            low_w = mid
         else:
-            errors.append("Schema file specs/netlist_schema.json not found")
+            high_w = mid
 
-        result = {
-            "valid": len(errors) == 0,
-            "errors": errors,
+    vp_c = 1.0 / math.sqrt(0.475 * er + 0.67)
+    delay_ps_per_mm = (1.0 / (3e8 * vp_c)) * 1e12 / 1000.0
+
+    return {
+        "mode": mode,
+        "target_z_ohms": target_z,
+        "achieved_z_ohms": round(best_z, 2),
+        "trace_width_mm": round(best_w, 3),
+        "trace_gap_mm": s_mm if mode == "differential" else None,
+        "trace_thickness_mm": t_mm,
+        "dielectric_h_mm": h_mm,
+        "dielectric_er": er,
+        "propagation_delay_ps_per_mm": round(delay_ps_per_mm, 2),
+        "design_rule_recommendation": (
+            f"Route {mode} traces with width={round(best_w, 3)}mm"
+            + (f", gap={s_mm}mm" if mode == "differential" else "")
+            + f" over solid GND plane. Max length mismatch: 1.0mm (~{round(delay_ps_per_mm * 1.0, 1)}ps delay)."
+        ),
+    }
+
+
+def _calc_bom_breakdown(queries: list[str]) -> dict[str, Any]:
+    """Calculate PCBA bill-of-materials cost breakdown including JLCPCB feeder surcharge."""
+    total_parts_cny = 0.0
+    basic_count = 0
+    ext_count = 0
+    details = []
+
+    for q in queries:
+        matches = search_lcsc_parts(q, limit=1)
+        if matches:
+            m = matches[0]
+            is_basic = m.get("is_basic", False)
+            lib = "Basic" if is_basic else "Extended"
+            price_usd = m.get("price_usd", 0.0) or 0.0
+            price_cny = round(price_usd * 7.2, 3)
+
+            if is_basic:
+                basic_count += 1
+            else:
+                ext_count += 1
+
+            total_parts_cny += price_cny
+            details.append({
+                "query": q,
+                "lcsc": m.get("lcsc_part"),
+                "title": m.get("part_number") or m.get("description"),
+                "package": m.get("package"),
+                "price_usd": price_usd,
+                "price_cny": price_cny,
+                "library_type": lib,
+                "stock": m.get("stock", 0),
+            })
+        else:
+            details.append({"query": q, "status": "not_found", "price_cny": 0.0})
+
+    feeder_surcharge = ext_count * 20.0
+    total_estimated = total_parts_cny + feeder_surcharge
+
+    tips = []
+    if ext_count > 0:
+        tips.append(
+            f"Found {ext_count} Extended library part(s) incurring ¥{feeder_surcharge:.2f} in feeder change fees. "
+            f"Replacing them with JLCPCB Basic parts will save up to ¥{feeder_surcharge:.2f} per batch."
+        )
+    if basic_count > 0:
+        tips.append(f"{basic_count} part(s) matched the JLCPCB Basic library with ¥0 feeder surcharge.")
+
+    return {
+        "total_estimated_cny": round(total_estimated, 2),
+        "bare_components_cost_cny": round(total_parts_cny, 2),
+        "feeder_surcharge_cny": round(feeder_surcharge, 2),
+        "basic_parts_count": basic_count,
+        "extended_parts_count": ext_count,
+        "details": details,
+        "optimization_tips": tips,
+    }
+
+# --------------------------------------------------------------------------- #
+# Tool, Resource & Prompt Handlers
+# --------------------------------------------------------------------------- #
+
+def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    try:
+        if name == "synthesize_circuit":
+            prompt = arguments.get("prompt", "")
+            if not prompt:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'prompt' is required"}]}
+            res = synthesize_from_prompt(prompt)
+            return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
+
+        if name == "search_lcsc_parts":
+            query = arguments.get("query", "")
+            limit = arguments.get("limit", 5)
+            if not query:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'query' is required"}]}
+            parts = search_lcsc_parts(query, limit=limit)
+            return {"content": [{"type": "text", "text": json.dumps(parts, ensure_ascii=False, indent=2)}]}
+
+        if name == "list_circuit_blocks":
+            cat = _get_catalog()
+            return {"content": [{"type": "text", "text": json.dumps(cat, ensure_ascii=False, indent=2)}]}
+
+        if name == "validate_netlist":
+            netlist = arguments.get("netlist", {})
+            if not isinstance(netlist, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+
+            schema_path = REPO_ROOT / "specs" / "netlist_schema.json"
+            errors = []
+            if schema_path.exists():
+                try:
+                    import jsonschema
+                    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+                    jsonschema.validate(instance=netlist, schema=schema)
+                except ImportError:
+                    if "connections" not in netlist:
+                        errors.append("Missing required field 'connections'")
+                    elif not isinstance(netlist["connections"], list):
+                        errors.append("Field 'connections' must be a list")
+                    else:
+                        for i, c in enumerate(netlist["connections"]):
+                            if not isinstance(c, dict) or "net" not in c or "points" not in c:
+                                errors.append(f"Connection #{i} missing 'net' or 'points'")
+                except Exception as e:
+                    errors.append(str(e))
+            else:
+                errors.append("Schema file specs/netlist_schema.json not found")
+
+            result = {"valid": len(errors) == 0, "errors": errors}
+            return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False, indent=2)}]}
+
+        if name == "calculate_trace_impedance":
+            mode = arguments.get("mode", "differential")
+            target_z = float(arguments.get("target_z", 90.0))
+            h_mm = float(arguments.get("dielectric_h_mm", 0.1))
+            er = float(arguments.get("dielectric_er", 4.2))
+            t_mm = float(arguments.get("trace_thickness_mm", 0.035))
+            s_mm = float(arguments.get("trace_gap_mm", 0.15))
+
+            calc_res = _solve_impedance(mode, target_z, h_mm, er, t_mm, s_mm)
+            return {"content": [{"type": "text", "text": json.dumps(calc_res, ensure_ascii=False, indent=2)}]}
+
+        if name == "calculate_bom_cost":
+            queries = arguments.get("queries", [])
+            if not isinstance(queries, list) or not queries:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'queries' must be a non-empty list of component names"}]}
+            bom_res = _calc_bom_breakdown(queries)
+            return {"content": [{"type": "text", "text": json.dumps(bom_res, ensure_ascii=False, indent=2)}]}
+
+        return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
+    except Exception as e:
+        return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
+
+
+def handle_resource_read(uri: str) -> dict[str, Any]:
+    res_files = {
+        "circuit://specs/netlist-schema": ("application/json", REPO_ROOT / "specs" / "netlist_schema.json"),
+        "circuit://specs/cpl-standard": ("text/markdown", REPO_ROOT / "specs" / "cpl_standard.md"),
+        "circuit://examples/esp32c3-minimal": ("application/json", REPO_ROOT / "examples" / "esp32c3_example.json"),
+        "circuit://examples/stm32f103-controller": ("application/json", REPO_ROOT / "examples" / "stm32f103_example.json"),
+        "circuit://examples/rp2040-dualcore": ("application/json", REPO_ROOT / "examples" / "rp2040_example.json"),
+    }
+
+    if uri in res_files:
+        mime, path = res_files[uri]
+        if path.exists():
+            return {
+                "contents": [
+                    {
+                        "uri": uri,
+                        "mimeType": mime,
+                        "text": path.read_text(encoding="utf-8"),
+                    }
+                ]
+            }
+        raise ValueError(f"Resource file not found on disk: {path}")
+
+    if uri == "circuit://blocks/catalog":
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(_get_catalog(), ensure_ascii=False, indent=2),
+                }
+            ]
         }
-        return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False, indent=2)}]}
 
-    raise ValueError(f"Unknown tool: '{name}'")
+    if uri == "circuit://rules/jlc-smt":
+        rules = {
+            "stackup": {
+                "name": "JLC04161H",
+                "layers": 4,
+                "copper_layers": ["Top", "In1.Cu (GND)", "In2.Cu (PWR)", "Bottom"],
+                "outer_copper_oz": 1.0,
+                "inner_copper_oz": 0.5,
+                "outer_dielectric_h_mm": 0.1,
+                "core_dielectric_h_mm": 1.0,
+                "er": 4.2,
+            },
+            "design_rules_mm": {
+                "min_trace_width": 0.127,
+                "min_trace_clearance": 0.127,
+                "min_via_diameter": 0.45,
+                "min_via_drill": 0.2,
+                "differential_usb_90_width": 0.144,
+                "differential_usb_90_gap": 0.15,
+                "decoupling_cap_max_distance": 4.0,
+            },
+            "pricing": {
+                "smt_setup_cny": 50.0,
+                "basic_feeder_cny": 0.0,
+                "extended_feeder_cny": 20.0,
+            },
+        }
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(rules, ensure_ascii=False, indent=2),
+                }
+            ]
+        }
 
+    raise ValueError(f"Unknown resource URI: '{uri}'")
+
+
+def handle_prompt_get(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    if name == "design_hardware_project":
+        reqs = arguments.get("requirements", "")
+        mcu = arguments.get("target_mcu", "ESP32-C3")
+        pwr = arguments.get("power_source", "USB-C")
+        user_prompt = (
+            f"You are an expert Electronic Design Automation (EDA) and Hardware Synthesis Agent.\n\n"
+            f"Target Project Requirements: {reqs}\n"
+            f"Target MCU: {mcu}\n"
+            f"Power Source: {pwr}\n\n"
+            f"Please execute the following engineering workflow:\n"
+            f"1. Query `list_circuit_blocks` or inspect `circuit://blocks/catalog` for available pre-audited modules.\n"
+            f"2. Use `synthesize_circuit` with the target requirements to generate a formal netlist and module specification.\n"
+            f"3. For high-speed differential pairs (USB 90Ω, CAN 120Ω), run `calculate_trace_impedance` to verify layout width and spacing.\n"
+            f"4. Run `calculate_bom_cost` on the parts list to estimate PCBA component cost and identify JLCPCB Extended feeder surcharges.\n"
+            f"5. Validate the final netlist data structure against the schema using `validate_netlist`."
+        )
+        return {
+            "description": f"Synthesize and audit hardware project: {reqs[:40]}...",
+            "messages": [{"role": "user", "content": {"type": "text", "text": user_prompt}}],
+        }
+
+    if name == "audit_schematic_netlist":
+        netlist_json = arguments.get("netlist_json", "")
+        user_prompt = (
+            f"You are a Senior Principal Electrical Engineer conducting a strict hardware DRC and Signal/Power Integrity review.\n\n"
+            f"Netlist Data to Audit:\n{netlist_json}\n\n"
+            f"Audit Gates to Check:\n"
+            f"- Gate 1 (Power Integrity): Ensure decoupling capacitors exist for all VCC/VDD rails with max distance ≤ 4.0mm.\n"
+            f"- Gate 2 (Interface Standards): For USB-C interfaces, verify CC1 and CC2 each have a 5.1kΩ pull-down resistor to GND.\n"
+            f"- Gate 3 (Fieldbus & Differentials): Verify RS485 and CAN transceivers have 120Ω differential termination resistors.\n"
+            f"- Gate 4 (Clock Integrity): External crystals must have 22pF load capacitors and a GND guard ring declared.\n"
+            f"- Gate 5 (DFM & SMT): Verify all components have valid footprints and LCSC part numbers matching JLCPCB rules."
+        )
+        return {
+            "description": "Senior EE physical inspection and design rule check",
+            "messages": [{"role": "user", "content": {"type": "text", "text": user_prompt}}],
+        }
+
+    if name == "optimize_bom_cost":
+        components = arguments.get("components", "")
+        user_prompt = (
+            f"You are a PCBA Manufacturing Cost Optimization Specialist.\n\n"
+            f"Component List to Analyze:\n{components}\n\n"
+            f"Please execute the following steps:\n"
+            f"1. Use `search_lcsc_parts` and `calculate_bom_cost` to analyze each component.\n"
+            f"2. Identify any Extended library components that incur a ¥20 feeder change surcharge.\n"
+            f"3. Recommend pin-compatible Basic library alternatives (e.g. standard 0603/0805 passives, common diodes, standard LDOs).\n"
+            f"4. Summarize total potential cost savings for a 5-board prototype run and a 100-board batch run."
+        )
+        return {
+            "description": "PCBA BOM cost reduction and Basic library substitution",
+            "messages": [{"role": "user", "content": {"type": "text", "text": user_prompt}}],
+        }
+
+    raise ValueError(f"Unknown prompt: '{name}'")
+
+# --------------------------------------------------------------------------- #
+# Main Dispatcher
+# --------------------------------------------------------------------------- #
 
 def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
     method = msg.get("method")
@@ -200,7 +663,9 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
             "result": {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {
-                    "tools": {},
+                    "tools": {"listChanged": False},
+                    "resources": {"subscribe": False, "listChanged": False},
+                    "prompts": {"listChanged": False},
                 },
                 "serverInfo": SERVER_INFO,
             },
@@ -216,6 +681,7 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
             "result": {},
         }
 
+    # --- Tools ---
     if method == "tools/list":
         return {
             "jsonrpc": "2.0",
@@ -229,8 +695,37 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         params = msg.get("params", {})
         tool_name = params.get("name", "")
         tool_args = params.get("arguments", {})
+        res = handle_tool_call(tool_name, tool_args)
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": res,
+        }
+
+    # --- Resources ---
+    if method == "resources/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "resources": AVAILABLE_RESOURCES,
+            },
+        }
+
+    if method == "resources/templates/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "resourceTemplates": [],
+            },
+        }
+
+    if method == "resources/read":
+        params = msg.get("params", {})
+        uri = params.get("uri", "")
         try:
-            res = handle_tool_call(tool_name, tool_args)
+            res = handle_resource_read(uri)
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
@@ -241,11 +736,43 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "error": {
-                    "code": -32000,
+                    "code": -32002,
                     "message": str(e),
                 },
             }
 
+    # --- Prompts ---
+    if method == "prompts/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": {
+                "prompts": AVAILABLE_PROMPTS,
+            },
+        }
+
+    if method == "prompts/get":
+        params = msg.get("params", {})
+        prompt_name = params.get("name", "")
+        prompt_args = params.get("arguments", {})
+        try:
+            res = handle_prompt_get(prompt_name, prompt_args)
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": res,
+            }
+        except Exception as e:
+            return {
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {
+                    "code": -32602,
+                    "message": str(e),
+                },
+            }
+
+    # Method not found
     if msg_id is not None:
         return {
             "jsonrpc": "2.0",

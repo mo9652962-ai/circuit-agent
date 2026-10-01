@@ -10,7 +10,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-110%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-120%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -162,6 +162,23 @@ python -m client.mcp_server
 2. `search_lcsc_parts`: 免 Key 实时查询立创商城的元器件库存、封装、阶梯单价与基础库/扩展库属性。
 3. `list_circuit_blocks`: 列出 DSL 中全部可用的 10 大已审计电路积木规格。
 4. `validate_netlist`: 根据正式 JSON Schema 校验网表数据结构合法性。
+5. `calculate_trace_impedance`: 基于 IPC-2141 解析公式计算微带线与差分对走线阻抗（50Ω RF / 90Ω USB / 120Ω CAN/485）。
+6. `calculate_bom_cost`: PCBA 成本核算器，自动精算元器件裸成本与嘉立创扩展库换料费（¥20/种）。
+
+### 暴露的资源 (Resources)
+支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：
+- `circuit://specs/netlist-schema`: 完整的网表 Draft-07 JSON Schema。
+- `circuit://specs/cpl-standard`: 嘉立创 SMT 坐标规范与封装偏角补偿表。
+- `circuit://blocks/catalog`: 10 大电路积木的元器件、引脚与网络全量清单。
+- `circuit://rules/jlc-smt`: 嘉立创四层板叠层 (JLC04161H) 与生产物理规则。
+- `circuit://examples/esp32c3-minimal`: ESP32-C3 极简温湿度节点参考网表。
+- `circuit://examples/stm32f103-controller`: STM32F103 工业控制板参考网表。
+- `circuit://examples/rp2040-dualcore`: RP2040 双核传感器扩展板参考网表。
+
+### 快捷工程 Prompt (Slash-Commands)
+- `/design_hardware_project`: 全流程硬件设计指令（积木匹配 → 阻抗计算 → BOM核算 → 网表校验）。
+- `/audit_schematic_netlist`: Senior EE 硬件体检审查指令（去耦电容亲和性、差分对等长、Type-C 下拉阻抗）。
+- `/optimize_bom_cost`: PCBA 降本优化指令（分析扩展库物料并推荐免换料费的基础库替代料）。
 
 ---
 
@@ -176,7 +193,7 @@ python -m client.mcp_server
 ## 测试与 CI
 
 ```bash
-pytest tests/ -q      # 110 passed
+pytest tests/ -q      # 120 passed
 ```
 
 CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量测试，

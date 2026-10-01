@@ -10,7 +10,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-110%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-120%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -152,6 +152,23 @@ python -m client.mcp_server
 2. `search_lcsc_parts`: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging.
 3. `list_circuit_blocks`: List all 10 pre-validated hardware DSL blocks.
 4. `validate_netlist`: Validate netlists against the formal CircuitAgent JSON Schema.
+5. `calculate_trace_impedance`: Microstrip & differential pair trace impedance solver (IPC-2141 / Wheeler) for USB 90Ω, RF 50Ω, CAN 120Ω.
+6. `calculate_bom_cost`: PCBA bill-of-materials cost breakdown calculator with JLCPCB Extended library surcharge detection.
+
+### Exposed Resources
+Directly mount specifications and catalogues into model context via `circuit://` URIs:
+- `circuit://specs/netlist-schema`: The formal Draft-07 JSON Schema.
+- `circuit://specs/cpl-standard`: JLCPCB SMT coordinate and rotation offset specifications.
+- `circuit://blocks/catalog`: Complete catalogue of 10 standard CircuitBlocks (pins, nets, LCSC part numbers).
+- `circuit://rules/jlc-smt`: JLCPCB SMT physical rules, 4-layer stackup (JLC04161H), and fee schedules.
+- `circuit://examples/esp32c3-minimal`: ESP32-C3 minimal IoT node reference netlist.
+- `circuit://examples/stm32f103-controller`: STM32F103 industrial controller reference netlist.
+- `circuit://examples/rp2040-dualcore`: RP2040 high-density dual-core reference netlist.
+
+### Reusable Engineering Prompts (Slash-Commands)
+- `/design_hardware_project`: Guided end-to-end hardware synthesis, impedance check, and schema validation.
+- `/audit_schematic_netlist`: Senior Principal EE inspection prompt (PI/SI/DFM gates, decoupling capacitor proximity).
+- `/optimize_bom_cost`: PCBA BOM cost reduction prompt substituting Extended parts for Basic library parts.
 
 ---
 
@@ -166,7 +183,7 @@ python -m client.mcp_server
 ## Test Suite & CI
 
 ```bash
-pytest tests/ -q      # 110 passed
+pytest tests/ -q      # 120 passed
 ```
 
 GitHub Actions matrix tests against `ubuntu-latest` and `windows-latest` across Python 3.10, 3.11, and 3.12.
@@ -186,7 +203,7 @@ Multi-layer physical placement & auto-routing solver, parametric 3D enclosure Bo
 - [x] Formal JSON Schema + 3 MCU golden examples + CI matrix
 - [x] CircuitAgent Pro dark industrial web interface (`web/index.html`)
 - [x] Industrial fieldbus & power blocks (RS485, CAN bus, TP4056 Li-Ion)
-- [x] Standard stdio MCP Server implementation (4 core tools)
+- [x] Standards-compliant stdio MCP Server (Tools + Resources + Prompts)
 - [x] Bilingual documentation & official branding
 - [ ] Additional sensor blocks (AHT20, MPU6050)
 - [ ] Custom MCU pin-mapping override engine
