@@ -138,8 +138,9 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 
 **本仓库包含**：硬件 DSL 与积木库、立创实时选型客户端、网表/CPL 数据契约、REST/MCP 交互接口。
 
-**暂不包含**：多层板物理布局与布线求解、参数化 3D 壳体布尔几何、Senior EE 物理规则门禁 ——
-这些属于闭源工业核心，本仓库通过契约与客户端与其对接。
+**暂不包含**：多层板物理布局与布线求解、参数化 3D 壳体布尔几何、Senior EE 物理规则门禁。
+这些是上游编译器的高级能力，仍在开发中；本仓库通过稳定的数据契约与客户端接口与其对接，
+契约本身是公开且版本化的。
 
 路线图：
 
@@ -158,6 +159,14 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 并补上对应单测即可提 PR。Issue 里也欢迎贴出你希望支持的芯片型号。
 
 ---
+
+## 名称说明 (Naming)
+
+"CircuitAgent" 是一个较通用的名字，社区中已有若干同名或近名的项目（例如
+`singularguy/CircuitManus` 内部的 `CircuitAgent` 类、`Circuit-LLM/circuit-sdk`
+的 `CircuitAgent` 基类、以及高能物理领域的 PhEDEx `CircuitAgent`）。
+本项目与它们**没有任何关系**，也不主张该名称的独占权。如果你的项目或商标与此冲突，
+欢迎开 Issue 告知，我们可以协商改名。
 
 ## 许可证 (License)
 
