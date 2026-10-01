@@ -1,0 +1,40 @@
+{
+  "chip_id": "ESP32-C3",
+  "prompt": "ESP32-C3 minimal IoT node with Type-C power and status LED",
+  "modules": {
+    "J_USB1": {
+      "kind": "CONNECTOR",
+      "value": "USB-C-16P",
+      "package": "USB-C-16P-SMD",
+      "lcsc": "C7204555"
+    },
+    "U_LDO1": {
+      "kind": "IC",
+      "value": "AMS1117-3.3",
+      "package": "SOT-223",
+      "lcsc": "C6186"
+    },
+    "D1": {
+      "kind": "LED",
+      "value": "BLUE",
+      "package": "LED0603",
+      "lcsc": "C72041"
+    }
+  },
+  "netlist": {
+    "connections": [
+      {
+        "net": "/VBUS",
+        "points": ["J_USB1.VBUS", "U_LDO1.3"]
+      },
+      {
+        "net": "/+3.3V",
+        "points": ["U_LDO1.2", "D1.A"]
+      },
+      {
+        "net": "/GND",
+        "points": ["J_USB1.GND", "U_LDO1.1", "D1.K"]
+      }
+    ]
+  }
+}
