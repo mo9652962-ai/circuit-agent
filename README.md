@@ -13,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
   <a href="tests/"><img src="https://img.shields.io/badge/tests-120%20passing-brightgreen.svg" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.5-blueviolet.svg" alt="Release"></a>
 </p>
 
 <p align="center">
@@ -62,13 +62,21 @@ Natural language prompt
 
 ## 快速上手 (Quick Start)
 
+**方式 A · 从 PyPI 安装（推荐）**
+
+```bash
+pip install circuit-agent-client
+```
+
+**方式 B · 从源码使用**
+
 ```bash
 git clone https://github.com/mo9652962-ai/circuit-agent.git
 cd circuit-agent
 ```
 
-零运行时依赖 —— 纯标准库实现，无需 `pip install` 即可直接使用。
-跑测试才需要装 dev extra：`pip install -e ".[dev]"`
+**零运行时依赖** —— 纯 Python 标准库实现，装完即用，不拉任何第三方包。
+跑测试才需要 dev extra：`pip install -e ".[dev]"`
 
 ### 1 · 一句话生成硬件网表
 

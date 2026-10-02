@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
   <a href="tests/"><img src="https://img.shields.io/badge/tests-120%20passing-brightgreen.svg" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.0-blueviolet.svg" alt="Release"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.5-blueviolet.svg" alt="Release"></a>
 </p>
 
 <p align="center">
@@ -55,13 +55,21 @@ Natural language prompt
 
 ## Quick Start
 
+**Option A · Install from PyPI (recommended)**
+
+```bash
+pip install circuit-agent-client
+```
+
+**Option B · Use from source**
+
 ```bash
 git clone https://github.com/mo9652962-ai/circuit-agent.git
 cd circuit-agent
 ```
 
-**Zero runtime dependencies** — standard library only. No `pip install` required for runtime usage.  
-To run test suites: `pip install -e ".[dev]"`
+**Zero runtime dependencies** — pure Python standard library, install-and-run with no third-party packages pulled in.  
+To run the test suite: `pip install -e ".[dev]"`
 
 ### 1 · Synthesize a Hardware Netlist in One Line
 

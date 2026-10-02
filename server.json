@@ -3,12 +3,12 @@
   "name": "io.github.mo9652962-ai/circuit-agent-client",
   "title": "CircuitAgent",
   "description": "AI 硬件合成社区版：CircuitBlocks DSL · 立创实时选型 · 网表契约 · stdio MCP server",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "circuit-agent-client",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "transport": {
         "type": "stdio"
       }
