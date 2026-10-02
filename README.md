@@ -4,6 +4,8 @@
 
 # CircuitAgent · Community Edition
 
+<!-- mcp-name: io.github.mo9652962-ai/circuit-agent-client -->
+
 **Prompt → Schematic → Layout → 3D Enclosure → Fabrication Bundle**
 
 <p align="center">
