@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "circuit-agent-client"
-version = "0.1.0"
+version = "0.1.1"
 description = "CircuitAgent Community Edition: hardware DSL, LCSC live-selection client, and netlist contracts"
 readme = "README.md"
 requires-python = ">=3.10"
