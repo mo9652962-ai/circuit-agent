@@ -25,6 +25,15 @@ BLOCK_FACTORIES = [
     cb.block_rs485_transceiver,
     cb.block_can_transceiver,
     cb.block_battery_tp4056,
+    cb.block_sensor_aht20,
+    cb.block_sensor_mpu6050,
+    cb.block_esd_usb_tvs,
+    cb.block_esd_rs485_tvs,
+    cb.block_esd_can_tvs,
+    cb.block_reverse_polarity_protection,
+    cb.block_power_pi_filter,
+    cb.block_fiducial_marks,
+    cb.block_testpoint_matrix,
 ]
 
 
@@ -37,7 +46,8 @@ def test_block_has_components_and_nets(factory):
     assert blk.name, "block must be named"
     assert blk.description, "block must be documented"
     assert blk.components, "block must declare components"
-    assert blk.nets, "block must declare nets"
+    if blk.name != "Fiducial_Marks":
+        assert blk.nets, "block must declare nets"
 
 
 @pytest.mark.parametrize("factory", BLOCK_FACTORIES, ids=lambda f: f.__name__)
@@ -70,6 +80,9 @@ def test_nets_reference_declared_components(factory):
 @pytest.mark.parametrize("factory", BLOCK_FACTORIES, ids=lambda f: f.__name__)
 def test_ground_net_is_reachable(factory):
     blk = factory()
+    # Mechanical fiducials and pure high-side inline reverse diodes don't have dedicated /GND net
+    if blk.name in ("Fiducial_Marks", "Reverse_Polarity_Protection"):
+        return
     assert "/GND" in blk.nets, f"{blk.name} must tie to /GND"
 
 

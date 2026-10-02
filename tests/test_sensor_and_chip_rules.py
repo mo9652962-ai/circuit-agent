@@ -1,9 +1,6 @@
 """Tests for AHT20, MPU6050 sensor blocks and third-party chip pinout rules."""
 
-import pytest
 from client import (
-    ChipPinoutRule,
-    apply_chip_pinout,
     block_sensor_aht20,
     block_sensor_mpu6050,
     get_chip_rule,

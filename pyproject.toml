@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "circuit-agent-client"
-version = "0.1.5"
+version = "0.1.6"
 description = "CircuitAgent Community Edition: hardware DSL, LCSC live-selection client, and netlist contracts"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -39,3 +39,13 @@ packages = ["client"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = [
+  "BLE001",  # Do not catch blind exception - necessary for MCP stdio and LCSC network resiliency
+  "S110",    # try-except-pass - cache layer fallback
+]

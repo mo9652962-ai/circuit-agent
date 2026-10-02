@@ -41,27 +41,36 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .chip_rules import (
+    list_supported_chips,
+    register_chip_rule,
+)
 from .circuit_blocks import (
     block_battery_tp4056,
     block_button,
     block_buzzer,
     block_can_transceiver,
     block_crystal_clock,
+    block_esd_can_tvs,
+    block_esd_rs485_tvs,
+    block_esd_usb_tvs,
+    block_fiducial_marks,
     block_i2c_header,
     block_led,
     block_power_ldo_3v3,
+    block_power_pi_filter,
+    block_reverse_polarity_protection,
     block_rs485_transceiver,
     block_sensor_aht20,
     block_sensor_mpu6050,
+    block_testpoint_matrix,
     block_usb_c_power,
 )
-from .chip_rules import (
-    ChipPinoutRule,
-    apply_chip_pinout,
-    get_chip_rule,
-    list_supported_chips,
-    register_chip_rule,
-    validate_pin_allocation,
+from .industrial_dfx import (
+    IPC2221_CLEARANCES,
+    audit_industrial_dfx,
+    calculate_ipc2152,
+    solve_trace_width_ipc2152,
 )
 from .lcsc_client import search_lcsc_parts
 from .synthesizer import synthesize_from_prompt
@@ -244,6 +253,66 @@ AVAILABLE_TOOLS = [
             },
         },
     },
+    {
+        "name": "calculate_ipc2152_trace_current",
+        "description": (
+            "Calculate conductor current-carrying capacity or solve required PCB trace width "
+            "according to IPC-2152 standards for given copper weight (oz), temperature rise (ΔT °C), and layer position."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["solve_current", "solve_width"],
+                    "description": "'solve_current' calculates max Amps for given trace_width_mm; 'solve_width' calculates required mm for target_current_a.",
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Trace width in mm (required for 'solve_current').",
+                },
+                "target_current_a": {
+                    "type": "number",
+                    "description": "Target continuous current in Amperes (required for 'solve_width').",
+                },
+                "copper_oz": {
+                    "type": "number",
+                    "description": "Finished copper thickness in ounces (default: 1.0 oz = 35 um).",
+                    "default": 1.0,
+                },
+                "temp_rise_c": {
+                    "type": "number",
+                    "description": "Allowable conductor temperature rise above ambient in °C (default: 20.0 °C).",
+                    "default": 20.0,
+                },
+                "layer": {
+                    "type": "string",
+                    "enum": ["external", "internal"],
+                    "description": "Conductor layer position: 'external' (outer copper) or 'internal' (inner plane).",
+                    "default": "external",
+                },
+            },
+        },
+    },
+    {
+        "name": "audit_industrial_dfx",
+        "description": (
+            "Execute an enterprise-grade DFX (DFM/DFA/DFT/DFC/EMC) compliance audit on a schematic netlist. "
+            "Verifies optical fiducials (MARK points), ICT testpoint coverage on power/debug rails, "
+            "IEC 61000-4-2 TVS surge protection on exposed ports (USB, RS485, CAN), reverse polarity protection, and SMT costs."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {
+                    "type": "object",
+                    "description": "Hardware netlist dictionary containing 'components' and 'connections'.",
+                },
+            },
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
@@ -264,9 +333,15 @@ AVAILABLE_RESOURCES = [
         "mimeType": "text/markdown",
     },
     {
+        "uri": "circuit://specs/ipc-dfx-rules",
+        "name": "CircuitAgent IPC & Industrial DFX Ruleset Specification",
+        "description": "Formal IPC-2152 current/temperature limits, IPC-2221 voltage creepage clearances, and DFT/DFA industrial criteria.",
+        "mimeType": "application/json",
+    },
+    {
         "uri": "circuit://blocks/catalog",
         "name": "CircuitBlocks DSL Catalogue",
-        "description": "Complete JSON catalogue of all 12 pre-audited hardware circuit blocks with pins, packages, and LCSC part numbers.",
+        "description": "Complete JSON catalogue of all 19 pre-audited hardware circuit blocks with pins, packages, and LCSC part numbers.",
         "mimeType": "application/json",
     },
     {
@@ -338,7 +413,18 @@ AVAILABLE_PROMPTS = [
         "arguments": [
             {
                 "name": "components",
-                "description": "List of component names or BOM description to optimize.",
+                "description": "Comma-separated or JSON list of component names/part numbers.",
+                "required": True,
+            }
+        ],
+    },
+    {
+        "name": "audit_industrial_compliance",
+        "description": "Enterprise-grade industrial compliance review prompt: IPC-2152 current capacity, IPC-2221 voltage creepage, DFT testpoints, and IEC 61000-4-2 TVS protection.",
+        "arguments": [
+            {
+                "name": "netlist_json",
+                "description": "Hardware netlist JSON to audit for industrial compliance.",
                 "required": True,
             }
         ],
@@ -363,6 +449,13 @@ def _get_catalog() -> list[dict[str, Any]]:
         block_battery_tp4056,
         block_sensor_aht20,
         block_sensor_mpu6050,
+        block_esd_usb_tvs,
+        block_esd_rs485_tvs,
+        block_esd_can_tvs,
+        block_reverse_polarity_protection,
+        block_power_pi_filter,
+        block_fiducial_marks,
+        block_testpoint_matrix,
     ]
     catalog = []
     for f in factories:
@@ -583,6 +676,26 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             bom_res = _calc_bom_breakdown(queries)
             return {"content": [{"type": "text", "text": json.dumps(bom_res, ensure_ascii=False, indent=2)}]}
 
+        if name == "calculate_ipc2152_trace_current":
+            mode = arguments.get("mode", "solve_current")
+            copper_oz = float(arguments.get("copper_oz", 1.0))
+            temp_rise_c = float(arguments.get("temp_rise_c", 20.0))
+            layer = arguments.get("layer", "external")
+            if mode == "solve_width":
+                target_i = float(arguments.get("target_current_a", 1.0))
+                ipc_res = solve_trace_width_ipc2152(target_i, copper_oz=copper_oz, temp_rise_c=temp_rise_c, layer=layer)
+            else:
+                width_mm = float(arguments.get("trace_width_mm", 0.254))
+                ipc_res = calculate_ipc2152(width_mm, copper_oz=copper_oz, temp_rise_c=temp_rise_c, layer=layer)
+            return {"content": [{"type": "text", "text": json.dumps(ipc_res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+        if name == "audit_industrial_dfx":
+            netlist = arguments.get("netlist", {})
+            if not isinstance(netlist, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+            dfx_rep = audit_industrial_dfx(netlist)
+            return {"content": [{"type": "text", "text": json.dumps(dfx_rep.to_dict(), ensure_ascii=False, indent=2)}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
@@ -618,6 +731,34 @@ def handle_resource_read(uri: str) -> dict[str, Any]:
                     "uri": uri,
                     "mimeType": "application/json",
                     "text": json.dumps(_get_catalog(), ensure_ascii=False, indent=2),
+                }
+            ]
+        }
+
+    if uri == "circuit://specs/ipc-dfx-rules":
+        rules = {
+            "ipc_2152_formulas": {
+                "external_layer": "I = 0.048 * (dT^0.44) * (Area_mil2^0.725)",
+                "internal_layer": "I = 0.024 * (dT^0.44) * (Area_mil2^0.725)",
+                "copper_thickness_1oz_mil": 1.378,
+            },
+            "ipc_2221_clearances": [
+                {"max_v": v, "internal_mm": i, "external_uncoated_mm": eu, "external_coated_mm": ec}
+                for v, i, eu, ec in IPC2221_CLEARANCES
+            ],
+            "industrial_dfx_criteria": {
+                "dft_min_testpoint_dia_mm": 1.0,
+                "dft_min_grid_pitch_mm": 2.0,
+                "dfa_min_optical_fiducials": 3,
+                "emc_esd_level": "IEC 61000-4-2 Level 4 (15kV Air, 8kV Contact)",
+            },
+        }
+        return {
+            "contents": [
+                {
+                    "uri": uri,
+                    "mimeType": "application/json",
+                    "text": json.dumps(rules, ensure_ascii=False, indent=2),
                 }
             ]
         }
@@ -714,6 +855,23 @@ def handle_prompt_get(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         )
         return {
             "description": "PCBA BOM cost reduction and Basic library substitution",
+            "messages": [{"role": "user", "content": {"type": "text", "text": user_prompt}}],
+        }
+
+    if name == "audit_industrial_compliance":
+        netlist_json = arguments.get("netlist_json", "")
+        user_prompt = (
+            f"You are an Industrial Hardware Quality and Compliance Chief Engineer.\n\n"
+            f"Target Netlist to Audit for Industrial Grade Deployment:\n{netlist_json}\n\n"
+            f"Please execute the following industrial audit procedure:\n"
+            f"1. Run `audit_industrial_dfx` on the netlist to check DFT testpoint matrix, DFA optical fiducials, and EMC/ESD protection.\n"
+            f"2. For high-current power traces, use `calculate_ipc2152_trace_current` to verify trace width and temperature rise (ΔT ≤ 20°C).\n"
+            f"3. Verify electrical clearances against IPC-2221 Table 6-1 for working supply voltages.\n"
+            f"4. Check for TVS diode protection on external exposed ports (USB USBLC6-2SC6, RS-485 SM712, CAN PESD1CAN).\n"
+            f"5. Issue a formal Pass/Fail decision with actionable remediation steps for any detected vulnerabilities."
+        )
+        return {
+            "description": "Enterprise-grade industrial compliance review (IPC-2152/2221, DFT, DFA, TVS)",
             "messages": [{"role": "user", "content": {"type": "text", "text": user_prompt}}],
         }
 

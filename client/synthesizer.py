@@ -24,26 +24,33 @@ from __future__ import annotations
 
 from typing import Any
 
-from .circuit_blocks import (
-    block_battery_tp4056,
-    block_button,
-    block_buzzer,
-    block_can_transceiver,
-    block_crystal_clock,
-    block_i2c_header,
-    block_led,
-    block_power_ldo_3v3,
-    block_rs485_transceiver,
-    block_sensor_aht20,
-    block_sensor_mpu6050,
-    block_usb_c_power,
-)
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
     detect_chip_from_prompt,
     get_chip_rule,
     register_chip_rule,
+)
+from .circuit_blocks import (
+    block_battery_tp4056,
+    block_button,
+    block_buzzer,
+    block_can_transceiver,
+    block_crystal_clock,
+    block_esd_can_tvs,
+    block_esd_rs485_tvs,
+    block_esd_usb_tvs,
+    block_fiducial_marks,
+    block_i2c_header,
+    block_led,
+    block_power_ldo_3v3,
+    block_power_pi_filter,
+    block_reverse_polarity_protection,
+    block_rs485_transceiver,
+    block_sensor_aht20,
+    block_sensor_mpu6050,
+    block_testpoint_matrix,
+    block_usb_c_power,
 )
 
 KNOWN_CHIPS = ("STM32F103C8T6", "ESP32-C3", "ESP32-S3", "RP2040", "STC89C52RC")
@@ -69,6 +76,13 @@ _RS485_TOKENS = ("rs485", "485", "max485", "sp3485", "差分串口", "modbus")
 _CAN_TOKENS = ("can", "can总线", "canbus", "can-bus", "tja1050", "sn65hvd230")
 _BATTERY_TOKENS = ("battery", "锂电池", "充电", "tp4056", "电池供电", "充放电", "单节锂电")
 
+_INDUSTRIAL_TOKENS = ("工业", "工业级", "industrial", "高可靠", "生产级")
+_TVS_TOKENS = ("tvs", "esd", "防静电", "浪涌", "防护", "保护", "防雷")
+_REV_TOKENS = ("防反接", "反接保护", "polarity", "肖特基防反")
+_PI_TOKENS = ("pi滤波", "π滤波", "滤波", "磁珠", "clc", "lc滤波")
+_DFT_TOKENS = ("测试点", "testpoint", "ict", "飞针", "测试焊盘")
+_DFA_TOKENS = ("mark点", "mark", "fiducial", "光学定位", "对准点")
+
 _CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "两": 2}
 
 
@@ -85,10 +99,8 @@ def _detect_chip(prompt_lower: str) -> str:
 def _detect_count(prompt: str, tokens: tuple[str, ...], default: int = 1) -> int:
     """Count devices, e.g. '2个按键' -> 2, '三个按键' -> 3."""
     for i in range(1, 9):
-        if f"{i}个" in prompt or f"{i} 个" in prompt or f"{i}按键" in prompt:
-            # Only accept if a device token appears near the numeral.
-            if any(t in prompt for t in tokens):
-                return i
+        if (f"{i}个" in prompt or f"{i} 个" in prompt or f"{i}按键" in prompt) and any(t in prompt for t in tokens):
+            return i
     for cn, n in _CN_NUM.items():
         if f"{cn}个" in prompt and any(t in prompt for t in tokens):
             return n
@@ -189,6 +201,35 @@ def synthesize_from_prompt(
     if _has(prompt_lower, prompt, _BATTERY_TOKENS):
         blocks.append(block_battery_tp4056())
 
+    # --- industrial protection & DFX --------------------------------------
+    is_industrial = _has(prompt_lower, prompt, _INDUSTRIAL_TOKENS)
+    has_tvs = _has(prompt_lower, prompt, _TVS_TOKENS)
+
+    has_usb = any(b.name == "USB_C_Power" for b in blocks)
+    has_rs485 = any(b.name == "RS485_Transceiver" for b in blocks)
+    has_can = any(b.name == "CAN_Transceiver" for b in blocks)
+
+    if has_usb and (is_industrial or has_tvs):
+        blocks.append(block_esd_usb_tvs())
+
+    if has_rs485 and (is_industrial or has_tvs):
+        blocks.append(block_esd_rs485_tvs())
+
+    if has_can and (is_industrial or has_tvs):
+        blocks.append(block_esd_can_tvs())
+
+    if _has(prompt_lower, prompt, _REV_TOKENS) or (is_industrial and not has_usb):
+        blocks.append(block_reverse_polarity_protection())
+
+    if _has(prompt_lower, prompt, _PI_TOKENS) or (is_industrial and (has_rs485 or has_can)):
+        blocks.append(block_power_pi_filter())
+
+    if _has(prompt_lower, prompt, _DFT_TOKENS) or is_industrial:
+        blocks.append(block_testpoint_matrix())
+
+    if _has(prompt_lower, prompt, _DFA_TOKENS) or is_industrial:
+        blocks.append(block_fiducial_marks())
+
     # --- flatten (insertion order is deterministic) ------------------------
     modules: dict[str, Any] = {}
     net_merge: dict[str, list[str]] = {}
@@ -215,7 +256,7 @@ def synthesize_from_prompt(
         "chip_id": chip_id,
         "prompt": prompt,
         "modules": modules,
-        "netlist": {"connections": connections},
+        "netlist": {"connections": connections, "modules": modules},
         "block_names": [b.name for b in blocks],
         "unmatched": unmatched,
     }

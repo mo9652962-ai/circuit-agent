@@ -10,9 +10,6 @@ Covers the full MCP Triad:
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from client import mcp_server as mcp
 
@@ -60,7 +57,9 @@ def test_mcp_tools_list():
     assert "calculate_bom_cost" in tool_names
     assert "list_supported_chips" in tool_names
     assert "register_custom_chip" in tool_names
-    assert len(tools) == 8
+    assert "calculate_ipc2152_trace_current" in tool_names
+    assert "audit_industrial_dfx" in tool_names
+    assert len(tools) == 10
 
 
 def test_mcp_tool_call_synthesize():
@@ -219,7 +218,8 @@ def test_mcp_resources_list():
     assert "circuit://examples/esp32c3-minimal" in uris
     assert "circuit://examples/stm32f103-controller" in uris
     assert "circuit://examples/rp2040-dualcore" in uris
-    assert len(resources) == 7
+    assert "circuit://specs/ipc-dfx-rules" in uris
+    assert len(resources) == 8
 
 
 def test_mcp_resources_templates_list():
@@ -289,7 +289,8 @@ def test_mcp_prompts_list():
     assert "design_hardware_project" in names
     assert "audit_schematic_netlist" in names
     assert "optimize_bom_cost" in names
-    assert len(prompts) == 3
+    assert "audit_industrial_compliance" in names
+    assert len(prompts) == 4
 
 
 def test_mcp_prompts_get():
@@ -331,3 +332,61 @@ def test_mcp_unknown_tool_returns_is_error():
     resp = mcp.process_message(req)
     assert "result" in resp
     assert resp["result"].get("isError") is True
+
+
+def test_mcp_tool_call_calculate_ipc2152():
+    req = {
+        "jsonrpc": "2.0",
+        "id": 101,
+        "method": "tools/call",
+        "params": {
+            "name": "calculate_ipc2152_trace_current",
+            "arguments": {"mode": "solve_current", "trace_width_mm": 0.5, "copper_oz": 1.0, "temp_rise_c": 20.0},
+        },
+    }
+    resp = mcp.process_message(req)
+    assert "result" in resp
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert "max_current_a" in data
+    assert data["max_current_a"] > 1.5
+
+    req_solve = {
+        "jsonrpc": "2.0",
+        "id": 102,
+        "method": "tools/call",
+        "params": {
+            "name": "calculate_ipc2152_trace_current",
+            "arguments": {"mode": "solve_width", "target_current_a": 2.0},
+        },
+    }
+    resp_solve = mcp.process_message(req_solve)
+    data_solve = json.loads(resp_solve["result"]["content"][0]["text"])
+    assert data_solve["trace_width_mm"] > 0.4
+
+
+def test_mcp_tool_call_audit_industrial_dfx():
+    netlist = {
+        "components": [
+            {"ref": "J1", "kind": "CONNECTOR", "value": "USB-C-16P"},
+            {"ref": "U1", "kind": "MCU", "value": "STM32F103"},
+        ],
+        "connections": [
+            {"net": "/VBUS", "points": ["J1.VBUS", "U1.VDD"]},
+            {"net": "/GND", "points": ["J1.GND", "U1.VSS"]},
+        ],
+    }
+    req = {
+        "jsonrpc": "2.0",
+        "id": 103,
+        "method": "tools/call",
+        "params": {
+            "name": "audit_industrial_dfx",
+            "arguments": {"netlist": netlist},
+        },
+    }
+    resp = mcp.process_message(req)
+    assert "result" in resp
+    data = json.loads(resp["result"]["content"][0]["text"])
+    assert "score" in data
+    assert "violations" in data
+    assert any(v["rule_id"] == "EMC-01" for v in data["violations"])

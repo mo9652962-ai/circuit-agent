@@ -12,8 +12,8 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-120%20passing-brightgreen.svg" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.5-blueviolet.svg" alt="Release"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-195%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.6-blueviolet.svg" alt="Release"></a>
 </p>
 
 <p align="center">
@@ -138,6 +138,15 @@ for comp in blk.components:
 | `block_rs485_transceiver` | SP3485 半双工差分串口 | 120Ω 终端电阻 + 100nF 去耦 + 3P 排针引出 |
 | `block_can_transceiver` | SN65HVD230 3.3V CAN 节点 | 120Ω 终端匹配 + 10k 斜率控制 (高速模式) |
 | `block_battery_tp4056` | TP4056 1A 线性锂电充电 | 1.2k 限流 + 充/满双色指示灯 + 2P 电池端子 |
+| `block_sensor_aht20` | AHT20 温湿度传感器 | 工业 I2C 总线 + 去耦电容 + DFN-6 封装 (C2757850) |
+| `block_sensor_mpu6050` | MPU-6050 6轴 IMU 运动姿态传感器 | 3轴陀螺仪+3轴加速度计 + 旁路去耦 + QFN-24 (C24112) |
+| `block_esd_usb_tvs` | USB 接口高速 TVS 静电防护 | USBLC6-2SC6 超低结电容 (0.6pF) + SOT-23-6 |
+| `block_esd_rs485_tvs` | RS-485 工业双向非对称 TVS | SM712 工业防雷/抗浪涌防静电二极管 (-7V~+12V) |
+| `block_esd_can_tvs` | CAN 总线 ESD 双路 TVS 阵列 | PESD1CAN 24V 车规/工控双线 TVS (SOT-23) |
+| `block_reverse_polarity_protection` | 工业电源输入防反接保护 | 肖特基二极管 (SS34) 或 低压降 P-MOSFET (AO3401A) |
+| `block_power_pi_filter` | 电源输入 EMI π型 LC/RC 滤波器 | 磁珠 (100MHz 600Ω) + 10µF 钽电容/陶瓷电容吸收纹波 |
+| `block_fiducial_marks` | SMT 贴片光学定位点 (Mark点) | 3个 1.0mm 裸铜焊盘 + 2.0mm 阻焊开窗 (DFA工序必备) |
+| `block_testpoint_matrix` | 自动化测试点矩阵 (Test Points) | 1.0mm SMD 测试铜焊盘 (支持电源轨、地轨、SWD、UART测试) |
 
 每个积木的引脚号、LCSC 料号、封装名在冻结前均对照数据手册与立创商城列表核验过。
 `tests/test_circuit_blocks.py` 会强制校验：位号唯一、每个元件都有封装与料号、
@@ -170,10 +179,14 @@ python -m client.mcp_server
 ### 暴露的工具 (Tools)
 1. `synthesize_circuit`: 输入自然语言，输出确定性硬件网表与积木清单。
 2. `search_lcsc_parts`: 免 Key 实时查询立创商城的元器件库存、封装、阶梯单价与基础库/扩展库属性。
-3. `list_circuit_blocks`: 列出 DSL 中全部可用的 10 大已审计电路积木规格。
+3. `list_circuit_blocks`: 列出 DSL 中全部可用的 19 大已审计电路积木规格。
 4. `validate_netlist`: 根据正式 JSON Schema 校验网表数据结构合法性。
 5. `calculate_trace_impedance`: 基于 IPC-2141 解析公式计算微带线与差分对走线阻抗（50Ω RF / 90Ω USB / 120Ω CAN/485）。
 6. `calculate_bom_cost`: PCBA 成本核算器，自动精算元器件裸成本与嘉立创扩展库换料费（¥20/种）。
+7. `list_supported_chips`: 查询当前支持的微控制器型号及其引脚分配硬规则。
+8. `register_custom_chip`: 动态注册第三方 MCU 物理引脚约束与外设映射表。
+9. `calculate_ipc2152_trace_current`: 依据 IPC-2152 标准精确计算印制导线载流能力或反算线宽（温升 ΔT、铜厚 1oz/2oz、内层降额）。
+10. `audit_industrial_dfx`: 工业级 DFX (DFM/DFA/DFT/DFC) 与生产合规自动化静态审查器，输出打分评级、问题分类与 Markdown 体检报告。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：
@@ -189,6 +202,7 @@ python -m client.mcp_server
 - `/design_hardware_project`: 全流程硬件设计指令（积木匹配 → 阻抗计算 → BOM核算 → 网表校验）。
 - `/audit_schematic_netlist`: Senior EE 硬件体检审查指令（去耦电容亲和性、差分对等长、Type-C 下拉阻抗）。
 - `/optimize_bom_cost`: PCBA 降本优化指令（分析扩展库物料并推荐免换料费的基础库替代料）。
+- `/audit_industrial_compliance`: 工业与量产级 DFX 审查指令（核查 IPC-2152 载流温升、IPC-2221 电气间隙、DFT 测试点覆盖率与 TVS 端口抗浪涌防护）。
 
 ---
 
@@ -203,7 +217,7 @@ python -m client.mcp_server
 ## 测试与 CI
 
 ```bash
-pytest tests/ -q      # 120 passed
+pytest tests/ -q      # 195 passed
 ```
 
 CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量测试，

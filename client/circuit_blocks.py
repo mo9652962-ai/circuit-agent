@@ -14,20 +14,27 @@ from dataclasses import dataclass, field
 from typing import Any
 
 __all__ = [
-    "CircuitComponent",
     "CircuitBlock",
-    "block_usb_c_power",
-    "block_power_ldo_3v3",
-    "block_crystal_clock",
-    "block_button",
-    "block_led",
-    "block_buzzer",
-    "block_i2c_header",
-    "block_rs485_transceiver",
-    "block_can_transceiver",
+    "CircuitComponent",
     "block_battery_tp4056",
+    "block_button",
+    "block_buzzer",
+    "block_can_transceiver",
+    "block_crystal_clock",
+    "block_esd_can_tvs",
+    "block_esd_rs485_tvs",
+    "block_esd_usb_tvs",
+    "block_fiducial_marks",
+    "block_i2c_header",
+    "block_led",
+    "block_power_ldo_3v3",
+    "block_power_pi_filter",
+    "block_reverse_polarity_protection",
+    "block_rs485_transceiver",
     "block_sensor_aht20",
     "block_sensor_mpu6050",
+    "block_testpoint_matrix",
+    "block_usb_c_power",
 ]
 
 
@@ -427,4 +434,213 @@ def block_sensor_mpu6050(ic_ref: str = "U_MPU1", vcc_net: str = "/+3.3V",
             "gyroscope": True,
         },
     )
+
+
+# --------------------------------------------------------------------------- #
+# Industrial Protection & DFX Blocks (Enterprise Grade)
+# --------------------------------------------------------------------------- #
+
+def block_esd_usb_tvs(
+    vbus_net: str = "/VBUS",
+    gnd_net: str = "/GND",
+    dp_net: str = "/USB_DP",
+    dm_net: str = "/USB_DM",
+    tvs_ref: str = "U_TVS_USB1",
+) -> CircuitBlock:
+    """Industrial ultra-low capacitance TVS diode array for USB 2.0 (IEC 61000-4-2 15kV ESD)."""
+    return CircuitBlock(
+        name="ESD_TVS_USB",
+        description="STMicroelectronics USBLC6-2SC6 low-capacitance rail-to-rail ESD protection for USB D+/D- and VBUS",
+        components=[
+            CircuitComponent(
+                tvs_ref, "TVS", "USBLC6-2SC6", "SOT-23-6", "C7519",
+                {"1": dp_net, "2": gnd_net, "3": dp_net, "4": dm_net, "5": vbus_net, "6": dm_net},
+            ),
+        ],
+        nets={
+            vbus_net: [f"{tvs_ref}.5"],
+            gnd_net: [f"{tvs_ref}.2"],
+            dp_net: [f"{tvs_ref}.1", f"{tvs_ref}.3"],
+            dm_net: [f"{tvs_ref}.4", f"{tvs_ref}.6"],
+        },
+        properties={
+            "standard": "IEC 61000-4-2 (Level 4)",
+            "air_discharge": "15kV",
+            "contact_discharge": "8kV",
+            "capacitance_pf": 3.5,
+        },
+    )
+
+
+def block_esd_rs485_tvs(
+    a_net: str = "/RS485_A",
+    b_net: str = "/RS485_B",
+    gnd_net: str = "/GND",
+    tvs_ref: str = "D_TVS_485",
+) -> CircuitBlock:
+    """Asymmetrical bidirectional TVS diode for RS485 differential lines (-7V to +12V common mode)."""
+    return CircuitBlock(
+        name="ESD_TVS_RS485",
+        description="Semtech SM712 asymmetrical TVS diode for RS-485 transceiver protection against lightning and ESD",
+        components=[
+            CircuitComponent(
+                tvs_ref, "TVS", "SM712", "SOT-23", "C19001",
+                {"1": a_net, "2": b_net, "3": gnd_net},
+            ),
+        ],
+        nets={
+            a_net: [f"{tvs_ref}.1"],
+            b_net: [f"{tvs_ref}.2"],
+            gnd_net: [f"{tvs_ref}.3"],
+        },
+        properties={
+            "standard": "IEC 61000-4-5 Surge & IEC 61000-4-2 ESD",
+            "standoff_voltage": "-7V to +12V",
+            "peak_pulse_power_w": 600,
+        },
+    )
+
+
+def block_esd_can_tvs(
+    canh_net: str = "/CAN_H",
+    canl_net: str = "/CAN_L",
+    gnd_net: str = "/GND",
+    tvs_ref: str = "D_TVS_CAN1",
+) -> CircuitBlock:
+    """Automotive/Industrial dual bidirectional TVS diode for CAN bus (24V system fault tolerant)."""
+    return CircuitBlock(
+        name="ESD_TVS_CAN",
+        description="Nexperia PESD1CAN dual bidirectional TVS diode array for ISO 11898-2 CAN bus ESD protection",
+        components=[
+            CircuitComponent(
+                tvs_ref, "TVS", "PESD1CAN", "SOT-23", "C2848243",
+                {"1": canh_net, "2": canl_net, "3": gnd_net},
+            ),
+        ],
+        nets={
+            canh_net: [f"{tvs_ref}.1"],
+            canl_net: [f"{tvs_ref}.2"],
+            gnd_net: [f"{tvs_ref}.3"],
+        },
+        properties={
+            "standard": "ISO 10605 / IEC 61000-4-2",
+            "reverse_standoff_v": 24.0,
+            "peak_pulse_power_w": 200,
+        },
+    )
+
+
+def block_reverse_polarity_protection(
+    vin_raw_net: str = "/VIN_RAW",
+    vin_net: str = "/VIN",
+    gnd_net: str = "/GND",
+    method: str = "schottky",
+) -> CircuitBlock:
+    """Industrial wide-input reverse polarity protection (Schottky SS34 or P-MOSFET ideal diode)."""
+    if method.lower() == "pmos":
+        components = [
+            CircuitComponent("Q_REV1", "MOSFET", "AO3401A", "SOT-23", "C15127",
+                             {"S": vin_raw_net, "D": vin_net, "G": "/G_REV"}),
+            CircuitComponent("R_REV_G", "RESISTOR", "100k", "R0603", "C25804",
+                             {"1": "/G_REV", "2": gnd_net}),
+            CircuitComponent("D_REV_Z", "ZENER", "12V", "SOD-123", "C81598",
+                             {"1": gnd_net, "2": "/G_REV"}),
+        ]
+        nets = {
+            vin_raw_net: ["Q_REV1.S"],
+            vin_net: ["Q_REV1.D"],
+            gnd_net: ["R_REV_G.2", "D_REV_Z.1"],
+            "/G_REV": ["Q_REV1.G", "R_REV_G.1", "D_REV_Z.2"],
+        }
+        desc = "P-MOSFET (AO3401A) ultra-low voltage drop ideal diode reverse polarity protection circuit"
+    else:
+        components = [
+            CircuitComponent("D_REV1", "DIODE", "SS34", "SMA", "C8678",
+                             {"1": vin_raw_net, "2": vin_net}),
+        ]
+        nets = {
+            vin_raw_net: ["D_REV1.1"],
+            vin_net: ["D_REV1.2"],
+        }
+        desc = "Schottky barrier rectifier (SS34 40V 3A) reverse polarity protection diode"
+
+    return CircuitBlock(
+        name="Reverse_Polarity_Protection",
+        description=desc,
+        components=components,
+        nets=nets,
+        properties={"method": method, "max_reverse_voltage_v": 30.0},
+    )
+
+
+def block_power_pi_filter(
+    vin_net: str = "/VIN",
+    vout_net: str = "/VCC_CLEAN",
+    gnd_net: str = "/GND",
+) -> CircuitBlock:
+    """High-attenuation C-L-C pi-filter with ferrite bead for noisy industrial DC supplies."""
+    return CircuitBlock(
+        name="Power_Pi_Filter",
+        description="CLC Pi-Filter (10uF + 600R@100MHz 2A Ferrite Bead + 10uF + 100nF) for industrial EMI suppression",
+        components=[
+            CircuitComponent("C_PI_IN", "CAPACITOR", "10uF", "C0805", "C15850",
+                             {"1": vin_net, "2": gnd_net}),
+            CircuitComponent("FB_PI1", "INDUCTOR", "600R_2A", "L0805", "C1015",
+                             {"1": vin_net, "2": vout_net}),
+            CircuitComponent("C_PI_OUT", "CAPACITOR", "10uF", "C0805", "C15850",
+                             {"1": vout_net, "2": gnd_net}),
+            CircuitComponent("C_PI_HF", "CAPACITOR", "100nF", "C0603", "C14663",
+                             {"1": vout_net, "2": gnd_net}),
+        ],
+        nets={
+            vin_net: ["C_PI_IN.1", "FB_PI1.1"],
+            vout_net: ["FB_PI1.2", "C_PI_OUT.1", "C_PI_HF.1"],
+            gnd_net: ["C_PI_IN.2", "C_PI_OUT.2", "C_PI_HF.2"],
+        },
+        properties={"bead_impedance_ohms": 600, "rated_current_a": 2.0},
+    )
+
+
+def block_fiducial_marks(count: int = 3) -> CircuitBlock:
+    """Optical fiducial marks for automated SMT pick-and-place vision alignment (DFA)."""
+    count = max(3, count)
+    components = [
+        CircuitComponent(f"FID{i+1}", "FIDUCIAL", "1.0mm", "Fiducial_1mm_Mask2mm", "C9999998", {})
+        for i in range(count)
+    ]
+    return CircuitBlock(
+        name="Fiducial_Marks",
+        description=f"Set of {count} optical fiducial marks (1.0mm pad, 2.0mm mask opening) for SMT machine vision",
+        components=components,
+        nets={},
+        properties={"pad_diameter_mm": 1.0, "clearance_mm": 2.0, "quantity": count},
+    )
+
+
+def block_testpoint_matrix(nets: list[str] | None = None) -> CircuitBlock:
+    """SMD test point pads matrix for in-circuit testing (ICT) and flying probe validation (DFT)."""
+    target_nets = nets or ["/VBUS", "/+3.3V", "/GND", "/SWDIO", "/SWCLK", "/TX", "/RX"]
+    components = []
+    block_nets: dict[str, list[str]] = {}
+    for i, net_name in enumerate(target_nets):
+        clean_name = (
+            net_name.replace("/", "")
+            .replace("+", "P")
+            .replace("-", "N")
+            .replace(".", "_")
+        )
+        ref = f"TP_{clean_name}"
+        components.append(
+            CircuitComponent(ref, "TESTPOINT", "1.0mm", "TestPoint_Pad_D1.0mm", "C9999999", {"1": net_name})
+        )
+        block_nets[net_name] = [f"{ref}.1"]
+
+    return CircuitBlock(
+        name="Testpoint_Matrix",
+        description=f"SMD test point pads matrix for automated ICT bed-of-nails and flying probe validation ({len(target_nets)} pads)",
+        components=components,
+        nets=block_nets,
+        properties={"pad_diameter_mm": 1.0, "tested_nets": target_nets},
+    )
+
 
