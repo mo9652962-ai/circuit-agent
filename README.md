@@ -12,7 +12,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-195%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-206%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.6-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -187,12 +187,17 @@ python -m client.mcp_server
 8. `register_custom_chip`: 动态注册第三方 MCU 物理引脚约束与外设映射表。
 9. `calculate_ipc2152_trace_current`: 依据 IPC-2152 标准精确计算印制导线载流能力或反算线宽（温升 ΔT、铜厚 1oz/2oz、内层降额）。
 10. `audit_industrial_dfx`: 工业级 DFX (DFM/DFA/DFT/DFC) 与生产合规自动化静态审查器，输出打分评级、问题分类与 Markdown 体检报告。
+11. `export_kicad_netlist`: 导出标准 KiCad S-Expression 网表 (.net)，支持 KiCad 6/7/8/9/10 直接导入 Pcbnew 快速布线。
+12. `export_manufacturing_bom`: 生成量产级嘉立创 SMT BOM CSV 表格（含位号聚合、基础库免换料费分类）。
+13. `calculate_parametric_circuit`: 闭环参数化硬件设计方程（E96 标准分压电阻对求解、LDO 散热结温校核、I2C 上拉阻值及 RC 滤波）。
+14. `render_circuit_topology`: 生成结构化 ASCII 系统架构拓扑图（电源轨、总线、传感器与保护子系统）。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：
 - `circuit://specs/netlist-schema`: 完整的网表 Draft-07 JSON Schema。
 - `circuit://specs/cpl-standard`: 嘉立创 SMT 坐标规范与封装偏角补偿表。
-- `circuit://blocks/catalog`: 10 大电路积木的元器件、引脚与网络全量清单。
+- `circuit://specs/ipc-dfx-rules`: IPC-2152 导线载流/温升与 IPC-2221 电气间隙/爬电距离硬规则。
+- `circuit://blocks/catalog`: 19 大电路积木的元器件、引脚与网络全量清单。
 - `circuit://rules/jlc-smt`: 嘉立创四层板叠层 (JLC04161H) 与生产物理规则。
 - `circuit://examples/esp32c3-minimal`: ESP32-C3 极简温湿度节点参考网表。
 - `circuit://examples/stm32f103-controller`: STM32F103 工业控制板参考网表。
@@ -217,7 +222,7 @@ python -m client.mcp_server
 ## 测试与 CI
 
 ```bash
-pytest tests/ -q      # 195 passed
+pytest tests/ -q      # 206 passed
 ```
 
 CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量测试，

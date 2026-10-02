@@ -66,6 +66,11 @@ from .circuit_blocks import (
     block_testpoint_matrix,
     block_usb_c_power,
 )
+from .export_engine import (
+    export_jlcpcb_bom,
+    export_kicad_netlist,
+    render_ascii_topology,
+)
 from .industrial_dfx import (
     IPC2221_CLEARANCES,
     audit_industrial_dfx,
@@ -73,6 +78,12 @@ from .industrial_dfx import (
     solve_trace_width_ipc2152,
 )
 from .lcsc_client import search_lcsc_parts
+from .parametric_equations import (
+    calculate_i2c_pullup,
+    calculate_ldo_thermal,
+    calculate_rc_filter,
+    solve_resistor_divider,
+)
 from .synthesizer import synthesize_from_prompt
 
 logger = logging.getLogger("circuit_agent_mcp")
@@ -80,7 +91,7 @@ logger = logging.getLogger("circuit_agent_mcp")
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "circuit-agent-mcp",
-    "version": "0.1.5",
+    "version": "0.1.6",
 }
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -310,6 +321,64 @@ AVAILABLE_TOOLS = [
                     "type": "object",
                     "description": "Hardware netlist dictionary containing 'components' and 'connections'.",
                 },
+            },
+        },
+    },
+    {
+        "name": "export_kicad_netlist",
+        "description": "Export standard KiCad S-Expression netlist (.net) compatible with KiCad 6/7/8/9/10 Pcbnew.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
+                "title": {"type": "string", "description": "Schematic / board project title.", "default": "CircuitAgent_Design"},
+            },
+        },
+    },
+    {
+        "name": "export_manufacturing_bom",
+        "description": "Generate production-ready JLCPCB SMT BOM CSV with part grouping, designator aggregation, and Basic/Extended classification.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
+            },
+        },
+    },
+    {
+        "name": "calculate_parametric_circuit",
+        "description": "Solve discrete parametric circuit equations: optimal E96 resistor dividers, LDO thermal dissipation, I2C bus pullups, or RC filters.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["type", "params"],
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["resistor_divider", "ldo_thermal", "i2c_pullup", "rc_filter"],
+                    "description": "Type of parametric calculation to perform.",
+                },
+                "params": {
+                    "type": "object",
+                    "description": (
+                        "Calculation arguments: for 'resistor_divider' (v_in, v_out_target, max_quiescent_current_ma); "
+                        "for 'ldo_thermal' (v_in, v_out, i_load_a, package); "
+                        "for 'i2c_pullup' (v_cc, bus_capacitance_pf, mode); "
+                        "for 'rc_filter' (cutoff_freq_hz, r_ohm, c_f)."
+                    ),
+                },
+            },
+        },
+    },
+    {
+        "name": "render_circuit_topology",
+        "description": "Render a clean, structured ASCII architectural diagram of power domains, buses, and connected subsystems.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
             },
         },
     },
@@ -695,6 +764,66 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
             dfx_rep = audit_industrial_dfx(netlist)
             return {"content": [{"type": "text", "text": json.dumps(dfx_rep.to_dict(), ensure_ascii=False, indent=2)}]}
+
+        if name == "export_kicad_netlist":
+            netlist = arguments.get("netlist", {})
+            title = arguments.get("title", "CircuitAgent_Design")
+            if not isinstance(netlist, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+            kicad_str = export_kicad_netlist(netlist, title=title)
+            return {"content": [{"type": "text", "text": kicad_str}]}
+
+        if name == "export_manufacturing_bom":
+            netlist = arguments.get("netlist", {})
+            if not isinstance(netlist, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+            bom_csv = export_jlcpcb_bom(netlist)
+            return {"content": [{"type": "text", "text": bom_csv}]}
+
+        if name == "calculate_parametric_circuit":
+            p_type = arguments.get("type")
+            params = arguments.get("params", {})
+            if not isinstance(params, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'params' must be a JSON object"}]}
+
+            if p_type == "resistor_divider":
+                v_in = float(params.get("v_in", 5.0))
+                v_out = float(params.get("v_out_target", 3.3))
+                max_i = float(params.get("max_quiescent_current_ma", 1.0))
+                series = params.get("series", "E96")
+                res = solve_resistor_divider(v_in, v_out, max_quiescent_current_ma=max_i, series=series)
+                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+            if p_type == "ldo_thermal":
+                v_in = float(params.get("v_in", 5.0))
+                v_out = float(params.get("v_out", 3.3))
+                i_load = float(params.get("i_load_a", 0.1))
+                pkg = params.get("package", "SOT-223")
+                res = calculate_ldo_thermal(v_in, v_out, i_load, package=pkg)
+                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+            if p_type == "i2c_pullup":
+                v_cc = float(params.get("v_cc", 3.3))
+                c_bus = float(params.get("bus_capacitance_pf", 100.0))
+                mode = params.get("mode", "fast")
+                res = calculate_i2c_pullup(v_cc, bus_capacitance_pf=c_bus, mode=mode)
+                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+            if p_type == "rc_filter":
+                fc = float(params["cutoff_freq_hz"]) if "cutoff_freq_hz" in params else None
+                r = float(params["r_ohm"]) if "r_ohm" in params else None
+                c = float(params["c_f"]) if "c_f" in params else None
+                res = calculate_rc_filter(cutoff_freq_hz=fc, r_ohm=r, c_f=c)
+                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+            return {"isError": True, "content": [{"type": "text", "text": f"Unknown parametric calculation type: '{p_type}'"}]}
+
+        if name == "render_circuit_topology":
+            netlist = arguments.get("netlist", {})
+            if not isinstance(netlist, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+            diag = render_ascii_topology(netlist)
+            return {"content": [{"type": "text", "text": diag}]}
 
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:

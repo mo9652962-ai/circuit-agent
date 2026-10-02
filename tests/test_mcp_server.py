@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from client import mcp_server as mcp
 
 
@@ -59,7 +61,11 @@ def test_mcp_tools_list():
     assert "register_custom_chip" in tool_names
     assert "calculate_ipc2152_trace_current" in tool_names
     assert "audit_industrial_dfx" in tool_names
-    assert len(tools) == 10
+    assert "export_kicad_netlist" in tool_names
+    assert "export_manufacturing_bom" in tool_names
+    assert "calculate_parametric_circuit" in tool_names
+    assert "render_circuit_topology" in tool_names
+    assert len(tools) == 14
 
 
 def test_mcp_tool_call_synthesize():
@@ -390,3 +396,112 @@ def test_mcp_tool_call_audit_industrial_dfx():
     assert "score" in data
     assert "violations" in data
     assert any(v["rule_id"] == "EMC-01" for v in data["violations"])
+
+
+def test_mcp_tool_call_export_kicad_and_bom():
+    netlist = {
+        "components": [
+            {"ref": "R1", "value": "10k", "package": "0603", "lcsc": "C25804"},
+            {"ref": "R2", "value": "10k", "package": "0603", "lcsc": "C25804"},
+            {"ref": "C1", "value": "100nF", "package": "0603", "lcsc": "C14663"},
+        ],
+        "connections": [
+            {"net": "/VBUS", "points": ["R1.1", "C1.1"]},
+            {"net": "/GND", "points": ["R2.2", "C1.2"]},
+        ],
+    }
+
+    # Test export_kicad_netlist
+    req_net = {
+        "jsonrpc": "2.0",
+        "id": 104,
+        "method": "tools/call",
+        "params": {"name": "export_kicad_netlist", "arguments": {"netlist": netlist, "title": "TestBoard"}},
+    }
+    resp_net = mcp.process_message(req_net)
+    assert "result" in resp_net
+    net_str = resp_net["result"]["content"][0]["text"]
+    assert '(export (version "E")' in net_str
+    assert '(comp (ref "R1")' in net_str
+
+    # Test export_manufacturing_bom
+    req_bom = {
+        "jsonrpc": "2.0",
+        "id": 105,
+        "method": "tools/call",
+        "params": {"name": "export_manufacturing_bom", "arguments": {"netlist": netlist}},
+    }
+    resp_bom = mcp.process_message(req_bom)
+    assert "result" in resp_bom
+    bom_str = resp_bom["result"]["content"][0]["text"]
+    assert "R1,R2" in bom_str
+    assert "Basic Part" in bom_str
+
+    # Test render_circuit_topology
+    req_top = {
+        "jsonrpc": "2.0",
+        "id": 106,
+        "method": "tools/call",
+        "params": {"name": "render_circuit_topology", "arguments": {"netlist": netlist}},
+    }
+    resp_top = mcp.process_message(req_top)
+    assert "result" in resp_top
+    top_str = resp_top["result"]["content"][0]["text"]
+    assert "SYSTEM ARCHITECTURE TOPOLOGY" in top_str
+
+
+def test_mcp_tool_call_calculate_parametric():
+    # Test divider
+    req_div = {
+        "jsonrpc": "2.0",
+        "id": 107,
+        "method": "tools/call",
+        "params": {
+            "name": "calculate_parametric_circuit",
+            "arguments": {
+                "type": "resistor_divider",
+                "params": {"v_in": 12.0, "v_out_target": 3.3, "max_quiescent_current_ma": 2.0},
+            },
+        },
+    }
+    resp_div = mcp.process_message(req_div)
+    assert "result" in resp_div
+    data_div = json.loads(resp_div["result"]["content"][0]["text"])
+    assert data_div["v_out_actual"] == pytest.approx(3.3, rel=0.02)
+
+    # Test LDO thermal
+    req_ldo = {
+        "jsonrpc": "2.0",
+        "id": 108,
+        "method": "tools/call",
+        "params": {
+            "name": "calculate_parametric_circuit",
+            "arguments": {
+                "type": "ldo_thermal",
+                "params": {"v_in": 5.0, "v_out": 3.3, "i_load_a": 0.2, "package": "SOT-223"},
+            },
+        },
+    }
+    resp_ldo = mcp.process_message(req_ldo)
+    assert "result" in resp_ldo
+    data_ldo = json.loads(resp_ldo["result"]["content"][0]["text"])
+    assert data_ldo["is_safe"] is True
+
+    # Test I2C pullup
+    req_i2c = {
+        "jsonrpc": "2.0",
+        "id": 109,
+        "method": "tools/call",
+        "params": {
+            "name": "calculate_parametric_circuit",
+            "arguments": {
+                "type": "i2c_pullup",
+                "params": {"v_cc": 3.3, "bus_capacitance_pf": 150.0, "mode": "fast"},
+            },
+        },
+    }
+    resp_i2c = mcp.process_message(req_i2c)
+    assert "result" in resp_i2c
+    data_i2c = json.loads(resp_i2c["result"]["content"][0]["text"])
+    assert data_i2c["recommended_standard_ohm"] > 0
+

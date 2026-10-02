@@ -31,6 +31,12 @@ from .circuit_blocks import (
     block_testpoint_matrix,
     block_usb_c_power,
 )
+from .export_engine import (
+    export_jlcpcb_bom,
+    export_jlcpcb_cpl,
+    export_kicad_netlist,
+    render_ascii_topology,
+)
 from .industrial_dfx import (
     IPC2221_CLEARANCES,
     DFXViolation,
@@ -42,6 +48,18 @@ from .industrial_dfx import (
     solve_trace_width_ipc2152,
 )
 from .lcsc_client import search_lcsc_parts
+from .parametric_equations import (
+    DividerResult,
+    I2CPullUpResult,
+    LDOThermalResult,
+    RCFilterResult,
+    calculate_i2c_pullup,
+    calculate_ldo_thermal,
+    calculate_rc_filter,
+    generate_standard_series,
+    snap_to_e_series,
+    solve_resistor_divider,
+)
 from .synthesizer import synthesize_from_prompt
 
 __version__ = "0.1.6"
@@ -52,7 +70,11 @@ __all__ = [
     "CircuitBlock",
     "CircuitComponent",
     "DFXViolation",
+    "DividerResult",
+    "I2CPullUpResult",
     "IndustrialDFXReport",
+    "LDOThermalResult",
+    "RCFilterResult",
     "TraceCurrentResult",
     "__version__",
     "apply_chip_pinout",
@@ -76,12 +98,22 @@ __all__ = [
     "block_sensor_mpu6050",
     "block_testpoint_matrix",
     "block_usb_c_power",
+    "calculate_i2c_pullup",
     "calculate_ipc2152",
+    "calculate_ldo_thermal",
+    "calculate_rc_filter",
+    "export_jlcpcb_bom",
+    "export_jlcpcb_cpl",
+    "export_kicad_netlist",
+    "generate_standard_series",
     "get_chip_rule",
     "get_ipc2221_clearance",
     "list_supported_chips",
     "register_chip_rule",
+    "render_ascii_topology",
     "search_lcsc_parts",
+    "snap_to_e_series",
+    "solve_resistor_divider",
     "solve_trace_width_ipc2152",
     "synthesize_from_prompt",
     "validate_pin_allocation",
