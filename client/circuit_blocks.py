@@ -26,6 +26,8 @@ __all__ = [
     "block_rs485_transceiver",
     "block_can_transceiver",
     "block_battery_tp4056",
+    "block_sensor_aht20",
+    "block_sensor_mpu6050",
 ]
 
 
@@ -321,3 +323,108 @@ def block_battery_tp4056(ic_ref: str = "U_BAT1", vbus_net: str = "/VBUS",
         },
         properties={"battery_chemistry": "Li-Ion", "charge_voltage": 4.2, "charge_current_ma": 1000},
     )
+
+
+# --------------------------------------------------------------------------- #
+# Sensors (Environment & Motion)
+# --------------------------------------------------------------------------- #
+def block_sensor_aht20(ic_ref: str = "U_AHT1", vcc_net: str = "/+3.3V",
+                       gnd_net: str = "/GND", scl_net: str = "/SCL",
+                       sda_net: str = "/SDA",
+                       include_pullups: bool = True) -> CircuitBlock:
+    """Aosong AHT20 I2C temperature and humidity sensor with 100nF decoupling."""
+    components = [
+        CircuitComponent(ic_ref, "SENSOR", "AHT20", "DFN-6_L3.0-W3.0-P1.00-BL", "C2757850",
+                         {"1": "/NC_AHT1", "2": vcc_net, "3": scl_net, "4": sda_net,
+                          "5": gnd_net, "6": "/NC_AHT2"}),
+        CircuitComponent("C_AHT1", "CAPACITOR", "100nF", "C0603", "C14663",
+                         {"1": vcc_net, "2": gnd_net}),
+    ]
+    nets: dict[str, list[str]] = {
+        vcc_net: [f"{ic_ref}.2", "C_AHT1.1"],
+        gnd_net: [f"{ic_ref}.5", "C_AHT1.2"],
+        scl_net: [f"{ic_ref}.3"],
+        sda_net: [f"{ic_ref}.4"],
+        "/NC_AHT1": [f"{ic_ref}.1"],
+        "/NC_AHT2": [f"{ic_ref}.6"],
+    }
+    if include_pullups:
+        components.extend([
+            CircuitComponent("R_AHT_SCL", "RESISTOR", "4.7k", "R0603", "C23162",
+                             {"1": vcc_net, "2": scl_net}),
+            CircuitComponent("R_AHT_SDA", "RESISTOR", "4.7k", "R0603", "C23162",
+                             {"1": vcc_net, "2": sda_net}),
+        ])
+        nets[vcc_net].extend(["R_AHT_SCL.1", "R_AHT_SDA.1"])
+        nets[scl_net].append("R_AHT_SCL.2")
+        nets[sda_net].append("R_AHT_SDA.2")
+
+    return CircuitBlock(
+        name="Sensor_AHT20",
+        description="Aosong AHT20 I2C temperature and humidity sensor with 100nF decoupling capacitor",
+        components=components,
+        nets=nets,
+        properties={
+            "interface": "I2C",
+            "i2c_address": "0x38",
+            "sensor_type": "temperature_humidity",
+            "temp_range": "-40~85°C",
+            "humidity_range": "0-100%RH",
+        },
+    )
+
+
+def block_sensor_mpu6050(ic_ref: str = "U_MPU1", vcc_net: str = "/+3.3V",
+                         gnd_net: str = "/GND", scl_net: str = "/SCL",
+                         sda_net: str = "/SDA", int_net: str = "/MPU_INT",
+                         include_pullups: bool = True) -> CircuitBlock:
+    """InvenSense MPU-6050 6-axis motion tracking sensor (gyro + accelerometer)."""
+    components = [
+        CircuitComponent(ic_ref, "SENSOR", "MPU-6050", "QFN-24_L4.0-W4.0-P0.50-BL-EP2.7", "C24112",
+                         {"1": gnd_net, "8": vcc_net, "9": gnd_net, "10": "/MPU_REGOUT",
+                          "11": gnd_net, "12": int_net, "13": vcc_net, "18": gnd_net,
+                          "20": "/MPU_CPOUT", "23": scl_net, "24": sda_net, "25": gnd_net}),
+        CircuitComponent("C_MPU_VDD", "CAPACITOR", "100nF", "C0603", "C14663",
+                         {"1": vcc_net, "2": gnd_net}),
+        CircuitComponent("C_MPU_VLOG", "CAPACITOR", "100nF", "C0603", "C14663",
+                         {"1": vcc_net, "2": gnd_net}),
+        CircuitComponent("C_MPU_REG", "CAPACITOR", "100nF", "C0603", "C14663",
+                         {"1": "/MPU_REGOUT", "2": gnd_net}),
+        CircuitComponent("C_MPU_CP", "CAPACITOR", "2.2nF", "C0603", "C1604",
+                         {"1": "/MPU_CPOUT", "2": gnd_net}),
+    ]
+    nets: dict[str, list[str]] = {
+        vcc_net: [f"{ic_ref}.8", f"{ic_ref}.13", "C_MPU_VDD.1", "C_MPU_VLOG.1"],
+        gnd_net: [f"{ic_ref}.1", f"{ic_ref}.9", f"{ic_ref}.11", f"{ic_ref}.18", f"{ic_ref}.25",
+                  "C_MPU_VDD.2", "C_MPU_VLOG.2", "C_MPU_REG.2", "C_MPU_CP.2"],
+        scl_net: [f"{ic_ref}.23"],
+        sda_net: [f"{ic_ref}.24"],
+        int_net: [f"{ic_ref}.12"],
+        "/MPU_REGOUT": [f"{ic_ref}.10", "C_MPU_REG.1"],
+        "/MPU_CPOUT": [f"{ic_ref}.20", "C_MPU_CP.1"],
+    }
+    if include_pullups:
+        components.extend([
+            CircuitComponent("R_MPU_SCL", "RESISTOR", "4.7k", "R0603", "C23162",
+                             {"1": vcc_net, "2": scl_net}),
+            CircuitComponent("R_MPU_SDA", "RESISTOR", "4.7k", "R0603", "C23162",
+                             {"1": vcc_net, "2": sda_net}),
+        ])
+        nets[vcc_net].extend(["R_MPU_SCL.1", "R_MPU_SDA.1"])
+        nets[scl_net].append("R_MPU_SCL.2")
+        nets[sda_net].append("R_MPU_SDA.2")
+
+    return CircuitBlock(
+        name="Sensor_MPU6050",
+        description="InvenSense MPU-6050 6-axis IMU (3-axis gyro + 3-axis accelerometer)",
+        components=components,
+        nets=nets,
+        properties={
+            "interface": "I2C",
+            "i2c_address": "0x68",
+            "sensor_type": "6axis_imu",
+            "accelerometer": True,
+            "gyroscope": True,
+        },
+    )
+

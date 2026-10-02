@@ -5,7 +5,9 @@ Provides the complete MCP Triad:
     1. Tools (6 engineering tools):
        - synthesize_circuit: Prompt to deterministic hardware netlist & modules
        - search_lcsc_parts: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging
-       - list_circuit_blocks: Query all 10 pre-audited CircuitBlocks in the hardware DSL
+       - list_circuit_blocks: Query all 12 pre-audited CircuitBlocks in the hardware DSL
+       - list_supported_chips: Query built-in & third-party MCU pinout allocation rules
+       - register_custom_chip: Dynamically register third-party chips & peripheral routes
        - validate_netlist: JSON Schema verification against Draft-07 specification
        - calculate_trace_impedance: Closed-form IPC-2141 microstrip & differential pair impedance solver
        - calculate_bom_cost: PCBA cost estimator calculating bare parts + JLCPCB feeder surcharge
@@ -49,7 +51,17 @@ from .circuit_blocks import (
     block_led,
     block_power_ldo_3v3,
     block_rs485_transceiver,
+    block_sensor_aht20,
+    block_sensor_mpu6050,
     block_usb_c_power,
+)
+from .chip_rules import (
+    ChipPinoutRule,
+    apply_chip_pinout,
+    get_chip_rule,
+    list_supported_chips,
+    register_chip_rule,
+    validate_pin_allocation,
 )
 from .lcsc_client import search_lcsc_parts
 from .synthesizer import synthesize_from_prompt
@@ -73,18 +85,59 @@ AVAILABLE_TOOLS = [
         "name": "synthesize_circuit",
         "description": (
             "Synthesize a deterministic hardware netlist and component modules from a natural language prompt. "
-            "Supported MCUs: STM32F103, ESP32-C3, ESP32-S3, RP2040, STC89C52. "
-            "Peripherals: Type-C, LDO, Crystal, Buttons, LEDs, Buzzer, I2C, RS485, CAN, TP4056 Battery."
+            "Supported MCUs: STM32F103, ESP32-C3, ESP32-S3, RP2040, STC89C52, CH32V003, STM32G030, ATmega328P. "
+            "Peripherals: Type-C, LDO, Crystal, Buttons, LEDs, Buzzer, I2C, RS485, CAN, TP4056 Battery, "
+            "AHT20 Temp/Humidity Sensor, MPU6050 6-Axis Motion Sensor."
         ),
         "inputSchema": {
             "type": "object",
-            "required": ["prompt"],
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "Natural language prompt describing the target board and peripherals.",
-                }
+                    "description": "Natural language circuit description, e.g. '基于 CH32V003 的 AHT20 温湿度与 MPU6050 姿态传感器节点'",
+                },
+                "chip_id": {
+                    "type": "string",
+                    "description": "Optional explicit MCU chip model (e.g. 'CH32V003F4P6', 'STM32G030F6P6', 'ATmega328P', 'STM32F103C8T6')",
+                },
+                "custom_chip": {
+                    "type": "object",
+                    "description": "Optional third-party chip definition with custom pinout, package, and peripheral multiplexing rules",
+                },
+                "pin_mapping": {
+                    "type": "object",
+                    "description": "Optional custom signal-to-pin allocations, e.g. {'/SCL': 'PC2', '/SDA': 'PC1'}",
+                },
             },
+            "required": ["prompt"],
+        },
+    },
+    {
+        "name": "list_supported_chips",
+        "description": "List all registered MCU chips and third-party pinout allocation rules (e.g. CH32V003, STM32G030, ATmega328P).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
+        "name": "register_custom_chip",
+        "description": "Register or dynamically override a third-party microcontroller pinout and peripheral multiplexing rule.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chip_id": {"type": "string", "description": "Unique identifier, e.g. 'CH32V003F4P6'"},
+                "mcu_family": {"type": "string", "description": "MCU family, e.g. 'QingKe-RISC-V', 'ARM-Cortex-M0+'"},
+                "package": {"type": "string", "description": "Physical package, e.g. 'TSSOP-20', 'QFN-32'"},
+                "supply_voltage": {"type": "number", "description": "Operating voltage (typically 3.3 or 5.0)"},
+                "pins": {"type": "array", "items": {"type": "string"}, "description": "List of available GPIO and power pins"},
+                "pin_numbers": {"type": "object", "description": "Map of pin names to physical pin numbers, e.g. {'PD1': '8'}"},
+                "reserved_pins": {"type": "object", "description": "Map of reserved pins and reasons, e.g. {'PD1': 'SWDIO', 'NRST': 'RESET'}"},
+                "peripheral_routes": {"type": "object", "description": "Peripheral routing defaults, e.g. {'I2C1': {'I2C_SCL': 'PC2', 'I2C_SDA': 'PC1'}}"},
+                "default_gpio_assignments": {"type": "object", "description": "Default signal mappings, e.g. {'/LED1': 'PD4'}"},
+                "description": {"type": "string", "description": "Human-readable description of the chip"},
+            },
+            "required": ["chip_id", "pins"],
         },
     },
     {
@@ -213,7 +266,7 @@ AVAILABLE_RESOURCES = [
     {
         "uri": "circuit://blocks/catalog",
         "name": "CircuitBlocks DSL Catalogue",
-        "description": "Complete JSON catalogue of all 10 pre-audited hardware circuit blocks with pins, packages, and LCSC part numbers.",
+        "description": "Complete JSON catalogue of all 12 pre-audited hardware circuit blocks with pins, packages, and LCSC part numbers.",
         "mimeType": "application/json",
     },
     {
@@ -308,6 +361,8 @@ def _get_catalog() -> list[dict[str, Any]]:
         block_rs485_transceiver,
         block_can_transceiver,
         block_battery_tp4056,
+        block_sensor_aht20,
+        block_sensor_mpu6050,
     ]
     catalog = []
     for f in factories:
@@ -450,8 +505,24 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             prompt = arguments.get("prompt", "")
             if not prompt:
                 return {"isError": True, "content": [{"type": "text", "text": "Parameter 'prompt' is required"}]}
-            res = synthesize_from_prompt(prompt)
+            chip_id = arguments.get("chip_id")
+            custom_chip = arguments.get("custom_chip")
+            pin_mapping = arguments.get("pin_mapping")
+            res = synthesize_from_prompt(
+                prompt,
+                chip_id=chip_id,
+                custom_chip=custom_chip,
+                pin_mapping=pin_mapping,
+            )
             return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
+
+        if name == "list_supported_chips":
+            chips = list_supported_chips()
+            return {"content": [{"type": "text", "text": json.dumps(chips, ensure_ascii=False, indent=2)}]}
+
+        if name == "register_custom_chip":
+            rule = register_chip_rule(arguments)
+            return {"content": [{"type": "text", "text": json.dumps(rule.to_dict(), ensure_ascii=False, indent=2)}]}
 
         if name == "search_lcsc_parts":
             query = arguments.get("query", "")

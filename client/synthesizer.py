@@ -25,16 +25,25 @@ from __future__ import annotations
 from typing import Any
 
 from .circuit_blocks import (
+    block_battery_tp4056,
     block_button,
     block_buzzer,
+    block_can_transceiver,
     block_crystal_clock,
     block_i2c_header,
     block_led,
     block_power_ldo_3v3,
     block_rs485_transceiver,
-    block_can_transceiver,
-    block_battery_tp4056,
+    block_sensor_aht20,
+    block_sensor_mpu6050,
     block_usb_c_power,
+)
+from .chip_rules import (
+    ChipPinoutRule,
+    apply_chip_pinout,
+    detect_chip_from_prompt,
+    get_chip_rule,
+    register_chip_rule,
 )
 
 KNOWN_CHIPS = ("STM32F103C8T6", "ESP32-C3", "ESP32-S3", "RP2040", "STC89C52RC")
@@ -51,7 +60,9 @@ _CHIP_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
 _POWER_TOKENS = ("type-c", "type c", "usb-c", "usb c", "typec", "usb", "供电", "取电", "电源")
 _LED_TOKENS = ("led", "指示灯", "状态灯", "呼吸灯")
 _BUZZER_TOKENS = ("蜂鸣器", "buzzer", "报警")
-_I2C_TOKENS = ("i2c", "i²c", "传感器", "sensor", "温湿度", "oled")
+_I2C_TOKENS = ("i2c", "i²c", "传感器", "sensor", "oled")
+_AHT20_TOKENS = ("aht20", "aht-20", "aht", "温湿度", "温度计", "湿度计", "dht", "sht")
+_MPU6050_TOKENS = ("mpu6050", "mpu-6050", "mpu", "六轴", "陀螺仪", "加速度计", "imu", "姿态")
 _BUTTON_TOKENS = ("按键", "按钮", "button", "key")
 _CRYSTAL_TOKENS = ("晶振", "crystal", "外部时钟", "振荡器")
 _RS485_TOKENS = ("rs485", "485", "max485", "sp3485", "差分串口", "modbus")
@@ -65,6 +76,9 @@ def _detect_chip(prompt_lower: str) -> str:
     for tokens, chip_id in _CHIP_RULES:
         if any(t in prompt_lower for t in tokens):
             return chip_id
+    custom = detect_chip_from_prompt(prompt_lower)
+    if custom is not None:
+        return custom.chip_id
     return "STM32F103C8T6"
 
 
@@ -85,13 +99,29 @@ def _has(prompt_lower: str, prompt: str, tokens: tuple[str, ...]) -> bool:
     return any(t in prompt_lower or t in prompt for t in tokens)
 
 
-def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
+def synthesize_from_prompt(
+    prompt: str,
+    chip_id: str | None = None,
+    custom_chip: dict[str, Any] | ChipPinoutRule | None = None,
+    pin_mapping: dict[str, str] | None = None,
+) -> dict[str, Any]:
     """Map a natural-language hardware description to blocks + a netlist."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("prompt must be a non-empty string")
 
     prompt_lower = prompt.lower()
-    chip_id = _detect_chip(prompt_lower)
+
+    rule = None
+    if custom_chip is not None:
+        rule = register_chip_rule(custom_chip)
+        if chip_id is None:
+            chip_id = rule.chip_id
+
+    if chip_id is None:
+        chip_id = _detect_chip(prompt_lower)
+
+    if rule is None:
+        rule = get_chip_rule(chip_id)
 
     blocks = []
     unmatched: list[str] = []
@@ -100,7 +130,7 @@ def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
     if _has(prompt_lower, prompt, _POWER_TOKENS):
         blocks.append(block_usb_c_power())
         # A bare 51 board is usually fed from a 5V adapter; MCUs below run at 3.3V.
-        if chip_id != "STC89C52RC":
+        if chip_id != "STC89C52RC" and getattr(rule, "supply_voltage", 3.3) <= 3.6:
             blocks.append(block_power_ldo_3v3())
     else:
         unmatched.append("power")
@@ -124,11 +154,24 @@ def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
     else:
         unmatched.append("buzzer")
 
+    # --- sensors (AHT20 & MPU6050) ----------------------------------------
+    has_aht = _has(prompt_lower, prompt, _AHT20_TOKENS)
+    has_mpu = _has(prompt_lower, prompt, _MPU6050_TOKENS)
+
+    if has_aht:
+        blocks.append(block_sensor_aht20())
+
+    if has_mpu:
+        blocks.append(block_sensor_mpu6050())
+
     # --- I2C header -------------------------------------------------------
     if _has(prompt_lower, prompt, _I2C_TOKENS):
-        blocks.append(block_i2c_header())
+        header_explicit = any(k in prompt for k in ("插座", "排针", "接口", "header", "oled"))
+        if not (has_aht or has_mpu) or header_explicit:
+            blocks.append(block_i2c_header())
     else:
-        unmatched.append("i2c")
+        if not (has_aht or has_mpu):
+            unmatched.append("i2c")
 
     # --- external crystal -------------------------------------------------
     if _has(prompt_lower, prompt, _CRYSTAL_TOKENS):
@@ -168,7 +211,7 @@ def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
 
     connections = [{"net": net, "points": pts} for net, pts in net_merge.items()]
 
-    return {
+    result = {
         "chip_id": chip_id,
         "prompt": prompt,
         "modules": modules,
@@ -176,6 +219,11 @@ def synthesize_from_prompt(prompt: str) -> dict[str, Any]:
         "block_names": [b.name for b in blocks],
         "unmatched": unmatched,
     }
+
+    if rule is not None or pin_mapping is not None:
+        apply_chip_pinout(result, chip_rule=rule, custom_overrides=pin_mapping)
+
+    return result
 
 
 if __name__ == "__main__":

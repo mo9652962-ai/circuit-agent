@@ -58,7 +58,9 @@ def test_mcp_tools_list():
     assert "validate_netlist" in tool_names
     assert "calculate_trace_impedance" in tool_names
     assert "calculate_bom_cost" in tool_names
-    assert len(tools) == 6
+    assert "list_supported_chips" in tool_names
+    assert "register_custom_chip" in tool_names
+    assert len(tools) == 8
 
 
 def test_mcp_tool_call_synthesize():
