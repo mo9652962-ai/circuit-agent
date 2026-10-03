@@ -2,13 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.mo9652962-ai/circuit-agent-client",
   "title": "CircuitAgent",
-  "description": "AI 硬件合成社区版：CircuitBlocks DSL · 立创实时选型 · 网表契约 · stdio MCP server",
-  "version": "0.1.5",
+  "description": "AI hardware synthesis: CircuitBlocks DSL, live LCSC parts, industrial DFX audit, stdio MCP server.",
+  "version": "0.1.6",
+  "repository": {
+    "url": "https://github.com/mo9652962-ai/circuit-agent",
+    "source": "github"
+  },
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "circuit-agent-client",
-      "version": "0.1.5",
+      "version": "0.1.6",
       "transport": {
         "type": "stdio"
       }

@@ -522,7 +522,29 @@ def audit_industrial_dfx(netlist_dict: dict[str, Any]) -> IndustrialDFXReport:
         }
 
     overall_score = int(sum(cat_stats[c]["score"] * cat_weights[c] for c in cat_weights))
-    passed = (overall_score >= 70) and not any(v.severity == "CRITICAL" for v in violations)
+
+    # --- design-substance gate -------------------------------------------
+    # Deduction-only scoring has a blind spot: a board with almost nothing on it
+    # has almost nothing to deduct, so a 1-component stub would otherwise score
+    # 91/A+ and be certified "industrial production ready". That is not a claim
+    # this engine should be able to make. The score is therefore capped by how
+    # much design actually exists to audit:
+    #
+    #   ceiling = 40 + 3 x (component count), saturating at 100 from 20 parts up.
+    #
+    # A genuine MCU board (power + MCU + decoupling + connector) clears the cap
+    # comfortably; a stub cannot buy its way to an A+ by having no violations.
+    MIN_INDUSTRIAL_PARTS = 8
+    substance_ceiling = min(100, 40 + total_parts * 3)
+    substance_limited = overall_score > substance_ceiling
+    if substance_limited:
+        overall_score = substance_ceiling
+
+    passed = (
+        overall_score >= 70
+        and total_parts >= MIN_INDUSTRIAL_PARTS
+        and not any(v.severity == "CRITICAL" for v in violations)
+    )
 
     if overall_score >= 90:
         grade = "A+" if passed else "B"
@@ -538,6 +560,11 @@ def audit_industrial_dfx(netlist_dict: dict[str, Any]) -> IndustrialDFXReport:
     summary = (
         f"Industrial DFX audit score is {overall_score}/100 (Grade {grade}). "
         f"Detected {len(test_points)} test points, {len(fiducials)} fiducials, and {decoupling_count} decoupling caps across {total_parts} components. "
+        + (
+            "Score capped by design substance: a board this small cannot be certified industrial-grade regardless of violations. "
+            if substance_limited
+            else ""
+        )
         + ("Production certified for industrial deployment." if passed else "Action required: resolve critical safety/protection findings prior to fabrication.")
     )
 

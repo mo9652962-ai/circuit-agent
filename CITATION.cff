@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software in academic work, please cite it as below."
+title: "CircuitAgent — AI Hardware Synthesis (Community Edition)"
+abstract: >-
+  The open community layer of CircuitAgent: a hardware DSL built on pre-verified
+  circuit blocks, a key-free live LCSC parts client, netlist and CPL data contracts,
+  an industrial DFX audit engine implementing IPC-2152 and IPC-2221 rules, EDA and
+  manufacturing exporters for KiCad and JLCPCB, closed-form parametric design
+  solvers, and a standards-compliant stdio MCP server.
+version: "0.1.6"
+date-released: "2026-10-03"
+license: MIT
+type: software
+repository-code: "https://github.com/mo9652962-ai/circuit-agent"
+url: "https://github.com/mo9652962-ai/circuit-agent"
+keywords:
+  - eda
+  - pcb
+  - hardware
+  - schematic
+  - llm
+  - ai-agent
+  - mcp
+  - kicad
+  - jlcpcb
+  - python
+authors:
+  - alias: "sora"
+    name: "sora (mo9652962-ai)"
+    website: "https://github.com/mo9652962-ai"
+preferred-citation:
+  type: software
+  title: "CircuitAgent — AI Hardware Synthesis (Community Edition)"
+  version: "0.1.6"
+  year: 2026
+  authors:
+    - alias: "sora"
+      name: "sora (mo9652962-ai)"

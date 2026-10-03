@@ -2,10 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/mo9652962-ai/circuit-agent/main/specs/netlist_schema.json",
   "title": "CircuitAgent Netlist & Circuit Specification",
-  "description": "Standardized schema for CircuitBlocks intermediate representation (IR), connecting prompt synthesizers with EDA routing compilers.",
+  "description": "Standardized schema for the CircuitBlocks intermediate representation (IR), connecting prompt synthesizers with EDA routing compilers. The canonical shape emitted by `synthesize_from_prompt` nests connections under `netlist`; a flat shape with root-level `connections` is also accepted for hand-authored input.",
   "type": "object",
-  "required": [
-    "connections"
+  "anyOf": [
+    {
+      "required": [
+        "netlist"
+      ]
+    },
+    {
+      "required": [
+        "connections"
+      ]
+    }
   ],
   "properties": {
     "chip_id": {
@@ -90,7 +99,16 @@
               "SWITCH",
               "BUZZER",
               "SENSOR",
-              "HEADER"
+              "HEADER",
+              "TESTPOINT",
+              "FIDUCIAL",
+              "TVS",
+              "MOSFET",
+              "TRANSISTOR",
+              "ZENER",
+              "FERRITE_BEAD",
+              "BATTERY",
+              "TERMINAL"
             ]
           },
           "value": {
@@ -114,8 +132,51 @@
       }
     },
     "connections": {
+      "$ref": "#/definitions/connections"
+    },
+    "block_names": {
+      "type": "array",
+      "description": "CircuitBlocks that the synthesizer selected for this design.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unmatched": {
+      "type": "array",
+      "description": "Features the caller requested that this DSL cannot build yet. An actionable capability signal.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "not_requested": {
+      "type": "array",
+      "description": "Optional blocks the prompt did not mention. Informational only — not a capability gap.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "netlist": {
+      "type": "object",
+      "description": "Nested netlist container — the canonical shape produced by the synthesizer.",
+      "required": [
+        "connections"
+      ],
+      "properties": {
+        "connections": {
+          "$ref": "#/definitions/connections"
+        },
+        "modules": {
+          "type": "object",
+          "description": "Optional duplicate of the root-level modules map, carried for consumers that read the netlist standalone."
+        }
+      }
+    }
+  },
+  "definitions": {
+    "connections": {
       "type": "array",
       "description": "Complete netlist connections across physical pins and signals.",
+      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
@@ -143,7 +204,7 @@
           "points": {
             "type": "array",
             "description": "Component pin endpoints participating in this electrical node.",
-            "minItems": 2,
+            "minItems": 1,
             "items": {
               "type": "string",
               "description": "Physical component endpoint in DESIGNATOR.PIN format (e.g. U1.1, J_USB1.VBUS).",

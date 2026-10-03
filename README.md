@@ -12,7 +12,7 @@
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-206%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/tests-224%20passing-brightgreen.svg" alt="Tests"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.6-blueviolet.svg" alt="Release"></a>
 </p>
 
@@ -90,10 +90,20 @@ spec = synthesize_from_prompt(
 print(spec["chip_id"])                            # ESP32-C3
 print(len(spec["modules"]))                       # 元器件数
 print(spec["netlist"]["connections"][0])          # 第一条网络连接
-print(spec["unmatched"])                          # 未识别的意图（不会被静默丢弃）
+print(spec["unmatched"])                          # 你要求了、但 DSL 还不支持的模块（可执行信号）
+print(spec["not_requested"])                      # 你没提到的可选模块（仅参考，非能力缺口）
 ```
 
 映射是**确定性的**：同一句话永远产出逐字节相同的结果（CI 中有对应断言）。
+
+`unmatched` 与 `not_requested` 是两个**刻意分开**的信号，不要混用：
+
+| 字段 | 含义 | 例子 | 消费方式 |
+|:---|:---|:---|:---|
+| `unmatched` | 你**明确要求**、但当前 DSL **造不出来** | `ethernet` / `relay` / `motor_driver` | 这是能力信号，agent 应据此告知用户或换方案 |
+| `not_requested` | 可选积木，只是这句话**没提到** | `button` / `led` / `buzzer` / `i2c` / `crystal` | 纯参考信息，不代表能力缺口 |
+
+**不会被静默丢弃**：任何未识别的意图都会出现在 `unmatched` 里，而不是悄悄消失。
 
 ### 2 · 查询立创商城实时库存与单价
 
@@ -222,7 +232,7 @@ python -m client.mcp_server
 ## 测试与 CI
 
 ```bash
-pytest tests/ -q      # 206 passed
+pytest tests/ -q      # 224 passed
 ```
 
 CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量测试，
@@ -244,10 +254,15 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 - [x] 立创实时选型客户端（重试/缓存/降级）
 - [x] JSON Schema + 三份参考样例 + CI
 - [x] 工业级实用积木（RS485 / CAN / TP4056 锂电）
-- [x] 标准 MCP Server 实现（纯标准库，4 大工具）
+- [x] 标准 MCP Server 实现（纯标准库）
 - [x] 中英双语文档与官方门面 (Banner + Demo GIF)
-- [ ] 更多传感器积木（AHT20 温湿度 / MPU6050 六轴）
-- [ ] 支持自定义第三方芯片引脚分配映射规则
+- [x] 更多传感器积木（AHT20 温湿度 / MPU6050 六轴）
+- [x] 支持自定义第三方芯片引脚分配映射规则
+- [x] 工业 DFX 审查引擎（DFM/DFA/DFT/DFC）+ IPC-2152 / IPC-2221 规则库
+- [x] EDA 与制造导出（KiCad 网表、嘉立创 BOM/CPL）
+- [x] 参数化设计方程求解（E96 分压、LDO 热设计、I2C 上拉、RC 滤波）
+- [ ] 多层板布局与布线求解器
+- [ ] 参数化 3D 壳体生成
 
 ---
 

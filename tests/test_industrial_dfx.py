@@ -190,3 +190,51 @@ class TestIndustrialDFXAudit:
         assert report.metrics["fiducials_count"] >= 3
         assert report.metrics["has_usb_tvs"] is True
         assert report.metrics["has_rs485_tvs"] is True
+
+
+# --------------------------------------------------------------------------- #
+# 5. Design-Substance Gate Tests
+# --------------------------------------------------------------------------- #
+
+class TestDesignSubstanceGate:
+    """A near-empty board must not be able to score its way to an A+.
+
+    Deduction-only scoring rewards having nothing to deduct, so a 1-component
+    stub would otherwise report 91/A+/passed. The substance ceiling
+    (`40 + 3 x parts`) caps the score by how much design actually exists.
+    """
+
+    def test_one_component_stub_cannot_reach_industrial_grade(self):
+        stub = {
+            "components": [{"ref": "U1", "kind": "MCU", "value": "STM32"}],
+            "connections": [{"net": "/GND", "points": ["U1.VSS"]}],
+        }
+        report = audit_industrial_dfx(stub)
+        assert report.passed is False
+        assert report.score <= 43  # 40 + 3*1
+        assert report.grade == "F"
+
+    def test_score_is_capped_by_design_substance(self):
+        # 2 parts -> ceiling 46, regardless of how few violations exist
+        two_part = {
+            "components": [
+                {"ref": "J1", "kind": "CONNECTOR", "value": "USB-C"},
+                {"ref": "U1", "kind": "MCU", "value": "STM32"},
+            ],
+            "connections": [
+                {"net": "/VBUS", "points": ["J1.VBUS", "U1.VDD"]},
+                {"net": "/GND", "points": ["J1.GND", "U1.VSS"]},
+            ],
+        }
+        report = audit_industrial_dfx(two_part)
+        assert report.score <= 46  # 40 + 3*2
+        assert report.passed is False
+
+    def test_substantial_design_is_not_capped(self):
+        # A real MCU board clears the ceiling comfortably and keeps its grade
+        design = synthesize_from_prompt("工业级 STM32F103 RS485 采集卡，带 Type-C、AHT20 和 TVS 防护")
+        report = audit_industrial_dfx(design["netlist"])
+        assert report.metrics["total_components"] >= 20
+        assert report.score >= 90  # ceiling saturates at 100 from 20 parts up
+        assert report.grade == "A+"
+        assert report.passed is True

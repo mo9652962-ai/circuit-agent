@@ -196,10 +196,37 @@ def test_51_board_skips_ldo():
     assert "U_LDO1" not in spec["modules"]
 
 
-def test_unmatched_intents_are_reported():
+def test_not_requested_blocks_are_reported():
+    """Optional blocks the prompt did not mention land in `not_requested`."""
     spec = synthesize_from_prompt("ESP32-C3 板，带 Type-C 供电")
-    assert "buzzer" in spec["unmatched"]
-    assert "led" in spec["unmatched"]
+    assert "buzzer" in spec["not_requested"]
+    assert "led" in spec["not_requested"]
+
+
+def test_unmatched_reports_unsupported_features():
+    """`unmatched` must surface what the user asked for but the DSL cannot build."""
+    spec = synthesize_from_prompt("ESP32-C3 板，带 Type-C 供电、以太网口和继电器输出")
+    assert "ethernet" in spec["unmatched"]
+    assert "relay" in spec["unmatched"]
+    # Requested-but-unsupported must NOT be confused with merely-unrequested.
+    assert "ethernet" not in spec["not_requested"]
+    assert "relay" not in spec["not_requested"]
+
+
+def test_unmatched_is_empty_for_fully_supported_prompt():
+    spec = synthesize_from_prompt("ESP32-C3 环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键")
+    assert spec["unmatched"] == []
+
+
+def test_bare_english_can_is_not_a_can_bus():
+    """The ordinary English verb 'can' must not synthesize a CAN transceiver."""
+    spec = synthesize_from_prompt("ESP32-C3 board that can drive a relay, with Type-C power")
+    assert "CAN_Transceiver" not in spec["block_names"]
+
+
+def test_uppercase_can_acronym_is_a_can_bus():
+    spec = synthesize_from_prompt("STM32F103 工业网关，带 CAN 总线和 RS485")
+    assert "CAN_Transceiver" in spec["block_names"]
 
 
 def test_duplicate_designators_are_rejected():

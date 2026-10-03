@@ -14,14 +14,25 @@ Supported intents
   * status LED     : indicator with current-limiting resistor
   * buzzer         : NPN driver + flyback diode
   * I2C header     : 4-pin bus header with 4.7k pull-ups
+  * sensors        : AHT20 temperature/humidity, MPU-6050 6-axis IMU
+  * fieldbuses     : RS-485 (SP3485) half-duplex, CAN (SN65HVD230)
+  * protection     : USB/RS-485/CAN TVS arrays, reverse-polarity, π filter
+  * manufacturing  : ICT test-point matrix, optical fiducials (Mark points)
 
-Status: **alpha**. The block set is intentionally small and fully unit-tested;
-unmatched intents are reported back via `unmatched` instead of being silently
-dropped, so callers can see exactly what the mapper did not understand.
+Two diagnostic lists are returned so callers can tell the two failure modes apart:
+
+  * ``unmatched``     — the user asked for something this DSL cannot build yet
+                        (e.g. "以太网", "继电器", "电机驱动"). This is an actionable
+                        capability gap and is what an LLM caller should surface.
+  * ``not_requested`` — optional blocks the prompt simply did not mention
+                        (e.g. no button was asked for). Informational only.
+
+Status: **alpha**. The block set is intentionally small and fully unit-tested.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .chip_rules import (
@@ -73,8 +84,32 @@ _MPU6050_TOKENS = ("mpu6050", "mpu-6050", "mpu", "六轴", "陀螺仪", "加速�
 _BUTTON_TOKENS = ("按键", "按钮", "button", "key")
 _CRYSTAL_TOKENS = ("晶振", "crystal", "外部时钟", "振荡器")
 _RS485_TOKENS = ("rs485", "485", "max485", "sp3485", "差分串口", "modbus")
-_CAN_TOKENS = ("can", "can总线", "canbus", "can-bus", "tja1050", "sn65hvd230")
+# NOTE: a bare lowercase "can" is deliberately NOT a token — it collides with the
+# ordinary English verb ("a board that can drive a relay"). CAN-bus intent is
+# detected by _has_can() below, which requires an explicit bus marker or the
+# uppercase acronym.
+_CAN_BUS_TOKENS = ("can总线", "can 总线", "canbus", "can-bus", "tja1050", "sn65hvd230", "can收发器", "can收发")
 _BATTERY_TOKENS = ("battery", "锂电池", "充电", "tp4056", "电池供电", "充放电", "单节锂电")
+
+# Features a user can reasonably ask for that this DSL does not implement yet.
+# Surfacing these is the whole point of the `unmatched` field: the caller must be
+# able to tell "we didn't understand you" apart from "we simply didn't need it".
+_UNSUPPORTED_TOKENS: dict[str, tuple[str, ...]] = {
+    "ethernet": ("以太网", "ethernet", "rj45", "网口", "有线网络"),
+    "wifi": ("wifi", "wi-fi", "无线网络", "无线通信"),
+    "bluetooth": ("蓝牙", "bluetooth", "ble"),
+    "relay": ("继电器", "relay"),
+    "motor_driver": ("电机驱动", "步进电机", "直流电机", "舵机", "servo", "motor driver"),
+    "display": ("屏幕", "显示屏", "lcd", "tft", "数码管"),
+    "sd_card": ("sd卡", "tf卡", "sd card"),
+    "camera": ("摄像头", "camera", "ov2640", "ov7670"),
+    "audio": ("音频", "麦克风", "扬声器", "功放"),
+    "rs232": ("rs232", "串口232"),
+    "poe": ("poe", "以太网供电"),
+    "rfid": ("rfid", "nfc", "读卡器"),
+    "gps": ("gps", "北斗", "定位模块"),
+    "lora": ("lora", "lora模块"),
+}
 
 _INDUSTRIAL_TOKENS = ("工业", "工业级", "industrial", "高可靠", "生产级")
 _TVS_TOKENS = ("tvs", "esd", "防静电", "浪涌", "防护", "保护", "防雷")
@@ -111,6 +146,22 @@ def _has(prompt_lower: str, prompt: str, tokens: tuple[str, ...]) -> bool:
     return any(t in prompt_lower or t in prompt for t in tokens)
 
 
+def _has_can_bus(prompt_lower: str, prompt: str) -> bool:
+    """Detect CAN-bus intent without matching the ordinary English verb 'can'.
+
+    Matches either an explicit bus marker (can总线 / canbus / TJA1050 / ...) or the
+    uppercase acronym `CAN` appearing as a standalone word.
+    """
+    if _has(prompt_lower, prompt, _CAN_BUS_TOKENS):
+        return True
+    return re.search(r"\bCAN\b", prompt) is not None
+
+
+def _detect_unsupported(prompt_lower: str, prompt: str) -> list[str]:
+    """Return the features the user asked for that this DSL cannot synthesize yet."""
+    return [feature for feature, tokens in _UNSUPPORTED_TOKENS.items() if _has(prompt_lower, prompt, tokens)]
+
+
 def synthesize_from_prompt(
     prompt: str,
     chip_id: str | None = None,
@@ -136,7 +187,8 @@ def synthesize_from_prompt(
         rule = get_chip_rule(chip_id)
 
     blocks = []
-    unmatched: list[str] = []
+    not_requested: list[str] = []
+    unsupported: list[str] = _detect_unsupported(prompt_lower, prompt)
 
     # --- power ------------------------------------------------------------
     if _has(prompt_lower, prompt, _POWER_TOKENS):
@@ -145,26 +197,26 @@ def synthesize_from_prompt(
         if chip_id != "STC89C52RC" and getattr(rule, "supply_voltage", 3.3) <= 3.6:
             blocks.append(block_power_ldo_3v3())
     else:
-        unmatched.append("power")
+        not_requested.append("power")
 
     # --- buttons ----------------------------------------------------------
     if _has(prompt_lower, prompt, _BUTTON_TOKENS):
         for i in range(1, _detect_count(prompt, _BUTTON_TOKENS) + 1):
             blocks.append(block_button(f"SW{i}", f"/BTN{i}"))
     else:
-        unmatched.append("button")
+        not_requested.append("button")
 
     # --- status LED -------------------------------------------------------
     if _has(prompt_lower, prompt, _LED_TOKENS):
         blocks.append(block_led())
     else:
-        unmatched.append("led")
+        not_requested.append("led")
 
     # --- buzzer -----------------------------------------------------------
     if _has(prompt_lower, prompt, _BUZZER_TOKENS):
         blocks.append(block_buzzer())
     else:
-        unmatched.append("buzzer")
+        not_requested.append("buzzer")
 
     # --- sensors (AHT20 & MPU6050) ----------------------------------------
     has_aht = _has(prompt_lower, prompt, _AHT20_TOKENS)
@@ -181,21 +233,20 @@ def synthesize_from_prompt(
         header_explicit = any(k in prompt for k in ("插座", "排针", "接口", "header", "oled"))
         if not (has_aht or has_mpu) or header_explicit:
             blocks.append(block_i2c_header())
-    else:
-        if not (has_aht or has_mpu):
-            unmatched.append("i2c")
+    elif not (has_aht or has_mpu):
+        not_requested.append("i2c")
 
     # --- external crystal -------------------------------------------------
     if _has(prompt_lower, prompt, _CRYSTAL_TOKENS):
         blocks.append(block_crystal_clock())
     else:
-        unmatched.append("crystal")
+        not_requested.append("crystal")
 
     # --- industrial fieldbuses & battery ----------------------------------
     if _has(prompt_lower, prompt, _RS485_TOKENS):
         blocks.append(block_rs485_transceiver())
 
-    if _has(prompt_lower, prompt, _CAN_TOKENS):
+    if _has_can_bus(prompt_lower, prompt):
         blocks.append(block_can_transceiver())
 
     if _has(prompt_lower, prompt, _BATTERY_TOKENS):
@@ -258,7 +309,10 @@ def synthesize_from_prompt(
         "modules": modules,
         "netlist": {"connections": connections, "modules": modules},
         "block_names": [b.name for b in blocks],
-        "unmatched": unmatched,
+        # `unmatched` = what the user asked for that this DSL cannot build yet.
+        # `not_requested` = optional blocks the prompt did not mention (informational).
+        "unmatched": unsupported,
+        "not_requested": not_requested,
     }
 
     if rule is not None or pin_mapping is not None:
