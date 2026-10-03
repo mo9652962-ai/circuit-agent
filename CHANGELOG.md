@@ -57,12 +57,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Real JSON Schema validation in the test suite — every example, and every prompt
   the synthesizer supports, is now validated against `specs/netlist_schema.json`,
   with a negative test proving the schema is not a no-op.
+- A contract-sync test module that fails the build when the declarative MCP surface
+  (`client/mcp_schema.py`), the live dispatcher, the version metadata or the READMEs
+  drift apart — this is the regression guard for the exact class of staleness that
+  let the English README advertise 6 tools while the server exposed 14.
 - CI jobs for `ruff` lint and synthesiser determinism.
+
+### Changed
+
+- `client/mcp_server.py` split: the 400 lines of declarative tool/resource/prompt
+  definitions moved to `client/mcp_schema.py`, taking the server from 1,173 to 766
+  lines and making the published MCP contract reviewable on its own.
 
 ### Documentation
 
 - English README resynchronised with the code: tool count (6 → 14), resource count
-  (7 → 8), prompt count (3 → 4), block count (10 → 19), test count (120 → 224) and
+  (7 → 8), prompt count (3 → 4), block count (10 → 19), test count (120 → 240) and
   release badge (v0.1.5 → v0.1.6).
 - Roadmap checkboxes corrected in both READMEs — AHT20/MPU6050 sensor blocks and the
   custom chip pin-mapping engine were already shipped but still listed as pending.
