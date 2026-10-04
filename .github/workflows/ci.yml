@@ -7,6 +7,17 @@ on:
   workflow_dispatch:
 
 jobs:
+  audit:
+    name: Security Gate (agent-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run agent-audit gate
+        uses: mo9652962-ai/agent-audit-action@v1.0.0
+        with:
+          checks: git,deps
+          severity-threshold: high
+
   test:
     name: Tests (py${{ matrix.python-version }} / ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
