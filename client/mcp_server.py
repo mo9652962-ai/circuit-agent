@@ -527,6 +527,26 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"content": [{"type": "text", "text": dsn_txt}]}
 
+        if name == "export_kicad_schematic":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            connections = arguments.get("connections", [])
+            title = arguments.get("title", "Hardware Design")
+            from .kicad_schematic import generate_kicad_schematic
+
+            sch_txt = generate_kicad_schematic(modules, connections, title=title)
+            return {"content": [{"type": "text", "text": sch_txt}]}
+
+        if name == "audit_supply_chain":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            from .supply_chain_auditor import audit_supply_chain
+
+            rep = audit_supply_chain(modules)
+            return {"content": [{"type": "text", "text": json.dumps(rep.to_dict(), ensure_ascii=False, indent=2)}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

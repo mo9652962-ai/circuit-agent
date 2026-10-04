@@ -69,7 +69,9 @@ def test_mcp_tools_list():
     assert "analyze_power_tree" in tool_names
     assert "calculate_ipc2221_clearance" in tool_names
     assert "export_specctra_dsn" in tool_names
-    assert len(tools) == 18
+    assert "export_kicad_schematic" in tool_names
+    assert "audit_supply_chain" in tool_names
+    assert len(tools) == 20
 
 
 def test_mcp_tool_call_synthesize():
