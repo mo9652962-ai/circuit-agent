@@ -93,7 +93,7 @@ logger = logging.getLogger("circuit_agent_mcp")
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {
     "name": "circuit-agent-mcp",
-    "version": "0.1.8",
+    "version": "0.1.9",
 }
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
