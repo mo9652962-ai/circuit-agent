@@ -1,0 +1,37 @@
+name: Propose CircuitBlock / 提议新增硬件积木
+description: Propose a new hardware block (IC, sensor, power regulator) / 提议新增电路积木（芯片、传感器、电源拓扑等）
+title: "[Block]: "
+labels: ["block-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CircuitAgent 欢迎新增经过核验的实用电路积木！请提供芯片型号、立创商城料号（LCSC Part #）及官方数据手册（Datasheet）链接。
+  - type: input
+    id: part_name
+    attributes:
+      label: Component / 芯片或模块名称
+      placeholder: e.g. BME280 / XL4015 / CH340N
+    validations:
+      required: true
+  - type: input
+    id: lcsc_number
+    attributes:
+      label: LCSC Part # / 嘉立创料号
+      placeholder: e.g. C92489
+    validations:
+      required: true
+  - type: input
+    id: datasheet_url
+    attributes:
+      label: Datasheet URL / 数据手册链接
+      placeholder: e.g. https://www.lcsc.com/datasheet/...
+    validations:
+      required: true
+  - type: textarea
+    id: pinout
+    attributes:
+      label: Pin Definitions & Arbitration / 引脚定义与仲裁说明
+      description: List the key power, ground, and communication pins. / 列出核心电源、地线及通信引脚定义。
+    validations:
+      required: true

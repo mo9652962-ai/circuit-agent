@@ -1,0 +1,42 @@
+name: Bug Report / 缺陷报告
+description: Report a reproducible bug in CircuitAgent / 提交 CircuitAgent 的可复现缺陷
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提交缺陷报告！请提供尽量详细的复现信息。如果是安全漏洞，请参阅 [SECURITY.md](SECURITY.md) 进行负责任的私密披露。
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description / 缺陷描述
+      description: A clear and concise description of what the bug is. / 清晰简要描述遇到的问题。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps / 复现步骤
+      description: Minimal prompt, code snippet, or steps to reproduce the issue. / 最小复现 prompt 或代码。
+      placeholder: |
+        1. Run `python -m client.mcp_server`
+        2. Call tool `synthesize_circuit` with prompt: '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior / 预期行为
+      description: What did you expect to happen? / 预期的正常表现。
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment / 运行环境
+      description: Python version, OS, client (Claude Desktop, Cursor, Codex, etc.)
+      placeholder: Python 3.11 / Windows 11 / Claude Desktop 0.7.0
+    validations:
+      required: true

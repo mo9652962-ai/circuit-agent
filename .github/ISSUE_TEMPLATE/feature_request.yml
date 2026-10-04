@@ -1,0 +1,26 @@
+name: Feature Request / 功能建议
+description: Suggest an idea or enhancement for CircuitAgent / 为 CircuitAgent 提出新功能或改进建议
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 解决什么问题
+      description: Is your feature request related to a problem or limitation? / 这个建议是为了解决什么痛点？
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / 建议的方案
+      description: Describe the solution you'd like to see. / 描述你期望的实现方式或接口设计。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered / 备选方案
+      description: Any alternative solutions or features you've considered? / 你考虑过的其他替代方案？
+    validations:
+      required: false
