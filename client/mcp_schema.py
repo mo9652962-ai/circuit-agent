@@ -384,6 +384,25 @@ AVAILABLE_TOOLS = [
             },
         },
     },
+    {
+        "name": "export_specctra_dsn",
+        "description": (
+            "Generate universal Specctra DSN (v15.0) auto-router interchange file for automated PCB track routing "
+            "in Freerouting, Cadence Specctra, Altium, or KiCad. Includes heuristic component auto-placement."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "netlist": {"type": "object", "description": "Netlist dict with 'connections' (from synthesize_circuit output)."},
+                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
+                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+                "trace_width_mm": {"type": "number", "description": "Default routing trace width in mm (default: 0.254 / 10mil).", "default": 0.254},
+                "clearance_mm": {"type": "number", "description": "Default routing clearance in mm (default: 0.200 / 8mil).", "default": 0.200},
+            },
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

@@ -19,9 +19,13 @@ from .circuit_blocks import (
     block_esd_can_tvs,
     block_esd_rs485_tvs,
     block_esd_usb_tvs,
+    block_ethernet_phy_w5500,
     block_fiducial_marks,
     block_i2c_header,
+    block_isolated_adc_ina219,
     block_led,
+    block_motor_driver_drv8825,
+    block_optocoupler_isolated_io,
     block_power_ldo_3v3,
     block_power_pi_filter,
     block_reverse_polarity_protection,
@@ -30,6 +34,7 @@ from .circuit_blocks import (
     block_sensor_mpu6050,
     block_testpoint_matrix,
     block_usb_c_power,
+    block_watchdog_supervisor,
 )
 from .export_engine import (
     export_jlcpcb_bom,
@@ -87,9 +92,13 @@ __all__ = [
     "block_esd_can_tvs",
     "block_esd_rs485_tvs",
     "block_esd_usb_tvs",
+    "block_ethernet_phy_w5500",
     "block_fiducial_marks",
     "block_i2c_header",
+    "block_isolated_adc_ina219",
     "block_led",
+    "block_motor_driver_drv8825",
+    "block_optocoupler_isolated_io",
     "block_power_ldo_3v3",
     "block_power_pi_filter",
     "block_reverse_polarity_protection",
@@ -98,6 +107,7 @@ __all__ = [
     "block_sensor_mpu6050",
     "block_testpoint_matrix",
     "block_usb_c_power",
+    "block_watchdog_supervisor",
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",
@@ -118,4 +128,3 @@ __all__ = [
     "synthesize_from_prompt",
     "validate_pin_allocation",
 ]
-

@@ -503,6 +503,30 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             res = calculate_ipc2221_clearance(v, ctype)
             return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
 
+        if name == "export_specctra_dsn":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            tw = float(arguments.get("trace_width_mm", 0.254))
+            cl = float(arguments.get("clearance_mm", 0.200))
+            from .placement_engine import export_specctra_dsn
+
+            dsn_txt = export_specctra_dsn(
+                modules,
+                netlist.get("connections") or [],
+                board_width_mm=bw,
+                board_height_mm=bh,
+                trace_width_mm=tw,
+                clearance_mm=cl,
+            )
+            return {"content": [{"type": "text", "text": dsn_txt}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
