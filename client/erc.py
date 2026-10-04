@@ -106,7 +106,20 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
             "设计包含 IC，但没有任何电源网络（VBUS/VCC/3V3/5V…）——电源块缺失。",
             "warning", SRC))
 
-    # 5. MISSING_DECOUPLING (warning)
+    # 5. NO_INPUT_PROTECTION (warning)：有电源输入网络但无 TVS/保险丝防护件
+    #    （IEC 61000-4-2 ESD 基线；USB/DC 输入口建议 TVS + 自恢复保险丝）
+    has_input = any(POWER_RE.search(str(n)) and
+                    re.search(r"(VBUS|VIN|DC_IN|[+]5V)", str(n), re.IGNORECASE)
+                    for n in net_names)
+    has_protection = bool(kinds & {"TVS", "FUSE", "PPTC", "ESD"})
+    if has_input and modules and not has_protection:
+        issues.append(_issue(
+            "NO_INPUT_PROTECTION", "电源输入缺少防护器件",
+            "检测到电源输入网络但设计无 TVS/PPTC 防护——外部电源口建议加 ESD/浪涌"
+            "防护（IEC 61000-4-2）与自恢复保险丝；可用 ESD_TVS_USB / 防反接积木。",
+            "warning", SRC))
+
+    # 6. MISSING_DECOUPLING (warning)
     if has_ic:
         decouplers = [ref for ref, v in modules.items()
                       if str(v.get("kind", "")).upper() == "CAPACITOR"
