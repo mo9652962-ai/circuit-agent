@@ -113,6 +113,7 @@ _UNSUPPORTED_TOKENS: dict[str, tuple[str, ...]] = {
 
 _INDUSTRIAL_TOKENS = ("工业", "工业级", "industrial", "高可靠", "生产级")
 _TVS_TOKENS = ("tvs", "esd", "防静电", "浪涌", "防护", "保护", "防雷")
+_WATCHDOG_TOKENS = ("看门狗", "watchdog", "wdt", "复位监控", "supervisor", "防跑飞")
 _REV_TOKENS = ("防反接", "反接保护", "polarity", "肖特基防反")
 _PI_TOKENS = ("pi滤波", "π滤波", "滤波", "磁珠", "clc", "lc滤波")
 _DFT_TOKENS = ("测试点", "testpoint", "ict", "飞针", "测试焊盘")
@@ -277,6 +278,11 @@ def synthesize_from_prompt(
 
     if _has(prompt_lower, prompt, _DFT_TOKENS) or is_industrial:
         blocks.append(block_testpoint_matrix())
+
+    if _has(prompt_lower, prompt, _WATCHDOG_TOKENS):
+        from .circuit_blocks import block_watchdog_supervisor
+
+        blocks.append(block_watchdog_supervisor())
 
     if _has(prompt_lower, prompt, _DFA_TOKENS) or is_industrial:
         blocks.append(block_fiducial_marks())

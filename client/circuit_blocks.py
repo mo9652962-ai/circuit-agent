@@ -35,6 +35,7 @@ __all__ = [
     "block_sensor_mpu6050",
     "block_testpoint_matrix",
     "block_usb_c_power",
+    "block_watchdog_supervisor",
 ]
 
 
@@ -598,6 +599,40 @@ def block_power_pi_filter(
             gnd_net: ["C_PI_IN.2", "C_PI_OUT.2", "C_PI_HF.2"],
         },
         properties={"bead_impedance_ohms": 600, "rated_current_a": 2.0},
+    )
+
+
+def block_watchdog_supervisor(
+    ic_ref: str = "U_WDT1",
+    vcc_net: str = "/+3.3V",
+    gnd_net: str = "/GND",
+    mcu_rst_net: str = "/NRST",
+    mcu_wdi_net: str = "/WDI",
+) -> CircuitBlock:
+    """TPS3823-33 voltage supervisor + watchdog timer (industrial MCU reliability standard).
+
+    WDI 必须由 MCU GPIO 周期性翻转（<1.6s），否则 WDO 触发复位——防程序跑飞，
+    工业控制/远程设备的功能安全基线（IEC 61508 SIL 常见实践）。
+    """
+    return CircuitBlock(
+        name="Watchdog_TPS3823",
+        description="TPS3823-33 supervisor: 1.6s watchdog WDI + push-pull reset out (MR input)",
+        components=[
+            CircuitComponent(ic_ref, "IC", "TPS3823-33", "SOT-23-5", "C26824",
+                             {"1": gnd_net, "2": mcu_wdi_net, "3": gnd_net,
+                              "4": mcu_rst_net, "5": vcc_net}),
+        ],
+        nets={
+            vcc_net: [f"{ic_ref}.5"],
+            gnd_net: [f"{ic_ref}.1", f"{ic_ref}.3"],
+            mcu_wdi_net: [f"{ic_ref}.2"],
+            mcu_rst_net: [f"{ic_ref}.4"],
+        },
+        properties={
+            "watchdog_timeout_s": 1.6,
+            "vdd_v": 3.3,
+            "safety_note": "IEC 61508 可靠性实践：MCU 需以 <1.6s 周期喂狗",
+        },
     )
 
 

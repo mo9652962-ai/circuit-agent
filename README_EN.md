@@ -168,6 +168,7 @@ print(calculate_ldo_thermal(v_in=24.0, v_out=3.3, i_load_a=0.8, package="SOT-23"
 | `block_power_pi_filter` | Input EMI π Filter | Ferrite bead (600Ω @ 100MHz) + bulk decoupling |
 | `block_fiducial_marks` | SMT Optical Fiducials | 3× 1.0mm bare copper pads, 2.0mm mask opening (DFA) |
 | `block_testpoint_matrix` | ICT Test-Point Matrix | 1.0mm SMD pads covering power rails, ground, SWD, UART |
+| `block_watchdog_supervisor` | TPS3823 watchdog/reset supervisor | 1.6s WDI petting + push-pull reset (industrial MCU anti-runaway, IEC 61508 practice) |
 
 Every block's pin numbers, LCSC part numbers and package names are cross-checked
 against datasheets and the LCSC catalogue before being frozen.
@@ -204,7 +205,7 @@ python -m client.mcp_server
 ### Exposed Tools
 1. `synthesize_circuit`: Natural-language prompt to deterministic netlist & module specification.
 2. `search_lcsc_parts`: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging.
-3. `list_circuit_blocks`: List all 19 pre-validated hardware DSL blocks.
+3. `list_circuit_blocks`: List all 20 pre-validated hardware DSL blocks.
 4. `validate_netlist`: Validate netlists against the formal CircuitAgent JSON Schema.
 5. `calculate_trace_impedance`: Microstrip & differential pair trace impedance solver (IPC-2141 / Wheeler) for USB 90Ω, RF 50Ω, CAN 120Ω.
 6. `calculate_bom_cost`: PCBA bill-of-materials cost breakdown calculator with JLCPCB Extended library surcharge detection.
@@ -227,7 +228,7 @@ Directly mount specifications and catalogues into model context via `circuit://`
 - `circuit://specs/netlist-schema`: The formal Draft-07 JSON Schema.
 - `circuit://specs/cpl-standard`: JLCPCB SMT coordinate and rotation offset specifications.
 - `circuit://specs/ipc-dfx-rules`: IPC-2152 current/temperature limits and IPC-2221 voltage creepage clearances.
-- `circuit://blocks/catalog`: Complete catalogue of 19 standard CircuitBlocks (pins, nets, LCSC part numbers).
+- `circuit://blocks/catalog`: Complete catalogue of 20 standard CircuitBlocks (pins, nets, LCSC part numbers).
 - `circuit://rules/jlc-smt`: JLCPCB SMT physical rules, 4-layer stackup (JLC04161H), and fee schedules.
 - `circuit://examples/esp32c3-minimal`: ESP32-C3 minimal IoT node reference netlist.
 - `circuit://examples/stm32f103-controller`: STM32F103 industrial controller reference netlist.

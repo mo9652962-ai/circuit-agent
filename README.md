@@ -171,6 +171,7 @@ for comp in blk.components:
 | `block_power_pi_filter` | 电源输入 EMI π型 LC/RC 滤波器 | 磁珠 (100MHz 600Ω) + 10µF 钽电容/陶瓷电容吸收纹波 |
 | `block_fiducial_marks` | SMT 贴片光学定位点 (Mark点) | 3个 1.0mm 裸铜焊盘 + 2.0mm 阻焊开窗 (DFA工序必备) |
 | `block_testpoint_matrix` | 自动化测试点矩阵 (Test Points) | 1.0mm SMD 测试铜焊盘 (支持电源轨、地轨、SWD、UART测试) |
+| `block_watchdog_supervisor` | TPS3823 看门狗/复位监控 | 1.6s WDI 喂狗 + 推挽复位输出（工业 MCU 防跑飞，IEC 61508 实践） |
 
 每个积木的引脚号、LCSC 料号、封装名在冻结前均对照数据手册与立创商城列表核验过。
 `tests/test_circuit_blocks.py` 会强制校验：位号唯一、每个元件都有封装与料号、
@@ -205,7 +206,7 @@ python -m client.mcp_server
 ### 暴露的工具 (Tools)
 1. `synthesize_circuit`: 输入自然语言，输出确定性硬件网表与积木清单。
 2. `search_lcsc_parts`: 免 Key 实时查询立创商城的元器件库存、封装、阶梯单价与基础库/扩展库属性。
-3. `list_circuit_blocks`: 列出 DSL 中全部可用的 19 大已审计电路积木规格。
+3. `list_circuit_blocks`: 列出 DSL 中全部可用的 20 大已审计电路积木规格。
 4. `validate_netlist`: 根据正式 JSON Schema 校验网表数据结构合法性。
 5. `calculate_trace_impedance`: 基于 IPC-2141 解析公式计算微带线与差分对走线阻抗（50Ω RF / 90Ω USB / 120Ω CAN/485）。
 6. `calculate_bom_cost`: PCBA 成本核算器，自动精算元器件裸成本与嘉立创扩展库换料费（¥20/种）。
@@ -228,7 +229,7 @@ python -m client.mcp_server
 - `circuit://specs/netlist-schema`: 完整的网表 Draft-07 JSON Schema。
 - `circuit://specs/cpl-standard`: 嘉立创 SMT 坐标规范与封装偏角补偿表。
 - `circuit://specs/ipc-dfx-rules`: IPC-2152 导线载流/温升与 IPC-2221 电气间隙/爬电距离硬规则。
-- `circuit://blocks/catalog`: 19 大电路积木的元器件、引脚与网络全量清单。
+- `circuit://blocks/catalog`: 20 大电路积木的元器件、引脚与网络全量清单。
 - `circuit://rules/jlc-smt`: 嘉立创四层板叠层 (JLC04161H) 与生产物理规则。
 - `circuit://examples/esp32c3-minimal`: ESP32-C3 极简温湿度节点参考网表。
 - `circuit://examples/stm32f103-controller`: STM32F103 工业控制板参考网表。
