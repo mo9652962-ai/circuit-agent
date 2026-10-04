@@ -10,7 +10,7 @@
     "test": [
       "pytest"
     ],
-    "start": "python -m client.mcp_server",
+    "start": null,
     "port": null,
     "readinessPath": null,
     "evidence": [
