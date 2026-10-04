@@ -1,0 +1,21 @@
+{
+  "source": "saved",
+  "recipe": {
+    "name": "CircuitAgent",
+    "kind": "python",
+    "bootstrap": [
+      "pip install -r requirements.txt"
+    ],
+    "build": [],
+    "test": [
+      "pytest"
+    ],
+    "start": "python -m client.mcp_server",
+    "port": null,
+    "readinessPath": null,
+    "evidence": [
+      "Detected Python project",
+      "MCP Server in client/mcp_server.py"
+    ]
+  }
+}
