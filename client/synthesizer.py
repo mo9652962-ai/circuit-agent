@@ -51,9 +51,13 @@ from .circuit_blocks import (
     block_esd_can_tvs,
     block_esd_rs485_tvs,
     block_esd_usb_tvs,
+    block_ethernet_phy_w5500,
     block_fiducial_marks,
     block_i2c_header,
+    block_isolated_adc_ina219,
     block_led,
+    block_motor_driver_drv8825,
+    block_optocoupler_isolated_io,
     block_power_ldo_3v3,
     block_power_pi_filter,
     block_reverse_polarity_protection,
@@ -62,6 +66,7 @@ from .circuit_blocks import (
     block_sensor_mpu6050,
     block_testpoint_matrix,
     block_usb_c_power,
+    block_watchdog_supervisor,
 )
 
 KNOWN_CHIPS = ("STM32F103C8T6", "ESP32-C3", "ESP32-S3", "RP2040", "STC89C52RC")
@@ -118,6 +123,10 @@ _REV_TOKENS = ("防反接", "反接保护", "polarity", "肖特基防反")
 _PI_TOKENS = ("pi滤波", "π滤波", "滤波", "磁珠", "clc", "lc滤波")
 _DFT_TOKENS = ("测试点", "testpoint", "ict", "飞针", "测试焊盘")
 _DFA_TOKENS = ("mark点", "mark", "fiducial", "光学定位", "对准点")
+_ETHERNET_TOKENS = ("ethernet", "以太网", "网口", "rj45", "w5500", "lan")
+_INA219_TOKENS = ("电流采样", "功率监测", "ina219", "power monitor", "current monitor", "电量计")
+_MOTOR_TOKENS = ("电机", "步进电机", "drv8825", "stepper", "motor", "马达")
+_OPTO_TOKENS = ("光耦", "隔离输入", "plc", "optocoupler", "pc817", "24v")
 
 _CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "两": 2}
 
@@ -280,12 +289,22 @@ def synthesize_from_prompt(
         blocks.append(block_testpoint_matrix())
 
     if _has(prompt_lower, prompt, _WATCHDOG_TOKENS):
-        from .circuit_blocks import block_watchdog_supervisor
-
         blocks.append(block_watchdog_supervisor())
 
     if _has(prompt_lower, prompt, _DFA_TOKENS) or is_industrial:
         blocks.append(block_fiducial_marks())
+
+    if _has(prompt_lower, prompt, _ETHERNET_TOKENS):
+        blocks.append(block_ethernet_phy_w5500())
+
+    if _has(prompt_lower, prompt, _INA219_TOKENS):
+        blocks.append(block_isolated_adc_ina219())
+
+    if _has(prompt_lower, prompt, _MOTOR_TOKENS):
+        blocks.append(block_motor_driver_drv8825())
+
+    if _has(prompt_lower, prompt, _OPTO_TOKENS):
+        blocks.append(block_optocoupler_isolated_io())
 
     # --- flatten (insertion order is deterministic) ------------------------
     modules: dict[str, Any] = {}
@@ -331,7 +350,9 @@ if __name__ == "__main__":
     import json
     import sys
 
-    p = sys.argv[1] if len(sys.argv) > 1 else (
-        "基于 ESP32-C3 的环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键"
+    p = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else ("基于 ESP32-C3 的环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键")
     )
     print(json.dumps(synthesize_from_prompt(p), ensure_ascii=False, indent=2))

@@ -24,9 +24,13 @@ __all__ = [
     "block_esd_can_tvs",
     "block_esd_rs485_tvs",
     "block_esd_usb_tvs",
+    "block_ethernet_phy_w5500",
     "block_fiducial_marks",
     "block_i2c_header",
+    "block_isolated_adc_ina219",
     "block_led",
+    "block_motor_driver_drv8825",
+    "block_optocoupler_isolated_io",
     "block_power_ldo_3v3",
     "block_power_pi_filter",
     "block_reverse_polarity_protection",
@@ -67,12 +71,16 @@ def block_usb_c_power(vbus_net: str = "/VBUS", gnd_net: str = "/GND") -> Circuit
         name="USB_C_Power",
         description="USB Type-C power input with dual 5.1k CC pull-downs",
         components=[
-            CircuitComponent("J_USB1", "CONNECTOR", "USB-C-16P", "USB-C-16P-SMD", "C7204555",
-                             {"A5": "/CC1", "B5": "/CC2", "VBUS": vbus_net, "GND": gnd_net}),
-            CircuitComponent("R_CC1", "RESISTOR", "5.1k", "R0603", "C23186",
-                             {"1": "/CC1", "2": gnd_net}),
-            CircuitComponent("R_CC2", "RESISTOR", "5.1k", "R0603", "C23186",
-                             {"1": "/CC2", "2": gnd_net}),
+            CircuitComponent(
+                "J_USB1",
+                "CONNECTOR",
+                "USB-C-16P",
+                "USB-C-16P-SMD",
+                "C7204555",
+                {"A5": "/CC1", "B5": "/CC2", "VBUS": vbus_net, "GND": gnd_net},
+            ),
+            CircuitComponent("R_CC1", "RESISTOR", "5.1k", "R0603", "C23186", {"1": "/CC1", "2": gnd_net}),
+            CircuitComponent("R_CC2", "RESISTOR", "5.1k", "R0603", "C23186", {"1": "/CC2", "2": gnd_net}),
         ],
         nets={
             vbus_net: ["J_USB1.VBUS"],
@@ -83,19 +91,17 @@ def block_usb_c_power(vbus_net: str = "/VBUS", gnd_net: str = "/GND") -> Circuit
     )
 
 
-def block_power_ldo_3v3(vin_net: str = "/VBUS", vout_net: str = "/+3.3V",
-                        gnd_net: str = "/GND") -> CircuitBlock:
+def block_power_ldo_3v3(vin_net: str = "/VBUS", vout_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
     """AMS1117-3.3V regulator with 10uF input/output bulk storage."""
     return CircuitBlock(
         name="LDO_3V3",
         description="AMS1117-3.3 LDO with 10uF input/output bulk capacitors",
         components=[
-            CircuitComponent("U_LDO1", "IC", "AMS1117-3.3", "SOT-223", "C6186",
-                             {"1": gnd_net, "2": vout_net, "3": vin_net}),
-            CircuitComponent("C_IN1", "CAPACITOR", "10uF", "C0805", "C15849",
-                             {"1": vin_net, "2": gnd_net}),
-            CircuitComponent("C_OUT1", "CAPACITOR", "10uF", "C0805", "C15849",
-                             {"1": vout_net, "2": gnd_net}),
+            CircuitComponent(
+                "U_LDO1", "IC", "AMS1117-3.3", "SOT-223", "C6186", {"1": gnd_net, "2": vout_net, "3": vin_net}
+            ),
+            CircuitComponent("C_IN1", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vin_net, "2": gnd_net}),
+            CircuitComponent("C_OUT1", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vout_net, "2": gnd_net}),
         ],
         nets={
             vin_net: ["U_LDO1.3", "C_IN1.1"],
@@ -114,12 +120,9 @@ def block_crystal_clock(freq_mhz: str = "8MHz", gnd_net: str = "/GND") -> Circui
         name=f"Crystal_{freq_mhz}",
         description=f"{freq_mhz} passive crystal with NPO load capacitors",
         components=[
-            CircuitComponent("Y1", "CRYSTAL", freq_mhz, "HC-49S-SMD", "C115962",
-                             {"1": "/XTAL_IN", "2": "/XTAL_OUT"}),
-            CircuitComponent("C_X1", "CAPACITOR", "22pF", "C0603", "C1653",
-                             {"1": "/XTAL_IN", "2": gnd_net}),
-            CircuitComponent("C_X2", "CAPACITOR", "22pF", "C0603", "C1653",
-                             {"1": "/XTAL_OUT", "2": gnd_net}),
+            CircuitComponent("Y1", "CRYSTAL", freq_mhz, "HC-49S-SMD", "C115962", {"1": "/XTAL_IN", "2": "/XTAL_OUT"}),
+            CircuitComponent("C_X1", "CAPACITOR", "22pF", "C0603", "C1653", {"1": "/XTAL_IN", "2": gnd_net}),
+            CircuitComponent("C_X2", "CAPACITOR", "22pF", "C0603", "C1653", {"1": "/XTAL_OUT", "2": gnd_net}),
         ],
         nets={
             "/XTAL_IN": ["Y1.1", "C_X1.1"],
@@ -133,19 +136,17 @@ def block_crystal_clock(freq_mhz: str = "8MHz", gnd_net: str = "/GND") -> Circui
 # --------------------------------------------------------------------------- #
 # Human interface
 # --------------------------------------------------------------------------- #
-def block_button(btn_ref: str = "SW1", pin_net: str = "/BTN1", gnd_net: str = "/GND",
-                 vcc_net: str = "/+3.3V") -> CircuitBlock:
+def block_button(
+    btn_ref: str = "SW1", pin_net: str = "/BTN1", gnd_net: str = "/GND", vcc_net: str = "/+3.3V"
+) -> CircuitBlock:
     """Tactile switch with 10k pull-up and 100nF RC debounce."""
     return CircuitBlock(
         name=f"Button_{btn_ref}",
         description=f"Debounced tactile switch {btn_ref}",
         components=[
-            CircuitComponent(btn_ref, "SWITCH", "TactSwitch", "SW-SMD_4P-3X6", "C26638",
-                             {"1": pin_net, "2": gnd_net}),
-            CircuitComponent(f"R_{btn_ref}", "RESISTOR", "10k", "R0603", "C25804",
-                             {"1": pin_net, "2": vcc_net}),
-            CircuitComponent(f"C_{btn_ref}", "CAPACITOR", "100nF", "C0603", "C14663",
-                             {"1": pin_net, "2": gnd_net}),
+            CircuitComponent(btn_ref, "SWITCH", "TactSwitch", "SW-SMD_4P-3X6", "C26638", {"1": pin_net, "2": gnd_net}),
+            CircuitComponent(f"R_{btn_ref}", "RESISTOR", "10k", "R0603", "C25804", {"1": pin_net, "2": vcc_net}),
+            CircuitComponent(f"C_{btn_ref}", "CAPACITOR", "100nF", "C0603", "C14663", {"1": pin_net, "2": gnd_net}),
         ],
         nets={
             pin_net: [f"{btn_ref}.1", f"R_{btn_ref}.1", f"C_{btn_ref}.1"],
@@ -155,17 +156,16 @@ def block_button(btn_ref: str = "SW1", pin_net: str = "/BTN1", gnd_net: str = "/
     )
 
 
-def block_led(led_ref: str = "D1", vcc_net: str = "/+3.3V", gnd_net: str = "/GND",
-              color: str = "GREEN", resistor: str = "1k") -> CircuitBlock:
+def block_led(
+    led_ref: str = "D1", vcc_net: str = "/+3.3V", gnd_net: str = "/GND", color: str = "GREEN", resistor: str = "1k"
+) -> CircuitBlock:
     """Status LED with current-limiting resistor."""
     return CircuitBlock(
         name=f"LED_{led_ref}",
         description=f"{color} status indicator {led_ref} with {resistor} limiting resistor",
         components=[
-            CircuitComponent(led_ref, "LED", color, "LED0603", "C72043",
-                             {"A": "/LED_DRV", "K": gnd_net}),
-            CircuitComponent(f"R_{led_ref}", "RESISTOR", resistor, "R0603", "C21190",
-                             {"1": vcc_net, "2": "/LED_DRV"}),
+            CircuitComponent(led_ref, "LED", color, "LED0603", "C72043", {"A": "/LED_DRV", "K": gnd_net}),
+            CircuitComponent(f"R_{led_ref}", "RESISTOR", resistor, "R0603", "C21190", {"1": vcc_net, "2": "/LED_DRV"}),
         ],
         nets={
             "/LED_DRV": [f"{led_ref}.A", f"R_{led_ref}.2"],
@@ -175,21 +175,22 @@ def block_led(led_ref: str = "D1", vcc_net: str = "/+3.3V", gnd_net: str = "/GND
     )
 
 
-def block_buzzer(buzzer_ref: str = "BZ1", ctrl_net: str = "/BUZZ_CTRL",
-                 gnd_net: str = "/GND", vcc_net: str = "/+3.3V") -> CircuitBlock:
+def block_buzzer(
+    buzzer_ref: str = "BZ1", ctrl_net: str = "/BUZZ_CTRL", gnd_net: str = "/GND", vcc_net: str = "/+3.3V"
+) -> CircuitBlock:
     """NPN-driven active buzzer with anti-parallel flyback diode."""
     return CircuitBlock(
         name=f"Buzzer_{buzzer_ref}",
         description=f"NPN-driven buzzer {buzzer_ref} with flyback protection",
         components=[
-            CircuitComponent(buzzer_ref, "BUZZER", "ActiveBuzzer", "BUZ-SMD-9.6MM",
-                             "C42420997", {"1": vcc_net, "2": "/BUZZ_K"}),
-            CircuitComponent("Q_BZ1", "TRANSISTOR", "S8050", "SOT-23", "C2146",
-                             {"1": "/BUZZ_BASE", "2": gnd_net, "3": "/BUZZ_K"}),
-            CircuitComponent("R_BZ1", "RESISTOR", "1k", "R0603", "C21190",
-                             {"1": ctrl_net, "2": "/BUZZ_BASE"}),
-            CircuitComponent("D_BZ1", "DIODE", "1N4148W", "SOD-123", "C81598",
-                             {"A": "/BUZZ_K", "K": vcc_net}),
+            CircuitComponent(
+                buzzer_ref, "BUZZER", "ActiveBuzzer", "BUZ-SMD-9.6MM", "C42420997", {"1": vcc_net, "2": "/BUZZ_K"}
+            ),
+            CircuitComponent(
+                "Q_BZ1", "TRANSISTOR", "S8050", "SOT-23", "C2146", {"1": "/BUZZ_BASE", "2": gnd_net, "3": "/BUZZ_K"}
+            ),
+            CircuitComponent("R_BZ1", "RESISTOR", "1k", "R0603", "C21190", {"1": ctrl_net, "2": "/BUZZ_BASE"}),
+            CircuitComponent("D_BZ1", "DIODE", "1N4148W", "SOD-123", "C81598", {"A": "/BUZZ_K", "K": vcc_net}),
         ],
         nets={
             ctrl_net: ["R_BZ1.1"],
@@ -201,19 +202,22 @@ def block_buzzer(buzzer_ref: str = "BZ1", ctrl_net: str = "/BUZZ_CTRL",
     )
 
 
-def block_i2c_header(hdr_ref: str = "J_I2C1", vcc_net: str = "/+3.3V",
-                     gnd_net: str = "/GND") -> CircuitBlock:
+def block_i2c_header(hdr_ref: str = "J_I2C1", vcc_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
     """4-pin I2C expansion header with 4.7k pull-ups on SCL/SDA."""
     return CircuitBlock(
         name="I2C_Header",
         description="4-pin I2C bus header (VCC/GND/SCL/SDA) with 4.7k pull-ups",
         components=[
-            CircuitComponent(hdr_ref, "CONNECTOR", "HDR-4P-2.54", "HDR-1X4-2.54", "C5383111",
-                             {"1": vcc_net, "2": gnd_net, "3": "/SCL", "4": "/SDA"}),
-            CircuitComponent("R_SCL1", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": "/SCL"}),
-            CircuitComponent("R_SDA1", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": "/SDA"}),
+            CircuitComponent(
+                hdr_ref,
+                "CONNECTOR",
+                "HDR-4P-2.54",
+                "HDR-1X4-2.54",
+                "C5383111",
+                {"1": vcc_net, "2": gnd_net, "3": "/SCL", "4": "/SDA"},
+            ),
+            CircuitComponent("R_SCL1", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": "/SCL"}),
+            CircuitComponent("R_SDA1", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": "/SDA"}),
         ],
         nets={
             vcc_net: [f"{hdr_ref}.1", "R_SCL1.1", "R_SDA1.1"],
@@ -227,23 +231,41 @@ def block_i2c_header(hdr_ref: str = "J_I2C1", vcc_net: str = "/+3.3V",
 # --------------------------------------------------------------------------- #
 # Industrial fieldbuses & Power storage
 # --------------------------------------------------------------------------- #
-def block_rs485_transceiver(ic_ref: str = "U_485", hdr_ref: str = "J_485",
-                            vcc_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
+def block_rs485_transceiver(
+    ic_ref: str = "U_485", hdr_ref: str = "J_485", vcc_net: str = "/+3.3V", gnd_net: str = "/GND"
+) -> CircuitBlock:
     """SP3485 3.3V half-duplex RS485 transceiver with 120R differential termination."""
     return CircuitBlock(
         name="RS485_Transceiver",
         description="SP3485 3.3V RS485 transceiver with differential termination",
         components=[
-            CircuitComponent(ic_ref, "IC", "SP3485EN", "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
-                             "C2692302", {"1": "/485_RO", "2": "/485_RE_DE", "3": "/485_RE_DE",
-                                          "4": "/485_DI", "5": gnd_net, "6": "/485_A",
-                                          "7": "/485_B", "8": vcc_net}),
-            CircuitComponent("C_485", "CAPACITOR", "100nF", "C0603", "C14663",
-                             {"1": vcc_net, "2": gnd_net}),
-            CircuitComponent("R_485_TERM", "RESISTOR", "120R", "R0603", "C245186",
-                             {"1": "/485_A", "2": "/485_B"}),
-            CircuitComponent(hdr_ref, "CONNECTOR", "HDR-3P-2.54", "HDR-1X3-2.54", "C5383112",
-                             {"1": "/485_A", "2": "/485_B", "3": gnd_net}),
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "SP3485EN",
+                "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+                "C2692302",
+                {
+                    "1": "/485_RO",
+                    "2": "/485_RE_DE",
+                    "3": "/485_RE_DE",
+                    "4": "/485_DI",
+                    "5": gnd_net,
+                    "6": "/485_A",
+                    "7": "/485_B",
+                    "8": vcc_net,
+                },
+            ),
+            CircuitComponent("C_485", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+            CircuitComponent("R_485_TERM", "RESISTOR", "120R", "R0603", "C245186", {"1": "/485_A", "2": "/485_B"}),
+            CircuitComponent(
+                hdr_ref,
+                "CONNECTOR",
+                "HDR-3P-2.54",
+                "HDR-1X3-2.54",
+                "C5383112",
+                {"1": "/485_A", "2": "/485_B", "3": gnd_net},
+            ),
         ],
         nets={
             vcc_net: [f"{ic_ref}.8", "C_485.1"],
@@ -258,25 +280,42 @@ def block_rs485_transceiver(ic_ref: str = "U_485", hdr_ref: str = "J_485",
     )
 
 
-def block_can_transceiver(ic_ref: str = "U_CAN", hdr_ref: str = "J_CAN",
-                          vcc_net: str = "/+3.3V", gnd_net: str = "/GND") -> CircuitBlock:
+def block_can_transceiver(
+    ic_ref: str = "U_CAN", hdr_ref: str = "J_CAN", vcc_net: str = "/+3.3V", gnd_net: str = "/GND"
+) -> CircuitBlock:
     """SN65HVD230 3.3V CAN bus transceiver with 120R termination."""
     return CircuitBlock(
         name="CAN_Transceiver",
         description="SN65HVD230 3.3V CAN transceiver with 120R termination",
         components=[
-            CircuitComponent(ic_ref, "IC", "SN65HVD230DR", "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
-                             "C1544959", {"1": "/CAN_TX", "2": gnd_net, "3": vcc_net,
-                                          "4": "/CAN_RX", "5": "/CAN_VREF", "6": "/CAN_L",
-                                          "7": "/CAN_H", "8": "/CAN_RS"}),
-            CircuitComponent("C_CAN", "CAPACITOR", "100nF", "C0603", "C14663",
-                             {"1": vcc_net, "2": gnd_net}),
-            CircuitComponent("R_CAN_RS", "RESISTOR", "10k", "R0603", "C25804",
-                             {"1": "/CAN_RS", "2": gnd_net}),
-            CircuitComponent("R_CAN_TERM", "RESISTOR", "120R", "R0603", "C245186",
-                             {"1": "/CAN_H", "2": "/CAN_L"}),
-            CircuitComponent(hdr_ref, "CONNECTOR", "HDR-3P-2.54", "HDR-1X3-2.54", "C5383112",
-                             {"1": "/CAN_H", "2": "/CAN_L", "3": gnd_net}),
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "SN65HVD230DR",
+                "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+                "C1544959",
+                {
+                    "1": "/CAN_TX",
+                    "2": gnd_net,
+                    "3": vcc_net,
+                    "4": "/CAN_RX",
+                    "5": "/CAN_VREF",
+                    "6": "/CAN_L",
+                    "7": "/CAN_H",
+                    "8": "/CAN_RS",
+                },
+            ),
+            CircuitComponent("C_CAN", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+            CircuitComponent("R_CAN_RS", "RESISTOR", "10k", "R0603", "C25804", {"1": "/CAN_RS", "2": gnd_net}),
+            CircuitComponent("R_CAN_TERM", "RESISTOR", "120R", "R0603", "C245186", {"1": "/CAN_H", "2": "/CAN_L"}),
+            CircuitComponent(
+                hdr_ref,
+                "CONNECTOR",
+                "HDR-3P-2.54",
+                "HDR-1X3-2.54",
+                "C5383112",
+                {"1": "/CAN_H", "2": "/CAN_L", "3": gnd_net},
+            ),
         ],
         nets={
             vcc_net: [f"{ic_ref}.3", "C_CAN.1"],
@@ -291,33 +330,41 @@ def block_can_transceiver(ic_ref: str = "U_CAN", hdr_ref: str = "J_CAN",
     )
 
 
-def block_battery_tp4056(ic_ref: str = "U_BAT1", vbus_net: str = "/VBUS",
-                         vbat_net: str = "/VBAT", gnd_net: str = "/GND") -> CircuitBlock:
+def block_battery_tp4056(
+    ic_ref: str = "U_BAT1", vbus_net: str = "/VBUS", vbat_net: str = "/VBAT", gnd_net: str = "/GND"
+) -> CircuitBlock:
     """TP4056 1A linear Li-Ion battery charger with dual status indicators."""
     return CircuitBlock(
         name="Battery_TP4056",
         description="TP4056 1A standalone linear Li-Ion charger with charge/standby LEDs",
         components=[
-            CircuitComponent(ic_ref, "IC", "TP4056-42", "ESOP-8_L4.9-W3.9-P1.27-LS6.0-BL-EP",
-                             "C16581", {"1": gnd_net, "2": "/CHG_PROG", "3": gnd_net,
-                                        "4": vbus_net, "5": vbat_net, "6": "/CHG_STDBY",
-                                        "7": "/CHG_ACT", "8": vbus_net}),
-            CircuitComponent("R_PROG1", "RESISTOR", "1.2k", "R0603", "C269681",
-                             {"1": "/CHG_PROG", "2": gnd_net}),
-            CircuitComponent("C_VIN_BAT", "CAPACITOR", "10uF", "C0805", "C15849",
-                             {"1": vbus_net, "2": gnd_net}),
-            CircuitComponent("C_BAT1", "CAPACITOR", "10uF", "C0805", "C15849",
-                             {"1": vbat_net, "2": gnd_net}),
-            CircuitComponent("D_CHG1", "LED", "RED", "LED0603", "C72044",
-                             {"A": "/LED_CHG_A", "K": "/CHG_ACT"}),
-            CircuitComponent("R_CHG1", "RESISTOR", "1k", "R0603", "C21190",
-                             {"1": vbus_net, "2": "/LED_CHG_A"}),
-            CircuitComponent("D_STD1", "LED", "GREEN", "LED0603", "C72043",
-                             {"A": "/LED_STD_A", "K": "/CHG_STDBY"}),
-            CircuitComponent("R_STD1", "RESISTOR", "1k", "R0603", "C21190",
-                             {"1": vbus_net, "2": "/LED_STD_A"}),
-            CircuitComponent("J_BAT1", "CONNECTOR", "HDR-2P-2.54", "HDR-1X2-2.54", "C5383113",
-                             {"1": vbat_net, "2": gnd_net}),
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "TP4056-42",
+                "ESOP-8_L4.9-W3.9-P1.27-LS6.0-BL-EP",
+                "C16581",
+                {
+                    "1": gnd_net,
+                    "2": "/CHG_PROG",
+                    "3": gnd_net,
+                    "4": vbus_net,
+                    "5": vbat_net,
+                    "6": "/CHG_STDBY",
+                    "7": "/CHG_ACT",
+                    "8": vbus_net,
+                },
+            ),
+            CircuitComponent("R_PROG1", "RESISTOR", "1.2k", "R0603", "C269681", {"1": "/CHG_PROG", "2": gnd_net}),
+            CircuitComponent("C_VIN_BAT", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vbus_net, "2": gnd_net}),
+            CircuitComponent("C_BAT1", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vbat_net, "2": gnd_net}),
+            CircuitComponent("D_CHG1", "LED", "RED", "LED0603", "C72044", {"A": "/LED_CHG_A", "K": "/CHG_ACT"}),
+            CircuitComponent("R_CHG1", "RESISTOR", "1k", "R0603", "C21190", {"1": vbus_net, "2": "/LED_CHG_A"}),
+            CircuitComponent("D_STD1", "LED", "GREEN", "LED0603", "C72043", {"A": "/LED_STD_A", "K": "/CHG_STDBY"}),
+            CircuitComponent("R_STD1", "RESISTOR", "1k", "R0603", "C21190", {"1": vbus_net, "2": "/LED_STD_A"}),
+            CircuitComponent(
+                "J_BAT1", "CONNECTOR", "HDR-2P-2.54", "HDR-1X2-2.54", "C5383113", {"1": vbat_net, "2": gnd_net}
+            ),
         ],
         nets={
             vbus_net: [f"{ic_ref}.4", f"{ic_ref}.8", "C_VIN_BAT.1", "R_CHG1.1", "R_STD1.1"],
@@ -336,17 +383,25 @@ def block_battery_tp4056(ic_ref: str = "U_BAT1", vbus_net: str = "/VBUS",
 # --------------------------------------------------------------------------- #
 # Sensors (Environment & Motion)
 # --------------------------------------------------------------------------- #
-def block_sensor_aht20(ic_ref: str = "U_AHT1", vcc_net: str = "/+3.3V",
-                       gnd_net: str = "/GND", scl_net: str = "/SCL",
-                       sda_net: str = "/SDA",
-                       include_pullups: bool = True) -> CircuitBlock:
+def block_sensor_aht20(
+    ic_ref: str = "U_AHT1",
+    vcc_net: str = "/+3.3V",
+    gnd_net: str = "/GND",
+    scl_net: str = "/SCL",
+    sda_net: str = "/SDA",
+    include_pullups: bool = True,
+) -> CircuitBlock:
     """Aosong AHT20 I2C temperature and humidity sensor with 100nF decoupling."""
     components = [
-        CircuitComponent(ic_ref, "SENSOR", "AHT20", "DFN-6_L3.0-W3.0-P1.00-BL", "C2757850",
-                         {"1": "/NC_AHT1", "2": vcc_net, "3": scl_net, "4": sda_net,
-                          "5": gnd_net, "6": "/NC_AHT2"}),
-        CircuitComponent("C_AHT1", "CAPACITOR", "100nF", "C0603", "C14663",
-                         {"1": vcc_net, "2": gnd_net}),
+        CircuitComponent(
+            ic_ref,
+            "SENSOR",
+            "AHT20",
+            "DFN-6_L3.0-W3.0-P1.00-BL",
+            "C2757850",
+            {"1": "/NC_AHT1", "2": vcc_net, "3": scl_net, "4": sda_net, "5": gnd_net, "6": "/NC_AHT2"},
+        ),
+        CircuitComponent("C_AHT1", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
     ]
     nets: dict[str, list[str]] = {
         vcc_net: [f"{ic_ref}.2", "C_AHT1.1"],
@@ -357,12 +412,12 @@ def block_sensor_aht20(ic_ref: str = "U_AHT1", vcc_net: str = "/+3.3V",
         "/NC_AHT2": [f"{ic_ref}.6"],
     }
     if include_pullups:
-        components.extend([
-            CircuitComponent("R_AHT_SCL", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": scl_net}),
-            CircuitComponent("R_AHT_SDA", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": sda_net}),
-        ])
+        components.extend(
+            [
+                CircuitComponent("R_AHT_SCL", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": scl_net}),
+                CircuitComponent("R_AHT_SDA", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": sda_net}),
+            ]
+        )
         nets[vcc_net].extend(["R_AHT_SCL.1", "R_AHT_SDA.1"])
         nets[scl_net].append("R_AHT_SCL.2")
         nets[sda_net].append("R_AHT_SDA.2")
@@ -382,29 +437,56 @@ def block_sensor_aht20(ic_ref: str = "U_AHT1", vcc_net: str = "/+3.3V",
     )
 
 
-def block_sensor_mpu6050(ic_ref: str = "U_MPU1", vcc_net: str = "/+3.3V",
-                         gnd_net: str = "/GND", scl_net: str = "/SCL",
-                         sda_net: str = "/SDA", int_net: str = "/MPU_INT",
-                         include_pullups: bool = True) -> CircuitBlock:
+def block_sensor_mpu6050(
+    ic_ref: str = "U_MPU1",
+    vcc_net: str = "/+3.3V",
+    gnd_net: str = "/GND",
+    scl_net: str = "/SCL",
+    sda_net: str = "/SDA",
+    int_net: str = "/MPU_INT",
+    include_pullups: bool = True,
+) -> CircuitBlock:
     """InvenSense MPU-6050 6-axis motion tracking sensor (gyro + accelerometer)."""
     components = [
-        CircuitComponent(ic_ref, "SENSOR", "MPU-6050", "QFN-24_L4.0-W4.0-P0.50-BL-EP2.7", "C24112",
-                         {"1": gnd_net, "8": vcc_net, "9": gnd_net, "10": "/MPU_REGOUT",
-                          "11": gnd_net, "12": int_net, "13": vcc_net, "18": gnd_net,
-                          "20": "/MPU_CPOUT", "23": scl_net, "24": sda_net, "25": gnd_net}),
-        CircuitComponent("C_MPU_VDD", "CAPACITOR", "100nF", "C0603", "C14663",
-                         {"1": vcc_net, "2": gnd_net}),
-        CircuitComponent("C_MPU_VLOG", "CAPACITOR", "100nF", "C0603", "C14663",
-                         {"1": vcc_net, "2": gnd_net}),
-        CircuitComponent("C_MPU_REG", "CAPACITOR", "100nF", "C0603", "C14663",
-                         {"1": "/MPU_REGOUT", "2": gnd_net}),
-        CircuitComponent("C_MPU_CP", "CAPACITOR", "2.2nF", "C0603", "C1604",
-                         {"1": "/MPU_CPOUT", "2": gnd_net}),
+        CircuitComponent(
+            ic_ref,
+            "SENSOR",
+            "MPU-6050",
+            "QFN-24_L4.0-W4.0-P0.50-BL-EP2.7",
+            "C24112",
+            {
+                "1": gnd_net,
+                "8": vcc_net,
+                "9": gnd_net,
+                "10": "/MPU_REGOUT",
+                "11": gnd_net,
+                "12": int_net,
+                "13": vcc_net,
+                "18": gnd_net,
+                "20": "/MPU_CPOUT",
+                "23": scl_net,
+                "24": sda_net,
+                "25": gnd_net,
+            },
+        ),
+        CircuitComponent("C_MPU_VDD", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+        CircuitComponent("C_MPU_VLOG", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+        CircuitComponent("C_MPU_REG", "CAPACITOR", "100nF", "C0603", "C14663", {"1": "/MPU_REGOUT", "2": gnd_net}),
+        CircuitComponent("C_MPU_CP", "CAPACITOR", "2.2nF", "C0603", "C1604", {"1": "/MPU_CPOUT", "2": gnd_net}),
     ]
     nets: dict[str, list[str]] = {
         vcc_net: [f"{ic_ref}.8", f"{ic_ref}.13", "C_MPU_VDD.1", "C_MPU_VLOG.1"],
-        gnd_net: [f"{ic_ref}.1", f"{ic_ref}.9", f"{ic_ref}.11", f"{ic_ref}.18", f"{ic_ref}.25",
-                  "C_MPU_VDD.2", "C_MPU_VLOG.2", "C_MPU_REG.2", "C_MPU_CP.2"],
+        gnd_net: [
+            f"{ic_ref}.1",
+            f"{ic_ref}.9",
+            f"{ic_ref}.11",
+            f"{ic_ref}.18",
+            f"{ic_ref}.25",
+            "C_MPU_VDD.2",
+            "C_MPU_VLOG.2",
+            "C_MPU_REG.2",
+            "C_MPU_CP.2",
+        ],
         scl_net: [f"{ic_ref}.23"],
         sda_net: [f"{ic_ref}.24"],
         int_net: [f"{ic_ref}.12"],
@@ -412,12 +494,12 @@ def block_sensor_mpu6050(ic_ref: str = "U_MPU1", vcc_net: str = "/+3.3V",
         "/MPU_CPOUT": [f"{ic_ref}.20", "C_MPU_CP.1"],
     }
     if include_pullups:
-        components.extend([
-            CircuitComponent("R_MPU_SCL", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": scl_net}),
-            CircuitComponent("R_MPU_SDA", "RESISTOR", "4.7k", "R0603", "C23162",
-                             {"1": vcc_net, "2": sda_net}),
-        ])
+        components.extend(
+            [
+                CircuitComponent("R_MPU_SCL", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": scl_net}),
+                CircuitComponent("R_MPU_SDA", "RESISTOR", "4.7k", "R0603", "C23162", {"1": vcc_net, "2": sda_net}),
+            ]
+        )
         nets[vcc_net].extend(["R_MPU_SCL.1", "R_MPU_SDA.1"])
         nets[scl_net].append("R_MPU_SCL.2")
         nets[sda_net].append("R_MPU_SDA.2")
@@ -441,6 +523,7 @@ def block_sensor_mpu6050(ic_ref: str = "U_MPU1", vcc_net: str = "/+3.3V",
 # Industrial Protection & DFX Blocks (Enterprise Grade)
 # --------------------------------------------------------------------------- #
 
+
 def block_esd_usb_tvs(
     vbus_net: str = "/VBUS",
     gnd_net: str = "/GND",
@@ -454,7 +537,11 @@ def block_esd_usb_tvs(
         description="STMicroelectronics USBLC6-2SC6 low-capacitance rail-to-rail ESD protection for USB D+/D- and VBUS",
         components=[
             CircuitComponent(
-                tvs_ref, "TVS", "USBLC6-2SC6", "SOT-23-6", "C7519",
+                tvs_ref,
+                "TVS",
+                "USBLC6-2SC6",
+                "SOT-23-6",
+                "C7519",
                 {"1": dp_net, "2": gnd_net, "3": dp_net, "4": dm_net, "5": vbus_net, "6": dm_net},
             ),
         ],
@@ -485,7 +572,11 @@ def block_esd_rs485_tvs(
         description="Semtech SM712 asymmetrical TVS diode for RS-485 transceiver protection against lightning and ESD",
         components=[
             CircuitComponent(
-                tvs_ref, "TVS", "SM712", "SOT-23", "C19001",
+                tvs_ref,
+                "TVS",
+                "SM712",
+                "SOT-23",
+                "C19001",
                 {"1": a_net, "2": b_net, "3": gnd_net},
             ),
         ],
@@ -514,7 +605,11 @@ def block_esd_can_tvs(
         description="Nexperia PESD1CAN dual bidirectional TVS diode array for ISO 11898-2 CAN bus ESD protection",
         components=[
             CircuitComponent(
-                tvs_ref, "TVS", "PESD1CAN", "SOT-23", "C2848243",
+                tvs_ref,
+                "TVS",
+                "PESD1CAN",
+                "SOT-23",
+                "C2848243",
                 {"1": canh_net, "2": canl_net, "3": gnd_net},
             ),
         ],
@@ -540,12 +635,11 @@ def block_reverse_polarity_protection(
     """Industrial wide-input reverse polarity protection (Schottky SS34 or P-MOSFET ideal diode)."""
     if method.lower() == "pmos":
         components = [
-            CircuitComponent("Q_REV1", "MOSFET", "AO3401A", "SOT-23", "C15127",
-                             {"S": vin_raw_net, "D": vin_net, "G": "/G_REV"}),
-            CircuitComponent("R_REV_G", "RESISTOR", "100k", "R0603", "C25804",
-                             {"1": "/G_REV", "2": gnd_net}),
-            CircuitComponent("D_REV_Z", "ZENER", "12V", "SOD-123", "C81598",
-                             {"1": gnd_net, "2": "/G_REV"}),
+            CircuitComponent(
+                "Q_REV1", "MOSFET", "AO3401A", "SOT-23", "C15127", {"S": vin_raw_net, "D": vin_net, "G": "/G_REV"}
+            ),
+            CircuitComponent("R_REV_G", "RESISTOR", "100k", "R0603", "C25804", {"1": "/G_REV", "2": gnd_net}),
+            CircuitComponent("D_REV_Z", "ZENER", "12V", "SOD-123", "C81598", {"1": gnd_net, "2": "/G_REV"}),
         ]
         nets = {
             vin_raw_net: ["Q_REV1.S"],
@@ -556,8 +650,7 @@ def block_reverse_polarity_protection(
         desc = "P-MOSFET (AO3401A) ultra-low voltage drop ideal diode reverse polarity protection circuit"
     else:
         components = [
-            CircuitComponent("D_REV1", "DIODE", "SS34", "SMA", "C8678",
-                             {"1": vin_raw_net, "2": vin_net}),
+            CircuitComponent("D_REV1", "DIODE", "SS34", "SMA", "C8678", {"1": vin_raw_net, "2": vin_net}),
         ]
         nets = {
             vin_raw_net: ["D_REV1.1"],
@@ -584,14 +677,10 @@ def block_power_pi_filter(
         name="Power_Pi_Filter",
         description="CLC Pi-Filter (10uF + 600R@100MHz 2A Ferrite Bead + 10uF + 100nF) for industrial EMI suppression",
         components=[
-            CircuitComponent("C_PI_IN", "CAPACITOR", "10uF", "C0805", "C15850",
-                             {"1": vin_net, "2": gnd_net}),
-            CircuitComponent("FB_PI1", "INDUCTOR", "600R_2A", "L0805", "C1015",
-                             {"1": vin_net, "2": vout_net}),
-            CircuitComponent("C_PI_OUT", "CAPACITOR", "10uF", "C0805", "C15850",
-                             {"1": vout_net, "2": gnd_net}),
-            CircuitComponent("C_PI_HF", "CAPACITOR", "100nF", "C0603", "C14663",
-                             {"1": vout_net, "2": gnd_net}),
+            CircuitComponent("C_PI_IN", "CAPACITOR", "10uF", "C0805", "C15850", {"1": vin_net, "2": gnd_net}),
+            CircuitComponent("FB_PI1", "INDUCTOR", "600R_2A", "L0805", "C1015", {"1": vin_net, "2": vout_net}),
+            CircuitComponent("C_PI_OUT", "CAPACITOR", "10uF", "C0805", "C15850", {"1": vout_net, "2": gnd_net}),
+            CircuitComponent("C_PI_HF", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vout_net, "2": gnd_net}),
         ],
         nets={
             vin_net: ["C_PI_IN.1", "FB_PI1.1"],
@@ -618,9 +707,14 @@ def block_watchdog_supervisor(
         name="Watchdog_TPS3823",
         description="TPS3823-33 supervisor: 1.6s watchdog WDI + push-pull reset out (MR input)",
         components=[
-            CircuitComponent(ic_ref, "IC", "TPS3823-33", "SOT-23-5", "C26824",
-                             {"1": gnd_net, "2": mcu_wdi_net, "3": gnd_net,
-                              "4": mcu_rst_net, "5": vcc_net}),
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "TPS3823-33",
+                "SOT-23-5",
+                "C26824",
+                {"1": gnd_net, "2": mcu_wdi_net, "3": gnd_net, "4": mcu_rst_net, "5": vcc_net},
+            ),
         ],
         nets={
             vcc_net: [f"{ic_ref}.5"],
@@ -640,7 +734,7 @@ def block_fiducial_marks(count: int = 3) -> CircuitBlock:
     """Optical fiducial marks for automated SMT pick-and-place vision alignment (DFA)."""
     count = max(3, count)
     components = [
-        CircuitComponent(f"FID{i+1}", "FIDUCIAL", "1.0mm", "Fiducial_1mm_Mask2mm", "C9999998", {})
+        CircuitComponent(f"FID{i + 1}", "FIDUCIAL", "1.0mm", "Fiducial_1mm_Mask2mm", "C9999998", {})
         for i in range(count)
     ]
     return CircuitBlock(
@@ -658,12 +752,7 @@ def block_testpoint_matrix(nets: list[str] | None = None) -> CircuitBlock:
     components = []
     block_nets: dict[str, list[str]] = {}
     for i, net_name in enumerate(target_nets):
-        clean_name = (
-            net_name.replace("/", "")
-            .replace("+", "P")
-            .replace("-", "N")
-            .replace(".", "_")
-        )
+        clean_name = net_name.replace("/", "").replace("+", "P").replace("-", "N").replace(".", "_")
         ref = f"TP_{clean_name}"
         components.append(
             CircuitComponent(ref, "TESTPOINT", "1.0mm", "TestPoint_Pad_D1.0mm", "C9999999", {"1": net_name})
@@ -679,3 +768,218 @@ def block_testpoint_matrix(nets: list[str] | None = None) -> CircuitBlock:
     )
 
 
+def block_ethernet_phy_w5500(
+    ic_ref: str = "U_ETH1",
+    magjack_ref: str = "J_RJ45",
+    vcc_net: str = "/+3.3V",
+    gnd_net: str = "/GND",
+    mosi_net: str = "/MOSI",
+    miso_net: str = "/MISO",
+    sclk_net: str = "/SCLK",
+    cs_net: str = "/CS_ETH",
+    rst_net: str = "/RST_ETH",
+    int_net: str = "/INT_ETH",
+) -> CircuitBlock:
+    """W5500 SPI to 10/100M Ethernet MAC/PHY with integrated magnetics RJ45 (HR911105A)."""
+    return CircuitBlock(
+        name="Ethernet_W5500",
+        description="W5500 hardwired TCP/IP SPI controller + HR911105A RJ45 with integrated transformer and status LEDs",
+        components=[
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "W5500",
+                "LQFP-48_7x7mm_P0.5mm",
+                "C32822",
+                {
+                    "1": vcc_net,
+                    "2": mosi_net,
+                    "3": miso_net,
+                    "4": sclk_net,
+                    "5": cs_net,
+                    "6": int_net,
+                    "7": rst_net,
+                    "8": gnd_net,
+                },
+            ),
+            CircuitComponent("C_ETH_PWR", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+            CircuitComponent(
+                magjack_ref,
+                "CONNECTOR",
+                "HR911105A",
+                "RJ45_HR911105A",
+                "C12074",
+                {"1": "/ETH_TXP", "2": "/ETH_TXN", "3": "/ETH_RXP", "4": "/ETH_RXN", "5": gnd_net, "6": gnd_net},
+            ),
+        ],
+        nets={
+            vcc_net: [f"{ic_ref}.1", "C_ETH_PWR.1"],
+            gnd_net: [f"{ic_ref}.8", "C_ETH_PWR.2", f"{magjack_ref}.5", f"{magjack_ref}.6"],
+            mosi_net: [f"{ic_ref}.2"],
+            miso_net: [f"{ic_ref}.3"],
+            sclk_net: [f"{ic_ref}.4"],
+            cs_net: [f"{ic_ref}.5"],
+            int_net: [f"{ic_ref}.6"],
+            rst_net: [f"{ic_ref}.7"],
+        },
+        properties={"interface": "SPI", "phy_speed_mbps": 100, "sockets": 8},
+    )
+
+
+def block_isolated_adc_ina219(
+    ic_ref: str = "U_INA1",
+    vcc_net: str = "/+3.3V",
+    gnd_net: str = "/GND",
+    sda_net: str = "/SDA",
+    scl_net: str = "/SCL",
+    vin_pos_net: str = "/VIN_SENSE_P",
+    vin_neg_net: str = "/VIN_SENSE_N",
+) -> CircuitBlock:
+    """INA219 high-side bidirectional I2C power/current monitor with 0.1R 1% sampling shunt."""
+    return CircuitBlock(
+        name="Current_Monitor_INA219",
+        description="INA219AIDR I2C current/power sensor with 0.1R 2W 1% shunt resistor for real-time power rail telemetry",
+        components=[
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "INA219AIDR",
+                "SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL",
+                "C42751",
+                {
+                    "1": vin_pos_net,
+                    "2": vin_neg_net,
+                    "3": sda_net,
+                    "4": scl_net,
+                    "5": vcc_net,
+                    "6": gnd_net,
+                    "7": gnd_net,
+                    "8": vcc_net,
+                },
+            ),
+            CircuitComponent(
+                "R_SHUNT1", "RESISTOR", "0.1R_1%", "R2512", "C14552", {"1": vin_pos_net, "2": vin_neg_net}
+            ),
+            CircuitComponent("C_INA_PWR", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
+        ],
+        nets={
+            vcc_net: [f"{ic_ref}.5", f"{ic_ref}.8", "C_INA_PWR.1"],
+            gnd_net: [f"{ic_ref}.6", f"{ic_ref}.7", "C_INA_PWR.2"],
+            sda_net: [f"{ic_ref}.3"],
+            scl_net: [f"{ic_ref}.4"],
+            vin_pos_net: [f"{ic_ref}.1", "R_SHUNT1.1"],
+            vin_neg_net: [f"{ic_ref}.2", "R_SHUNT1.2"],
+        },
+        properties={"shunt_resistance_ohms": 0.1, "max_measured_current_a": 3.2},
+    )
+
+
+def block_motor_driver_drv8825(
+    ic_ref: str = "U_DRV1",
+    hdr_ref: str = "J_MOT1",
+    vmot_net: str = "/VMOT_24V",
+    gnd_net: str = "/GND",
+    step_net: str = "/STEP",
+    dir_net: str = "/DIR",
+    en_net: str = "/ENABLE",
+) -> CircuitBlock:
+    """DRV8825 2.5A 45V microstepping bipolar stepper motor driver for automated factory actuators."""
+    return CircuitBlock(
+        name="Motor_Driver_DRV8825",
+        description="TI DRV8825 45V 2.5A microstepping bipolar stepper driver with 100uF 50V bulk decoupling and thermal pad",
+        components=[
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "DRV8825PWPR",
+                "HTSSOP-28_L9.7-W4.4-P0.65-LS6.4-BL",
+                "C40049",
+                {
+                    "1": gnd_net,
+                    "2": en_net,
+                    "7": step_net,
+                    "8": dir_net,
+                    "15": "/MOT_A1",
+                    "16": "/MOT_A2",
+                    "17": "/MOT_B1",
+                    "18": "/MOT_B2",
+                    "22": vmot_net,
+                    "28": gnd_net,
+                },
+            ),
+            CircuitComponent(
+                "C_VMOT", "CAPACITOR", "100uF_50V", "C_ELEC_6.3x7.7", "C13456", {"1": vmot_net, "2": gnd_net}
+            ),
+            CircuitComponent("C_V3P3", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vmot_net, "2": gnd_net}),
+            CircuitComponent(
+                hdr_ref,
+                "CONNECTOR",
+                "XH-4P-2.54",
+                "CONN-TH_B4B-XH-A",
+                "C5383115",
+                {"1": "/MOT_A1", "2": "/MOT_A2", "3": "/MOT_B1", "4": "/MOT_B2"},
+            ),
+        ],
+        nets={
+            vmot_net: [f"{ic_ref}.22", "C_VMOT.1", "C_V3P3.1"],
+            gnd_net: [f"{ic_ref}.1", f"{ic_ref}.28", "C_VMOT.2", "C_V3P3.2"],
+            step_net: [f"{ic_ref}.7"],
+            dir_net: [f"{ic_ref}.8"],
+            en_net: [f"{ic_ref}.2"],
+            "/MOT_A1": [f"{ic_ref}.15", f"{hdr_ref}.1"],
+            "/MOT_A2": [f"{ic_ref}.16", f"{hdr_ref}.2"],
+            "/MOT_B1": [f"{ic_ref}.17", f"{hdr_ref}.3"],
+            "/MOT_B2": [f"{ic_ref}.18", f"{hdr_ref}.4"],
+        },
+        properties={"max_vmot_v": 45.0, "max_current_a": 2.5, "microstepping": "1/32"},
+    )
+
+
+def block_optocoupler_isolated_io(
+    ic_ref: str = "U_OPTO1",
+    hdr_ref: str = "J_PLC1",
+    vcc_clean_net: str = "/+3.3V",
+    gnd_clean_net: str = "/GND",
+    iso_sig_net: str = "/ISO_IN",
+) -> CircuitBlock:
+    """PC817 5kV galvanically isolated digital input for 24V PLC automation signals."""
+    return CircuitBlock(
+        name="Optocoupler_Isolated_IO",
+        description="PC817C 5000Vrms photocoupler with 2.4k input current-limiter and reverse diode for 24V industrial PLC signals",
+        components=[
+            CircuitComponent(
+                ic_ref,
+                "IC",
+                "PC817C",
+                "SOP-4_L4.4-W3.6-P2.54-LS7.0-BL",
+                "C12513",
+                {"1": "/PLC_ANODE", "2": "/PLC_CATHODE", "3": gnd_clean_net, "4": iso_sig_net},
+            ),
+            CircuitComponent(
+                "R_PLC_LIM", "RESISTOR", "2.4k_0805", "R0805", "C17652", {"1": "/PLC_IN_24V", "2": "/PLC_ANODE"}
+            ),
+            CircuitComponent(
+                "D_PLC_REV", "DIODE", "1N4148WS", "SOD-323", "C2128", {"1": "/PLC_CATHODE", "2": "/PLC_ANODE"}
+            ),
+            CircuitComponent(
+                "R_OPTO_PULL", "RESISTOR", "10k", "R0603", "C25804", {"1": iso_sig_net, "2": vcc_clean_net}
+            ),
+            CircuitComponent(
+                hdr_ref,
+                "CONNECTOR",
+                "TB-2P-3.81",
+                "TERM-BLOCK-2P-3.81",
+                "C38069",
+                {"1": "/PLC_IN_24V", "2": "/PLC_CATHODE"},
+            ),
+        ],
+        nets={
+            "/PLC_IN_24V": [f"{hdr_ref}.1", "R_PLC_LIM.1"],
+            "/PLC_ANODE": ["R_PLC_LIM.2", f"{ic_ref}.1", "D_PLC_REV.2"],
+            "/PLC_CATHODE": [f"{hdr_ref}.2", f"{ic_ref}.2", "D_PLC_REV.1"],
+            vcc_clean_net: ["R_OPTO_PULL.2"],
+            gnd_clean_net: [f"{ic_ref}.3"],
+            iso_sig_net: [f"{ic_ref}.4", "R_OPTO_PULL.1"],
+        },
+        properties={"isolation_voltage_vrms": 5000, "input_voltage_v": 24.0},
+    )

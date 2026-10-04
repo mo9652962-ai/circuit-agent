@@ -68,7 +68,8 @@ def test_mcp_tools_list():
     assert "run_erc" in tool_names
     assert "analyze_power_tree" in tool_names
     assert "calculate_ipc2221_clearance" in tool_names
-    assert len(tools) == 17
+    assert "export_specctra_dsn" in tool_names
+    assert len(tools) == 18
 
 
 def test_mcp_tool_call_synthesize():

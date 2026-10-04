@@ -169,6 +169,10 @@ print(calculate_ldo_thermal(v_in=24.0, v_out=3.3, i_load_a=0.8, package="SOT-23"
 | `block_fiducial_marks` | SMT Optical Fiducials | 3× 1.0mm bare copper pads, 2.0mm mask opening (DFA) |
 | `block_testpoint_matrix` | ICT Test-Point Matrix | 1.0mm SMD pads covering power rails, ground, SWD, UART |
 | `block_watchdog_supervisor` | TPS3823 watchdog/reset supervisor | 1.6s WDI petting + push-pull reset (industrial MCU anti-runaway, IEC 61508 practice) |
+| `block_ethernet_phy_w5500` | W5500 SPI Ethernet MAC/PHY | 10/100M PHY + RJ45 with integrated transformer & LEDs (HR911105A) + 25MHz crystal |
+| `block_isolated_adc_ina219` | INA219 I2C power/current monitor | 0.1Ω 2W 1% precision shunt resistor + real-time bus telemetry |
+| `block_motor_driver_drv8825` | DRV8825 2.5A 45V stepper driver | 1/32 microstepping + 100µF 50V bulk cap + XH-4P terminal |
+| `block_optocoupler_isolated_io` | PC817 5000Vrms isolated input | 2.4k limiter + reverse diode for 24V industrial PLC signals |
 
 Every block's pin numbers, LCSC part numbers and package names are cross-checked
 against datasheets and the LCSC catalogue before being frozen.
@@ -182,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **17 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **18 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -205,7 +209,7 @@ python -m client.mcp_server
 ### Exposed Tools
 1. `synthesize_circuit`: Natural-language prompt to deterministic netlist & module specification.
 2. `search_lcsc_parts`: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging.
-3. `list_circuit_blocks`: List all 20 pre-validated hardware DSL blocks.
+3. `list_circuit_blocks`: List all 24 pre-validated hardware DSL blocks.
 4. `validate_netlist`: Validate netlists against the formal CircuitAgent JSON Schema.
 5. `calculate_trace_impedance`: Microstrip & differential pair trace impedance solver (IPC-2141 / Wheeler) for USB 90Ω, RF 50Ω, CAN 120Ω.
 6. `calculate_bom_cost`: PCBA bill-of-materials cost breakdown calculator with JLCPCB Extended library surcharge detection.
@@ -220,13 +224,14 @@ python -m client.mcp_server
 15. `run_erc`: Netlist-level Electrical Rules Check gate — floating nets, missing GND, unknown designators, missing power domain, missing decoupling, differential bus termination; blocking/error issues gate BOM/CPL delivery.
 16. `analyze_power_tree`: System-level power distribution architecture and thermal analyzer — load currents, regulator dropout headroom, and LDO junction temperature estimates ($T_j$).
 17. `calculate_ipc2221_clearance`: Calculate minimum conductor clearance based on IPC-2221B Table 6-1 voltage and classification (B1 internal, B2 external uncoated, B4 coated, A6 leads).
+18. `export_specctra_dsn`: Generate universal Specctra DSN (v15.0) auto-router interchange file with heuristic auto-placement for automated track routing in Freerouting or KiCad.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
 - `circuit://specs/netlist-schema`: The formal Draft-07 JSON Schema.
 - `circuit://specs/cpl-standard`: JLCPCB SMT coordinate and rotation offset specifications.
 - `circuit://specs/ipc-dfx-rules`: IPC-2152 current/temperature limits and IPC-2221 voltage creepage clearances.
-- `circuit://blocks/catalog`: Complete catalogue of 20 standard CircuitBlocks (pins, nets, LCSC part numbers).
+- `circuit://blocks/catalog`: Complete catalogue of 24 standard CircuitBlocks (pins, nets, LCSC part numbers).
 - `circuit://rules/jlc-smt`: JLCPCB SMT physical rules, 4-layer stackup (JLC04161H), and fee schedules.
 - `circuit://examples/esp32c3-minimal`: ESP32-C3 minimal IoT node reference netlist.
 - `circuit://examples/stm32f103-controller`: STM32F103 industrial controller reference netlist.
