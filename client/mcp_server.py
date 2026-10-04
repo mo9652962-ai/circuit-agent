@@ -98,6 +98,7 @@ SERVER_INFO = {
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+
 def _get_catalog() -> list[dict[str, Any]]:
     factories = [
         block_usb_c_power,
@@ -123,16 +124,18 @@ def _get_catalog() -> list[dict[str, Any]]:
     catalog = []
     for f in factories:
         blk = f()
-        catalog.append({
-            "name": blk.name,
-            "description": blk.description,
-            "components": [
-                {"ref": c.ref, "kind": c.kind, "value": c.value, "package": c.package, "lcsc": c.lcsc}
-                for c in blk.components
-            ],
-            "nets": list(blk.nets.keys()),
-            "properties": blk.properties,
-        })
+        catalog.append(
+            {
+                "name": blk.name,
+                "description": blk.description,
+                "components": [
+                    {"ref": c.ref, "kind": c.kind, "value": c.value, "package": c.package, "lcsc": c.lcsc}
+                    for c in blk.components
+                ],
+                "nets": list(blk.nets.keys()),
+                "properties": blk.properties,
+            }
+        )
     return catalog
 
 
@@ -216,16 +219,18 @@ def _calc_bom_breakdown(queries: list[str]) -> dict[str, Any]:
                 ext_count += 1
 
             total_parts_cny += price_cny
-            details.append({
-                "query": q,
-                "lcsc": m.get("lcsc_part"),
-                "title": m.get("part_number") or m.get("description"),
-                "package": m.get("package"),
-                "price_usd": price_usd,
-                "price_cny": price_cny,
-                "library_type": lib,
-                "stock": m.get("stock", 0),
-            })
+            details.append(
+                {
+                    "query": q,
+                    "lcsc": m.get("lcsc_part"),
+                    "title": m.get("part_number") or m.get("description"),
+                    "package": m.get("package"),
+                    "price_usd": price_usd,
+                    "price_cny": price_cny,
+                    "library_type": lib,
+                    "stock": m.get("stock", 0),
+                }
+            )
         else:
             details.append({"query": q, "status": "not_found", "price_cny": 0.0})
 
@@ -251,9 +256,11 @@ def _calc_bom_breakdown(queries: list[str]) -> dict[str, Any]:
         "optimization_tips": tips,
     }
 
+
 # --------------------------------------------------------------------------- #
 # Tool, Resource & Prompt Handlers
 # --------------------------------------------------------------------------- #
+
 
 def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     try:
@@ -281,11 +288,24 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             netlist = arguments.get("netlist", {})
             modules = arguments.get("modules", {})
             if not isinstance(netlist, dict) or "connections" not in netlist:
-                return {"isError": True, "content": [{"type": "text",
-                         "text": "Parameter 'netlist' with 'connections' is required (synthesize_circuit 输出可直接传入)"}]}
+                return {
+                    "isError": True,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Parameter 'netlist' with 'connections' is required (synthesize_circuit 输出可直接传入)",
+                        }
+                    ],
+                }
             issues = run_erc(modules, netlist.get("connections") or [])
-            return {"content": [{"type": "text", "text": json.dumps(
-                {"issues": issues, "gate": erc_gate(issues)}, ensure_ascii=False, indent=2)}]}
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": json.dumps({"issues": issues, "gate": erc_gate(issues)}, ensure_ascii=False, indent=2),
+                    }
+                ]
+            }
 
         if name == "list_supported_chips":
             chips = list_supported_chips()
@@ -310,13 +330,17 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if name == "validate_netlist":
             netlist = arguments.get("netlist", {})
             if not isinstance(netlist, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                }
 
             schema_path = REPO_ROOT / "specs" / "netlist_schema.json"
             errors = []
             if schema_path.exists():
                 try:
                     import jsonschema
+
                     schema = json.loads(schema_path.read_text(encoding="utf-8"))
                     jsonschema.validate(instance=netlist, schema=schema)
                 except ImportError:
@@ -350,7 +374,12 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if name == "calculate_bom_cost":
             queries = arguments.get("queries", [])
             if not isinstance(queries, list) or not queries:
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'queries' must be a non-empty list of component names"}]}
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": "Parameter 'queries' must be a non-empty list of component names"}
+                    ],
+                }
             bom_res = _calc_bom_breakdown(queries)
             return {"content": [{"type": "text", "text": json.dumps(bom_res, ensure_ascii=False, indent=2)}]}
 
@@ -370,7 +399,10 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if name == "audit_industrial_dfx":
             netlist = arguments.get("netlist", {})
             if not isinstance(netlist, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                }
             dfx_rep = audit_industrial_dfx(netlist)
             return {"content": [{"type": "text", "text": json.dumps(dfx_rep.to_dict(), ensure_ascii=False, indent=2)}]}
 
@@ -378,14 +410,20 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             netlist = arguments.get("netlist", {})
             title = arguments.get("title", "CircuitAgent_Design")
             if not isinstance(netlist, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                }
             kicad_str = export_kicad_netlist(netlist, title=title)
             return {"content": [{"type": "text", "text": kicad_str}]}
 
         if name == "export_manufacturing_bom":
             netlist = arguments.get("netlist", {})
             if not isinstance(netlist, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                }
             bom_csv = export_jlcpcb_bom(netlist)
             return {"content": [{"type": "text", "text": bom_csv}]}
 
@@ -393,7 +431,10 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             p_type = arguments.get("type")
             params = arguments.get("params", {})
             if not isinstance(params, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'params' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'params' must be a JSON object"}],
+                }
 
             if p_type == "resistor_divider":
                 v_in = float(params.get("v_in", 5.0))
@@ -425,14 +466,42 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 res = calculate_rc_filter(cutoff_freq_hz=fc, r_ohm=r, c_f=c)
                 return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
 
-            return {"isError": True, "content": [{"type": "text", "text": f"Unknown parametric calculation type: '{p_type}'"}]}
+            return {
+                "isError": True,
+                "content": [{"type": "text", "text": f"Unknown parametric calculation type: '{p_type}'"}],
+            }
 
         if name == "render_circuit_topology":
             netlist = arguments.get("netlist", {})
             if not isinstance(netlist, dict):
-                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}]}
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                }
             diag = render_ascii_topology(netlist)
             return {"content": [{"type": "text", "text": diag}]}
+
+        if name == "analyze_power_tree":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            amb = float(arguments.get("ambient_temp_c", 25.0))
+            from .power_tree import analyze_power_tree
+
+            pt = analyze_power_tree(modules, netlist.get("connections") or [], ambient_temp_c=amb)
+            return {"content": [{"type": "text", "text": json.dumps(pt.to_dict(), ensure_ascii=False, indent=2)}]}
+
+        if name == "calculate_ipc2221_clearance":
+            v = float(arguments.get("peak_voltage_v", 5.0))
+            ctype = str(arguments.get("conductor_type", "B2"))
+            from .parametric_equations import calculate_ipc2221_clearance
+
+            res = calculate_ipc2221_clearance(v, ctype)
+            return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
 
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
@@ -444,7 +513,10 @@ def handle_resource_read(uri: str) -> dict[str, Any]:
         "circuit://specs/netlist-schema": ("application/json", REPO_ROOT / "specs" / "netlist_schema.json"),
         "circuit://specs/cpl-standard": ("text/markdown", REPO_ROOT / "specs" / "cpl_standard.md"),
         "circuit://examples/esp32c3-minimal": ("application/json", REPO_ROOT / "examples" / "esp32c3_example.json"),
-        "circuit://examples/stm32f103-controller": ("application/json", REPO_ROOT / "examples" / "stm32f103_example.json"),
+        "circuit://examples/stm32f103-controller": (
+            "application/json",
+            REPO_ROOT / "examples" / "stm32f103_example.json",
+        ),
         "circuit://examples/rp2040-dualcore": ("application/json", REPO_ROOT / "examples" / "rp2040_example.json"),
     }
 
@@ -615,9 +687,11 @@ def handle_prompt_get(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
     raise ValueError(f"Unknown prompt: '{name}'")
 
+
 # --------------------------------------------------------------------------- #
 # Main Dispatcher
 # --------------------------------------------------------------------------- #
+
 
 def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
     method = msg.get("method")

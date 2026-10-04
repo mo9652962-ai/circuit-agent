@@ -183,7 +183,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **15 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **17 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -214,15 +214,13 @@ python -m client.mcp_server
 8. `register_custom_chip`: 动态注册第三方 MCU 物理引脚约束与外设映射表。
 9. `calculate_ipc2152_trace_current`: 依据 IPC-2152 标准精确计算印制导线载流能力或反算线宽（温升 ΔT、铜厚 1oz/2oz、内层降额）。
 10. `audit_industrial_dfx`: 工业级 DFX (DFM/DFA/DFT/DFC) 与生产合规自动化静态审查器，输出打分评级、问题分类与 Markdown 体检报告。
-11. `export_kicad_netlist`: 导出 KiCad 可导入的网表文件。
-12. `export_manufacturing_bom`: 导出 JLCPCB 制造 BOM（含 LCSC 料号与成本）。
-13. `calculate_parametric_circuit`: 参数化电路计算器（RC 滤波 / I2C 上拉 / LDO 热耗散 / 分压器）。
-14. `render_circuit_topology`: 渲染 ASCII 电路拓扑图，快速目检连接关系。
-15. `run_erc`: 网表级电气规则门禁（ERC）——悬空网络、缺 GND、未知位号、缺电源域、缺去耦电容，每条带 severity 与出处，blocking/error 阻断 BOM/CPL 交付。
 11. `export_kicad_netlist`: 导出标准 KiCad S-Expression 网表 (.net)，支持 KiCad 6/7/8/9/10 直接导入 Pcbnew 快速布线。
 12. `export_manufacturing_bom`: 生成量产级嘉立创 SMT BOM CSV 表格（含位号聚合、基础库免换料费分类）。
 13. `calculate_parametric_circuit`: 闭环参数化硬件设计方程（E96 标准分压电阻对求解、LDO 散热结温校核、I2C 上拉阻值及 RC 滤波）。
 14. `render_circuit_topology`: 生成结构化 ASCII 系统架构拓扑图（电源轨、总线、传感器与保护子系统）。
+15. `run_erc`: 网表级电气规则门禁（ERC）——悬空网络、缺 GND、未知位号、缺电源域、缺去耦电容、差分总线缺 120Ω 终端电阻，每条带 severity 与出处，blocking/error 阻断 BOM/CPL 交付。
+16. `analyze_power_tree`: 系统级电源树与热功耗分析器，追踪电源域负载电流、LDO 压差裕量、热耗散与结温估算 ($T_j$)。
+17. `calculate_ipc2221_clearance`: 基于 IPC-2221B Table 6-1 标准根据工作电压与导体类别 (B1内层/B2外层裸露/B4涂覆/A6引脚) 精确计算最小电气间隙。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

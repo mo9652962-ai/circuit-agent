@@ -182,7 +182,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **15 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **17 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -213,15 +213,13 @@ python -m client.mcp_server
 8. `register_custom_chip`: Dynamically register third-party MCU physical pin constraints and peripheral maps.
 9. `calculate_ipc2152_trace_current`: IPC-2152 conductor current-carrying capacity, or solve required trace width for a target current (copper weight, ΔT, inner-layer derating).
 10. `audit_industrial_dfx`: Industrial DFX (DFM/DFA/DFT/DFC) compliance auditor — returns a weighted score, graded verdict, categorised findings and a Markdown report.
-11. `export_kicad_netlist`: Export a KiCad-importable netlist file.
-12. `export_manufacturing_bom`: Export a JLCPCB manufacturing BOM with LCSC part numbers and cost.
-13. `calculate_parametric_circuit`: Parametric circuit calculator (RC filter / I2C pull-up / LDO thermal / divider).
-14. `render_circuit_topology`: Render an ASCII circuit topology for quick connection review.
-15. `run_erc`: Netlist-level Electrical Rules Check gate — floating nets, missing GND, unknown designators, missing power domain, missing decoupling; blocking/error issues gate BOM/CPL delivery.
 11. `export_kicad_netlist`: Export a standard KiCad S-Expression netlist (`.net`) importable into KiCad 6/7/8/9/10 Pcbnew.
 12. `export_manufacturing_bom`: Generate a production JLCPCB SMT BOM CSV with designator grouping and Basic/Extended classification.
 13. `calculate_parametric_circuit`: Closed-form parametric design solvers — E96 resistor dividers, LDO thermal/junction temperature, I2C pull-ups, RC filters.
 14. `render_circuit_topology`: Render a structured ASCII architecture diagram of power domains, buses and subsystems.
+15. `run_erc`: Netlist-level Electrical Rules Check gate — floating nets, missing GND, unknown designators, missing power domain, missing decoupling, differential bus termination; blocking/error issues gate BOM/CPL delivery.
+16. `analyze_power_tree`: System-level power distribution architecture and thermal analyzer — load currents, regulator dropout headroom, and LDO junction temperature estimates ($T_j$).
+17. `calculate_ipc2221_clearance`: Calculate minimum conductor clearance based on IPC-2221B Table 6-1 voltage and classification (B1 internal, B2 external uncoated, B4 coated, A6 leads).
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
