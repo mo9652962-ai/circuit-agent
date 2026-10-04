@@ -62,7 +62,7 @@ from .parametric_equations import (
 )
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 
 __all__ = [
     "IPC2221_CLEARANCES",
