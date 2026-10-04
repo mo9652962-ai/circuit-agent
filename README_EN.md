@@ -7,15 +7,29 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-240%20passing-brightgreen.svg" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.6-blueviolet.svg" alt="Release"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mo9652962-ai/circuit-agent/ci.yml?style=flat-square&label=CI" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Tests-240%20passing-success?style=flat-square" alt="Tests"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/Release-v0.1.6-blueviolet?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/modelcontextprotocol/registry"><img src="https://img.shields.io/badge/MCP_Registry-circuit--agent-black?style=flat-square" alt="MCP Registry"></a>
+  <img src="https://img.shields.io/badge/KiCad-10.0%20Export-314CE0?style=flat-square&logo=kicad&logoColor=white" alt="KiCad 10">
 </p>
 
 <p align="center">
-  <a href="README.md"><b>中文说明</b></a> | <a href="README_EN.md"><b>English</b></a>
+  <a href="README.md"><b>🇨🇳 中文说明</b></a>
+  ·
+  <a href="README_EN.md"><b>🇬🇧 English</b></a>
+  ·
+  <a href="#mcp-server-integration">🔌 MCP Server</a>
+  ·
+  <a href="#supported-circuit-blocks">🧩 19+ CircuitBlocks</a>
+  ·
+  <a href="#industrial-dfx-audit--thermalclearance-simulation">🏭 Industrial DFX</a>
+  ·
+  <a href="#3--export-manufacturing-data--solve-parametric-equations">📐 KiCad/BOM Export</a>
+  ·
+  <a href="https://github.com/mo9652962-ai/circuit-agent/issues">💬 Issues</a>
 </p>
 
 ---
@@ -270,6 +284,16 @@ geometry, Senior EE physical rule DRC gate.
 - [ ] Parametric 3D enclosure generation
 
 ---
+
+## ⭐ Star History
+
+If CircuitAgent helps your hardware development workflow, consider giving the repo a star!
+
+<div align="center">
+
+[![Star History Chart](https://api.star-history.com/svg?repos=mo9652962-ai/circuit-agent&type=Date)](https://star-history.com/#mo9652962-ai/circuit-agent&Date)
+
+</div>
 
 ## License
 

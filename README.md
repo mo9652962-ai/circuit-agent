@@ -9,15 +9,29 @@
 **Prompt → Schematic → Layout → 3D Enclosure → Fabrication Bundle**
 
 <p align="center">
-  <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/tests-240%20passing-brightgreen.svg" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/release-v0.1.6-blueviolet.svg" alt="Release"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mo9652962-ai/circuit-agent/ci.yml?style=flat-square&label=CI" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Tests-240%20passing-success?style=flat-square" alt="Tests"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/Release-v0.1.6-blueviolet?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/modelcontextprotocol/registry"><img src="https://img.shields.io/badge/MCP_Registry-circuit--agent-black?style=flat-square" alt="MCP Registry"></a>
+  <img src="https://img.shields.io/badge/KiCad-10.0%20Export-314CE0?style=flat-square&logo=kicad&logoColor=white" alt="KiCad 10">
 </p>
 
 <p align="center">
-  <a href="README.md"><b>中文说明</b></a> | <a href="README_EN.md"><b>English</b></a>
+  <a href="README.md"><b>🇨🇳 中文说明</b></a>
+  ·
+  <a href="README_EN.md"><b>🇬🇧 English</b></a>
+  ·
+  <a href="#-mcp-server-接入">🔌 MCP Server</a>
+  ·
+  <a href="#-支持的电路积木清单">🧩 19+ 积木清单</a>
+  ·
+  <a href="#-工业-dfx-制造审查与安全仿真">🏭 工业 DFX</a>
+  ·
+  <a href="#-eda--制造数据导出">📐 KiCad/BOM 导出</a>
+  ·
+  <a href="https://github.com/mo9652962-ai/circuit-agent/issues">💬 反馈</a>
 </p>
 
 > **Status: alpha.** This repository is the open community layer of CircuitAgent: the
@@ -282,6 +296,16 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 的 `CircuitAgent` 基类、以及高能物理领域的 PhEDEx `CircuitAgent`）。
 本项目与它们**没有任何关系**，也不主张该名称的独占权。如果你的项目或商标与此冲突，
 欢迎开 Issue 告知，我们可以协商改名。
+
+## ⭐ 关注与支持 (Star History)
+
+如果 CircuitAgent 对你的硬件开发或制造流程有所帮助，欢迎点个 Star 支持项目持续演进！
+
+<div align="center">
+
+[![Star History Chart](https://api.star-history.com/svg?repos=mo9652962-ai/circuit-agent&type=Date)](https://star-history.com/#mo9652962-ai/circuit-agent&Date)
+
+</div>
 
 ## 许可证 (License)
 
