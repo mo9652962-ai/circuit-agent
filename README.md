@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **18 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **20 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -226,6 +226,8 @@ python -m client.mcp_server
 16. `analyze_power_tree`: 系统级电源树与热功耗分析器，追踪电源域负载电流、LDO 压差裕量、热耗散与结温估算 ($T_j$)。
 17. `calculate_ipc2221_clearance`: 基于 IPC-2221B Table 6-1 标准根据工作电压与导体类别 (B1内层/B2外层裸露/B4涂覆/A6引脚) 精确计算最小电气间隙。
 18. `export_specctra_dsn`: 生成通用 Specctra DSN (v15.0) 自动布线交互文件与启发式器件自动布局，支持直接送入 Freerouting / KiCad 执行 100% 自动化走线。
+19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
+20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

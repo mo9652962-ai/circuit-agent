@@ -403,6 +403,36 @@ AVAILABLE_TOOLS = [
             },
         },
     },
+    {
+        "name": "export_kicad_schematic",
+        "description": (
+            "Export modern KiCad 8/9 S-Expression schematic file (.kicad_sch) directly viewable and editable "
+            "in KiCad Eeschema with sheet layout, component symbols, pin references, and LCSC attributes."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "connections": {"type": "array", "description": "Netlist connections list (optional).", "default": []},
+                "title": {"type": "string", "description": "Schematic sheet title block title.", "default": "Hardware Design"},
+            },
+        },
+    },
+    {
+        "name": "audit_supply_chain",
+        "description": (
+            "Audit BOM component multi-sourcing resilience (ISO 9001 supply chain audit), identifying single-source "
+            "bottlenecks and mapping pin-compatible second-source drop-in replacements with LCSC cross-references."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+            },
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
