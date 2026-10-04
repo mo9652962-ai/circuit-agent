@@ -102,6 +102,28 @@ AVAILABLE_TOOLS = [
         },
     },
     {
+        "name": "run_erc",
+        "description": (
+            "Run deterministic Electrical Rules Check (ERC) on a netlist: floating nets, missing GND, "
+            "unknown designators, missing power domain, missing decoupling. Every finding carries "
+            "severity + source; blocking/error issues gate BOM/CPL delivery."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (synthesize_circuit output passes directly).",
+                },
+                "modules": {
+                    "type": "object",
+                    "description": "Optional modules dict (ref -> {kind, value, package, lcsc}) for component-aware rules.",
+                },
+            },
+        },
+    },
+    {
         "name": "validate_netlist",
         "description": "Validate a hardware netlist dictionary against the formal CircuitAgent JSON Schema specification.",
         "inputSchema": {

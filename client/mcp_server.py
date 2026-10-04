@@ -66,6 +66,7 @@ from .circuit_blocks import (
     block_testpoint_matrix,
     block_usb_c_power,
 )
+from .erc import erc_gate, run_erc
 from .export_engine import (
     export_jlcpcb_bom,
     export_kicad_netlist,
@@ -269,7 +270,22 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 custom_chip=custom_chip,
                 pin_mapping=pin_mapping,
             )
+            # ERC 门禁随合成一并输出（合成即体检）
+            try:
+                res["erc"] = erc_gate(run_erc(res["modules"], res["netlist"]["connections"]))
+            except Exception as e:
+                logger.warning("ERC failed: %s", e)
             return {"content": [{"type": "text", "text": json.dumps(res, ensure_ascii=False, indent=2)}]}
+
+        if name == "run_erc":
+            netlist = arguments.get("netlist", {})
+            modules = arguments.get("modules", {})
+            if not isinstance(netlist, dict) or "connections" not in netlist:
+                return {"isError": True, "content": [{"type": "text",
+                         "text": "Parameter 'netlist' with 'connections' is required (synthesize_circuit 输出可直接传入)"}]}
+            issues = run_erc(modules, netlist.get("connections") or [])
+            return {"content": [{"type": "text", "text": json.dumps(
+                {"issues": issues, "gate": erc_gate(issues)}, ensure_ascii=False, indent=2)}]}
 
         if name == "list_supported_chips":
             chips = list_supported_chips()
