@@ -66,7 +66,9 @@ def test_mcp_tools_list():
     assert "calculate_parametric_circuit" in tool_names
     assert "render_circuit_topology" in tool_names
     assert "run_erc" in tool_names
-    assert len(tools) == 15
+    assert "analyze_power_tree" in tool_names
+    assert "calculate_ipc2221_clearance" in tool_names
+    assert len(tools) == 17
 
 
 def test_mcp_tool_call_synthesize():

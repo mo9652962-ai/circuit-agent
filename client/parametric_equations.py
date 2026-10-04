@@ -22,23 +22,135 @@ from typing import Any, Literal
 # --------------------------------------------------------------------------- #
 
 E24_BASE = [
-    1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0,
-    3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1,
+    1.0,
+    1.1,
+    1.2,
+    1.3,
+    1.5,
+    1.6,
+    1.8,
+    2.0,
+    2.2,
+    2.4,
+    2.7,
+    3.0,
+    3.3,
+    3.6,
+    3.9,
+    4.3,
+    4.7,
+    5.1,
+    5.6,
+    6.2,
+    6.8,
+    7.5,
+    8.2,
+    9.1,
 ]
 
 E96_BASE = [
-    1.00, 1.02, 1.05, 1.07, 1.10, 1.13, 1.15, 1.18, 1.21, 1.24, 1.27, 1.30,
-    1.33, 1.37, 1.40, 1.43, 1.47, 1.50, 1.54, 1.58, 1.62, 1.65, 1.69, 1.74,
-    1.78, 1.82, 1.87, 1.91, 1.96, 2.00, 2.05, 2.10, 2.15, 2.21, 2.26, 2.32,
-    2.37, 2.43, 2.49, 2.55, 2.61, 2.67, 2.74, 2.80, 2.87, 2.94, 3.01, 3.09,
-    3.16, 3.24, 3.32, 3.40, 3.48, 3.57, 3.65, 3.74, 3.83, 3.92, 4.02, 4.12,
-    4.22, 4.32, 4.42, 4.53, 4.64, 4.75, 4.87, 4.99, 5.11, 5.23, 5.36, 5.49,
-    5.62, 5.76, 5.90, 6.04, 6.19, 6.34, 6.49, 6.65, 6.81, 6.98, 7.15, 7.32,
-    7.50, 7.68, 7.87, 8.06, 8.25, 8.45, 8.66, 8.87, 9.09, 9.31, 9.53, 9.76,
+    1.00,
+    1.02,
+    1.05,
+    1.07,
+    1.10,
+    1.13,
+    1.15,
+    1.18,
+    1.21,
+    1.24,
+    1.27,
+    1.30,
+    1.33,
+    1.37,
+    1.40,
+    1.43,
+    1.47,
+    1.50,
+    1.54,
+    1.58,
+    1.62,
+    1.65,
+    1.69,
+    1.74,
+    1.78,
+    1.82,
+    1.87,
+    1.91,
+    1.96,
+    2.00,
+    2.05,
+    2.10,
+    2.15,
+    2.21,
+    2.26,
+    2.32,
+    2.37,
+    2.43,
+    2.49,
+    2.55,
+    2.61,
+    2.67,
+    2.74,
+    2.80,
+    2.87,
+    2.94,
+    3.01,
+    3.09,
+    3.16,
+    3.24,
+    3.32,
+    3.40,
+    3.48,
+    3.57,
+    3.65,
+    3.74,
+    3.83,
+    3.92,
+    4.02,
+    4.12,
+    4.22,
+    4.32,
+    4.42,
+    4.53,
+    4.64,
+    4.75,
+    4.87,
+    4.99,
+    5.11,
+    5.23,
+    5.36,
+    5.49,
+    5.62,
+    5.76,
+    5.90,
+    6.04,
+    6.19,
+    6.34,
+    6.49,
+    6.65,
+    6.81,
+    6.98,
+    7.15,
+    7.32,
+    7.50,
+    7.68,
+    7.87,
+    8.06,
+    8.25,
+    8.45,
+    8.66,
+    8.87,
+    9.09,
+    9.31,
+    9.53,
+    9.76,
 ]
 
 
-def generate_standard_series(series: Literal["E24", "E96"] = "E96", min_val: float = 1.0, max_val: float = 10e6) -> list[float]:
+def generate_standard_series(
+    series: Literal["E24", "E96"] = "E96", min_val: float = 1.0, max_val: float = 10e6
+) -> list[float]:
     """Generate all standard resistor values between min_val and max_val."""
     base = E96_BASE if series == "E96" else E24_BASE
     values: list[float] = []
@@ -57,15 +169,16 @@ def snap_to_e_series(value: float, series: Literal["E24", "E96"] = "E96") -> flo
     if value <= 0:
         raise ValueError("Value must be strictly positive")
     exp = math.floor(math.log10(value))
-    norm = value / (10 ** exp)
+    norm = value / (10**exp)
     base = (E96_BASE + [10.0]) if series == "E96" else (E24_BASE + [10.0])
     best = min(base, key=lambda b: abs(b - norm))
-    return round(best * (10 ** exp), 2 if exp >= 0 else 6)
+    return round(best * (10**exp), 2 if exp >= 0 else 6)
 
 
 # --------------------------------------------------------------------------- #
 # 1. Optimal Resistor Voltage Divider
 # --------------------------------------------------------------------------- #
+
 
 @dataclass(frozen=True)
 class DividerResult:
@@ -103,8 +216,8 @@ def solve_resistor_divider(
         raise ValueError("Voltages must be positive")
 
     target_ratio = v_out_target / v_in
-    min_r_total = (v_in / (max_quiescent_current_ma * 1e-3))
-    max_r_total = (v_in / (min_quiescent_current_ma * 1e-3))
+    min_r_total = v_in / (max_quiescent_current_ma * 1e-3)
+    max_r_total = v_in / (min_quiescent_current_ma * 1e-3)
 
     candidates = generate_standard_series(series, min_val=100.0, max_val=2.2e6)
     best_error = float("inf")
@@ -136,7 +249,7 @@ def solve_resistor_divider(
     r_total = best_r1 + best_r2
     i_q_ma = (v_in / r_total) * 1e3
     p_r1 = ((v_in - best_v_out) ** 2 / best_r1) * 1e3
-    p_r2 = (best_v_out ** 2 / best_r2) * 1e3
+    p_r2 = (best_v_out**2 / best_r2) * 1e3
 
     return DividerResult(
         v_in=round(v_in, 3),
@@ -156,6 +269,7 @@ def solve_resistor_divider(
 # --------------------------------------------------------------------------- #
 # 2. LDO Thermal & Efficiency Analysis
 # --------------------------------------------------------------------------- #
+
 
 @dataclass(frozen=True)
 class LDOThermalResult:
@@ -239,6 +353,7 @@ def calculate_ldo_thermal(
 # --------------------------------------------------------------------------- #
 # 3. I2C Bus Pull-Up Resistor Sizing (NXP UM10204)
 # --------------------------------------------------------------------------- #
+
 
 @dataclass(frozen=True)
 class I2CPullUpResult:
@@ -330,6 +445,7 @@ def calculate_i2c_pullup(
 # 4. RC Filter Sizing
 # --------------------------------------------------------------------------- #
 
+
 @dataclass(frozen=True)
 class RCFilterResult:
     cutoff_freq_hz: float
@@ -381,3 +497,61 @@ def calculate_rc_filter(
         time_constant_ms=round(tau_ms, 4),
         impedance_at_cutoff_ohm=round(r * math.sqrt(2), 2),
     )
+
+
+def calculate_ipc2221_clearance(
+    peak_voltage_v: float,
+    conductor_type: Literal["B1", "B2", "B4", "A6"] = "B2",
+) -> dict[str, Any]:
+    """Calculate minimum electrical clearance according to IPC-2221B Table 6-1.
+
+    Conductor Types:
+    - B1: Internal conductors (内层导体)
+    - B2: External conductors, uncoated, sea level to 3050m (外层裸露导线)
+    - B4: External conductors, with conformal coating (涂覆三防漆外层)
+    - A6: External component leads, uncoated (裸露元件引脚)
+
+    Voltage tiers: 0-15V, 16-30V, 31-50V, 51-100V, 101-150V, 151-170V, 171-250V, 251-300V, 301-500V.
+    """
+    v = abs(float(peak_voltage_v))
+    # IPC-2221B Table 6-1 clearances in mm: (max_v, B1, B2, B4, A6)
+    table = [
+        (15.0, 0.05, 0.10, 0.05, 0.10),
+        (30.0, 0.05, 0.10, 0.05, 0.10),
+        (50.0, 0.10, 0.60, 0.13, 0.60),
+        (100.0, 0.10, 0.60, 0.13, 0.60),
+        (150.0, 0.20, 0.60, 0.40, 0.60),
+        (170.0, 0.20, 1.25, 0.40, 1.25),
+        (250.0, 0.20, 1.25, 0.40, 1.25),
+        (300.0, 0.20, 1.25, 0.40, 1.25),
+        (500.0, 0.25, 2.50, 0.80, 2.50),
+    ]
+    type_idx = {"B1": 1, "B2": 2, "B4": 3, "A6": 4}.get(str(conductor_type).upper(), 2)
+    clearance_mm = 0.10
+    tier_desc = "0-15V"
+
+    for max_v, *cols in table:
+        if v <= max_v:
+            clearance_mm = cols[type_idx - 1]
+            tier_desc = f"≤{max_v:.0f}V"
+            break
+    else:
+        # > 500V: base 500V clearance + 0.005mm per volt over 500V
+        base_500 = table[-1][type_idx]
+        clearance_mm = base_500 + (v - 500.0) * 0.005
+        tier_desc = ">500V (linear scale 0.005mm/V)"
+
+    return {
+        "peak_voltage_v": v,
+        "conductor_type": str(conductor_type).upper(),
+        "conductor_type_desc": {
+            "B1": "Internal conductors (内层走线)",
+            "B2": "External conductors, uncoated (外层裸露导线)",
+            "B4": "External conductors, coated (三防漆涂覆)",
+            "A6": "External component leads (裸露引脚)",
+        }.get(str(conductor_type).upper(), "External uncoated"),
+        "min_clearance_mm": round(clearance_mm, 3),
+        "min_clearance_mils": round(clearance_mm / 0.0254, 1),
+        "voltage_tier": tier_desc,
+        "standard": "IPC-2221B Table 6-1 (Generic Standard on Printed Board Design)",
+    }

@@ -61,11 +61,27 @@ AVAILABLE_TOOLS = [
                 "mcu_family": {"type": "string", "description": "MCU family, e.g. 'QingKe-RISC-V', 'ARM-Cortex-M0+'"},
                 "package": {"type": "string", "description": "Physical package, e.g. 'TSSOP-20', 'QFN-32'"},
                 "supply_voltage": {"type": "number", "description": "Operating voltage (typically 3.3 or 5.0)"},
-                "pins": {"type": "array", "items": {"type": "string"}, "description": "List of available GPIO and power pins"},
-                "pin_numbers": {"type": "object", "description": "Map of pin names to physical pin numbers, e.g. {'PD1': '8'}"},
-                "reserved_pins": {"type": "object", "description": "Map of reserved pins and reasons, e.g. {'PD1': 'SWDIO', 'NRST': 'RESET'}"},
-                "peripheral_routes": {"type": "object", "description": "Peripheral routing defaults, e.g. {'I2C1': {'I2C_SCL': 'PC2', 'I2C_SDA': 'PC1'}}"},
-                "default_gpio_assignments": {"type": "object", "description": "Default signal mappings, e.g. {'/LED1': 'PD4'}"},
+                "pins": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of available GPIO and power pins",
+                },
+                "pin_numbers": {
+                    "type": "object",
+                    "description": "Map of pin names to physical pin numbers, e.g. {'PD1': '8'}",
+                },
+                "reserved_pins": {
+                    "type": "object",
+                    "description": "Map of reserved pins and reasons, e.g. {'PD1': 'SWDIO', 'NRST': 'RESET'}",
+                },
+                "peripheral_routes": {
+                    "type": "object",
+                    "description": "Peripheral routing defaults, e.g. {'I2C1': {'I2C_SCL': 'PC2', 'I2C_SDA': 'PC1'}}",
+                },
+                "default_gpio_assignments": {
+                    "type": "object",
+                    "description": "Default signal mappings, e.g. {'/LED1': 'PD4'}",
+                },
                 "description": {"type": "string", "description": "Human-readable description of the chip"},
             },
             "required": ["chip_id", "pins"],
@@ -265,7 +281,11 @@ AVAILABLE_TOOLS = [
             "required": ["netlist"],
             "properties": {
                 "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
-                "title": {"type": "string", "description": "Schematic / board project title.", "default": "CircuitAgent_Design"},
+                "title": {
+                    "type": "string",
+                    "description": "Schematic / board project title.",
+                    "default": "CircuitAgent_Design",
+                },
             },
         },
     },
@@ -312,6 +332,55 @@ AVAILABLE_TOOLS = [
             "required": ["netlist"],
             "properties": {
                 "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
+            },
+        },
+    },
+    {
+        "name": "analyze_power_tree",
+        "description": (
+            "Analyze system-level power distribution architecture, load current budgets (typical & peak mA), "
+            "regulator dropout headroom, and LDO thermal dissipation / junction temperature estimates."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "ambient_temp_c": {
+                    "type": "number",
+                    "description": "Operating ambient temperature in °C (default: 25.0).",
+                    "default": 25.0,
+                },
+            },
+        },
+    },
+    {
+        "name": "calculate_ipc2221_clearance",
+        "description": (
+            "Calculate minimum electrical clearance (conductor spacing) according to IPC-2221B Table 6-1 "
+            "based on peak voltage and conductor classification (B1 internal, B2 external uncoated, B4 coated, A6 leads)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["peak_voltage_v"],
+            "properties": {
+                "peak_voltage_v": {
+                    "type": "number",
+                    "description": "Peak working or test voltage in Volts (e.g., 5.0, 12.0, 24.0, 230.0).",
+                },
+                "conductor_type": {
+                    "type": "string",
+                    "enum": ["B1", "B2", "B4", "A6"],
+                    "description": "Conductor classification: B1 (internal), B2 (external uncoated), B4 (coated), A6 (leads). Default: B2.",
+                    "default": "B2",
+                },
             },
         },
     },
