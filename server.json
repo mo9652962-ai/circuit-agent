@@ -3,7 +3,7 @@
   "name": "io.github.mo9652962-ai/circuit-agent-client",
   "title": "CircuitAgent",
   "description": "AI hardware synthesis: CircuitBlocks DSL, live LCSC parts, industrial DFX audit, stdio MCP server.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "repository": {
     "url": "https://github.com/mo9652962-ai/circuit-agent",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "circuit-agent-client",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "transport": {
         "type": "stdio"
       }
