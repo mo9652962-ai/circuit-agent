@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **30 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **32 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -238,6 +238,8 @@ python -m client.mcp_server
 28. `export_openpnp_job`: 导出标准 OpenPnP 自动化贴片作业文件与工业贴片机 CSV，包含吸嘴配置、料槽站位号、中心坐标与器件旋转角。
 29. `calculate_ipc7351_land_pattern`: 依据 IPC-7351B 国际标准计算表面贴装元件焊盘几何与 Courtyard 边界（焊脚延伸 Toe、内侧延伸 Heel、侧边延伸 Side、RMS 统计公差，覆盖 A/B/C 三级焊盘密度）。
 30. `calculate_pcb_panel_rails`: SMT 自动化产线拼版工艺边与邮票孔/V-cut 计算器，依据 IPC-2221B 与 IPC-SMEMA-9851 自动化导轨规范生成 3.2mm 定位孔、光学定位点与材料利用率。
+31. `calculate_ict_testpoints`: 分析 PCB 网表测试可测性并规划针床在线测试 (ICT) 测试焊盘矩阵 (B.Cu Φ1.0mm/2.54mm 网格)，根据 IPC-9252 与 IPC-2221B 智能分配探针类型 (皇冠型/尖矛型/锯齿型) 与故障覆盖率统计。
+32. `calculate_bga_escape_routing`: 依据 IPC-7095 标准求解 BGA 封装对角 45° 狗骨头 (Dogbone) 引脚逃孔扇出几何、通道线宽与线距，并反推最少信号走线层数与 HDI 微孔需求。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

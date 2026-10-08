@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (30 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (32 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -965,6 +965,99 @@ AVAILABLE_TOOLS = [
                     "type": "string",
                     "description": "Rail placement: 'left_right' (default), 'top_bottom', or 'all_four'.",
                     "default": "left_right",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_ict_testpoints",
+        "description": (
+            "Analyze PCB netlist testability, allocate automated bed-of-nails In-Circuit Test (ICT) testpoints (B.Cu Φ1.0mm), "
+            "assign probe tip types (crown, spear, serrated), and verify fault coverage percentage per IPC-9252 & IPC-2221B."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["connections"],
+            "properties": {
+                "connections": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Netlist connections list (from synthesize_circuit output).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "min_pad_diameter_mm": {
+                    "type": "number",
+                    "description": "Testpad diameter in mm (default: 1.0).",
+                    "default": 1.0,
+                },
+                "min_probe_pitch_mm": {
+                    "type": "number",
+                    "description": "Minimum probe center-to-center pitch in mm (default: 2.0).",
+                    "default": 2.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_bga_escape_routing",
+        "description": (
+            "Calculate BGA diagonal dogbone via fanout geometry, escape channel trace widths and clearances, "
+            "and minimum signal layer requirements per IPC-7095 Section 5.2."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["ball_count"],
+            "properties": {
+                "ball_count": {
+                    "type": "integer",
+                    "description": "Total BGA ball count (e.g. 64, 100, 144, 256).",
+                    "default": 64,
+                },
+                "ball_pitch_mm": {
+                    "type": "number",
+                    "description": "BGA ball center-to-center pitch in mm (default: 0.8).",
+                    "default": 0.8,
+                },
+                "ball_pad_dia_mm": {
+                    "type": "number",
+                    "description": "BGA solder ball pad diameter in mm (default: 0.4).",
+                    "default": 0.4,
+                },
+                "via_drill_mm": {
+                    "type": "number",
+                    "description": "Fanout via drill diameter in mm (default: 0.2).",
+                    "default": 0.2,
+                },
+                "via_pad_dia_mm": {
+                    "type": "number",
+                    "description": "Fanout via pad outer diameter in mm (default: 0.45).",
+                    "default": 0.45,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Escape routing neck-down trace width in mm (default: 0.10).",
+                    "default": 0.10,
                 },
             },
         },

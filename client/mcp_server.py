@@ -717,6 +717,51 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(res_panel.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_ict_testpoints":
+            conns = arguments.get("connections", [])
+            if not isinstance(conns, list):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'connections' must be a list"}],
+                }
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            min_pad = float(arguments.get("min_pad_diameter_mm", 1.0))
+            min_pitch = float(arguments.get("min_probe_pitch_mm", 2.0))
+            from .ict_testpoints import calculate_ict_testpoints
+
+            rep_ict = calculate_ict_testpoints(
+                connections=conns,
+                board_width_mm=bw,
+                board_height_mm=bh,
+                min_pad_diameter_mm=min_pad,
+                min_probe_pitch_mm=min_pitch,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_ict.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_bga_escape_routing":
+            b_cnt = int(arguments.get("ball_count", 64))
+            b_pitch = float(arguments.get("ball_pitch_mm", 0.8))
+            b_pad = float(arguments.get("ball_pad_dia_mm", 0.4))
+            v_drill = float(arguments.get("via_drill_mm", 0.2))
+            v_pad = float(arguments.get("via_pad_dia_mm", 0.45))
+            tr_w = float(arguments.get("trace_width_mm", 0.10))
+            from .bga_escape_router import calculate_bga_escape_routing
+
+            rep_bga = calculate_bga_escape_routing(
+                ball_count=b_cnt,
+                ball_pitch_mm=b_pitch,
+                ball_pad_dia_mm=b_pad,
+                via_drill_mm=v_drill,
+                via_pad_dia_mm=v_pad,
+                trace_width_mm=tr_w,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_bga.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
