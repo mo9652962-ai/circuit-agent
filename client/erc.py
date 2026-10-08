@@ -27,6 +27,8 @@
 - PIN_TYPE_CONFLICT (error)：两个非开漏/非三态推挽输出引脚短接冲突（KiCad ERC 规则）。
 - SMT_TAPE_FEEDER_PITCH_MISMATCH (warning)：封装物理外形尺寸大于料带步距设置（EIA-481 标准）。
 - HIGH_VOLTAGE_ISOLATION_BARRIER_BREACH (warning)：高压/PLC 隔离网络与低压弱电之间未满足 IPC-2221B 安全爬电间隙。
+- COURTYARD_COLLISION_RISK (warning)：元件间距低于 IPC-7351B Courtyard 最小边界裕量，贴片机吸嘴干涉与贴装防撞。
+- THERMAL_RELIEF_MISSING_ON_HIGH_CURRENT (warning)：大电流/功率焊盘直接实心连接大面积铜皮而缺少热隔离十字花孔，回流焊易冷焊或立碑（IPC-2221B / IPC-A-610G）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -37,6 +39,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import asdict, dataclass
 
@@ -334,6 +337,52 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                             object_id=f"nets:{iso_n}/{log_n}",
                         )
                     )
+
+    # 15. COURTYARD_COLLISION_RISK (warning)：IPC-7351B 元件 Courtyard 边界冲突与贴装防撞
+    positions: dict[str, tuple[float, float]] = {}
+    for ref, m in modules.items():
+        pos = m.get("position")
+        if isinstance(pos, (list, tuple)) and len(pos) >= 2:
+            positions[ref] = (float(pos[0]), float(pos[1]))
+    placed_refs = list(positions.keys())
+    for i in range(len(placed_refs)):
+        for j in range(i + 1, len(placed_refs)):
+            r1, r2 = placed_refs[i], placed_refs[j]
+            x1, y1 = positions[r1]
+            x2, y2 = positions[r2]
+            dist = math.hypot(x1 - x2, y1 - y2)
+            if dist < 0.25:
+                issues.append(
+                    _issue(
+                        "COURTYARD_COLLISION_RISK",
+                        "器件 Courtyard 冲突与贴装防撞风险",
+                        f"器件 {r1} 与 {r2} 布局间距 ({dist:.2f}mm) 低于 IPC-7351B 最小 Courtyard 安全裕量；"
+                        "贴片机吸嘴易发生机械干涉，回流焊极易出现元件撞件或焊锡桥连。",
+                        "warning",
+                        "IPC-7351B Section 3.1.5 Courtyard Boundary Excess",
+                        object_id=f"comps:{r1}/{r2}",
+                    )
+                )
+
+    # 16. THERMAL_RELIEF_MISSING_ON_HIGH_CURRENT (warning)：大电流焊盘缺少热隔离十字花连接
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        is_power = bool(POWER_RE.search(net_name) or "GND" in net_name.upper())
+        has_direct_connect = props.get("zone_connection") == "solid"
+        current_a = float(props.get("current_rating_a", 0.0) or 0.0)
+        if is_power and has_direct_connect and current_a >= 1.5:
+            issues.append(
+                _issue(
+                    "THERMAL_RELIEF_MISSING_ON_HIGH_CURRENT",
+                    "大电流焊盘缺少热隔离十字花连接 (Thermal Relief)",
+                    f"网络 {net_name} (载流 {current_a}A) 的焊盘直接实心连接至大面积铜皮铺铜；"
+                    "散热过快会导致焊接热量被大铜皮吸收，极易引发虚焊、冷焊或立碑缺陷（IPC-2221B / IPC-A-610G）。",
+                    "warning",
+                    "IPC-2221B Section 9.1.2 & IPC-A-610G Solder Joint Thermal Integrity",
+                    object_id=f"net:{net_name}",
+                )
+            )
 
     return issues
 
