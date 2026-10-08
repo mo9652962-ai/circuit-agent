@@ -66,6 +66,17 @@ def test_every_tool_has_a_description_and_schema():
         assert isinstance(tool.get("inputSchema"), dict), f"{tool['name']} missing inputSchema"
 
 
+def test_every_tool_has_complete_mcp_annotations():
+    """Every tool must declare readOnlyHint, destructiveHint, idempotentHint, openWorldHint."""
+    required_hints = ("readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint")
+    for tool in mcp_schema.AVAILABLE_TOOLS:
+        annotations = tool.get("annotations")
+        assert isinstance(annotations, dict), f"Tool {tool['name']} missing annotations dict"
+        for hint in required_hints:
+            assert hint in annotations, f"Tool {tool['name']} annotations missing {hint}"
+            assert isinstance(annotations[hint], bool), f"Tool {tool['name']} {hint} must be bool"
+
+
 def test_resources_and_prompts_are_well_formed():
     for res in mcp_schema.AVAILABLE_RESOURCES:
         assert res.get("uri", "").startswith("circuit://"), f"bad resource uri: {res}"

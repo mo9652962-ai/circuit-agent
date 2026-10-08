@@ -318,6 +318,7 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 
 </div>
 
-## 许可证 (License)
+## 许可证与隐私 (License & Privacy)
 
-[MIT](LICENSE) © 2026 sora
+- 许可协议：[MIT License](LICENSE) © 2026 sora
+- 隐私政策：[PRIVACY.md](PRIVACY.md)（零遥测、100% 本地运算、数据归用户所有）

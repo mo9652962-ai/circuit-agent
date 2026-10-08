@@ -306,6 +306,7 @@ If CircuitAgent helps your hardware development workflow, consider giving the re
 
 </div>
 
-## License
+## License & Privacy
 
-[MIT](LICENSE) © 2026 sora
+- License: [MIT License](LICENSE) © 2026 sora
+- Privacy Policy: [PRIVACY.md](PRIVACY.md) (Zero telemetry, 100% local synthesis, developer-owned data)

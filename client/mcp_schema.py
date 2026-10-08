@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (14 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (15 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -42,6 +42,12 @@ AVAILABLE_TOOLS = [
             },
             "required": ["prompt"],
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "list_supported_chips",
@@ -49,6 +55,12 @@ AVAILABLE_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {},
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
     {
@@ -86,6 +98,12 @@ AVAILABLE_TOOLS = [
             },
             "required": ["chip_id", "pins"],
         },
+        "annotations": {
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "search_lcsc_parts",
@@ -108,6 +126,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        },
     },
     {
         "name": "list_circuit_blocks",
@@ -115,6 +139,12 @@ AVAILABLE_TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {},
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
     {
@@ -138,6 +168,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "validate_netlist",
@@ -151,6 +187,12 @@ AVAILABLE_TOOLS = [
                     "description": "Netlist dictionary containing 'connections' list with 'net' and 'points'.",
                 }
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
     {
@@ -194,6 +236,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "calculate_bom_cost",
@@ -211,6 +259,12 @@ AVAILABLE_TOOLS = [
                     "description": "List of component names, models, or descriptions (e.g. ['STM32F103C8T6', 'SP3485', '0603 10k']).",
                 }
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
         },
     },
     {
@@ -254,6 +308,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "audit_industrial_dfx",
@@ -272,6 +332,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "export_kicad_netlist",
@@ -288,6 +354,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "export_manufacturing_bom",
@@ -298,6 +370,12 @@ AVAILABLE_TOOLS = [
             "properties": {
                 "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
     {
@@ -323,6 +401,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "render_circuit_topology",
@@ -333,6 +417,12 @@ AVAILABLE_TOOLS = [
             "properties": {
                 "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
     {
@@ -360,6 +450,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "calculate_ipc2221_clearance",
@@ -383,6 +479,12 @@ AVAILABLE_TOOLS = [
                 },
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "export_specctra_dsn",
@@ -402,6 +504,12 @@ AVAILABLE_TOOLS = [
                 "clearance_mm": {"type": "number", "description": "Default routing clearance in mm (default: 0.200 / 8mil).", "default": 0.200},
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "export_kicad_schematic",
@@ -418,6 +526,12 @@ AVAILABLE_TOOLS = [
                 "title": {"type": "string", "description": "Schematic sheet title block title.", "default": "Hardware Design"},
             },
         },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "audit_supply_chain",
@@ -431,6 +545,12 @@ AVAILABLE_TOOLS = [
             "properties": {
                 "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
             },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
         },
     },
 ]
@@ -550,7 +670,3 @@ AVAILABLE_PROMPTS = [
         ],
     },
 ]
-
-# --------------------------------------------------------------------------- #
-# Catalog & Impedance Solvers
-# --------------------------------------------------------------------------- #
