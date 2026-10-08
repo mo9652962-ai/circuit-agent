@@ -611,6 +611,31 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 resp["solved_custom_width_mm"] = solve_target_trace_width(float(custom_z))
             return {"content": [{"type": "text", "text": json.dumps(resp, ensure_ascii=False, indent=2)}]}
 
+        if name == "export_excellon_drill":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            connections = arguments.get("connections", [])
+            job = str(arguments.get("job_name", "CIRCUIT_AGENT_PCB"))
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            from .excellon_exporter import export_excellon_drill
+
+            drl_txt = export_excellon_drill(modules, connections=connections, job_name=job, board_width_mm=bw, board_height_mm=bh)
+            return {"content": [{"type": "text", "text": drl_txt}]}
+
+        if name == "generate_interactive_bom":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            title = str(arguments.get("title", "PCBA First Article Assembly Inspection"))
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            from .interactive_bom_generator import generate_interactive_bom_html
+
+            ibom_html = generate_interactive_bom_html(modules, title=title, board_width_mm=bw, board_height_mm=bh)
+            return {"content": [{"type": "text", "text": ibom_html}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

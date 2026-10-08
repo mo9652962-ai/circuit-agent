@@ -722,6 +722,53 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "export_excellon_drill",
+        "description": (
+            "Generate production IPC-NC-349 Excellon CNC drill file (.drl) with metric tool headers (T01C... T02C...), "
+            "completing the 5-layer PCB manufacturing bundle for automated CNC drilling machines."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "connections": {"type": "array", "description": "Netlist connections list (optional).", "default": []},
+                "job_name": {"type": "string", "description": "PCB fabrication job name.", "default": "CIRCUIT_AGENT_PCB"},
+                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
+                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "generate_interactive_bom",
+        "description": (
+            "Generate a lightweight self-contained single-file Interactive HTML BOM (iBOM, InteractiveHtmlBom-compatible) "
+            "with interactive component grouping table, vector SVG board map, and bidirectional hover/click inspection."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "title": {"type": "string", "description": "Inspection page title.", "default": "PCBA First Article Assembly Inspection"},
+                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
+                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

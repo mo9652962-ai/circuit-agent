@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **24 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **26 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -232,6 +232,8 @@ python -m client.mcp_server
 22. `export_ipc_d356`: 导出通用工业标准 IPC-D-356A 裸板电性能飞针测试网表文件，直接喂入板厂飞针测试机 (AEMG/ATG/MicroCraft) 执行开短路连通性检验。
 23. `export_gerber_bundle`: 原生直出符合 Ucamco RS-274X 扩展标准的制造级 Gerber 打包文件（板框 .gm1、顶层铜皮 .gtl、阻焊开窗 .gts、顶层丝印 .gto），摆脱对图形化 EDA 鼠标导出的依赖。
 24. `calculate_pcb_stackup_impedance`: 标准工业四层板 (JLC04161H) 与六层板 (JLC06161H) 叠层矩阵查询与 IPC-2141A 特征阻抗自动反求（50Ω RF微带线、90Ω USB、100Ω 以太网、120Ω 工业差分对）。
+25. `export_excellon_drill`: 生成生产级 IPC-NC-349 Excellon CNC 数控钻孔文件 (.drl)，补齐 PCB 制造 5 层生产包。
+26. `generate_interactive_bom`: 生成量产首件检验交互式装配导航网页 (iBOM, InteractiveHtmlBom 对标)，实现位号清单与 SVG 矢量板图双向高亮聚焦。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

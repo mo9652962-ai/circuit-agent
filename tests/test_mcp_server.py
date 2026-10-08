@@ -75,7 +75,9 @@ def test_mcp_tools_list():
     assert "export_ipc_d356" in tool_names
     assert "export_gerber_bundle" in tool_names
     assert "calculate_pcb_stackup_impedance" in tool_names
-    assert len(tools) == 24
+    assert "export_excellon_drill" in tool_names
+    assert "generate_interactive_bom" in tool_names
+    assert len(tools) == 26
 
 
 def test_mcp_tool_call_synthesize():
