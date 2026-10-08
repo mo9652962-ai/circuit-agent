@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **22 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **24 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -229,6 +229,8 @@ python -m client.mcp_server
 20. `audit_supply_chain`: Supply chain multi-sourcing resilience auditor (ISO 9001 audit), identifying single-source bottlenecks and mapping pin-compatible second-source drop-in replacements with LCSC cross-references.
 21. `calculate_differential_skew`: High-speed differential pair intra-pair propagation delay skew solver (USB 2.0 HS ≤10ps, Ethernet ≤25ps, CAN-FD ≤50ps) with serpentine tuning geometry calculations.
 22. `export_ipc_d356`: Generate universal IPC-D-356A ASCII bare-board electrical test netlist file for industrial flying probe testers (AEMG, ATG, MicroCraft) and bed-of-nails test fixtures.
+23. `export_gerber_bundle`: Generate native fabrication-ready Gerber RS-274X layer bundle (Edge_Cuts .gm1, Top Copper .gtl, Top Mask .gts, Top Silkscreen .gto) directly from placed modules and netlists.
+24. `calculate_pcb_stackup_impedance`: Standard industrial 4-layer (JLC04161H) and 6-layer (JLC06161H) stackup matrices with IPC-2141A controlled impedance solver for RF 50Ω, USB 90Ω, Ethernet 100Ω, and CAN/RS485 120Ω.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

@@ -580,6 +580,37 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"content": [{"type": "text", "text": d356_txt}]}
 
+        if name == "export_gerber_bundle":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            from .gerber_exporter import export_gerber_bundle
+
+            bundle = export_gerber_bundle(
+                modules,
+                netlist.get("connections") or [],
+                board_width_mm=bw,
+                board_height_mm=bh,
+            )
+            return {"content": [{"type": "text", "text": json.dumps(bundle, ensure_ascii=False, indent=2)}]}
+
+        if name == "calculate_pcb_stackup_impedance":
+            s_id = str(arguments.get("stackup_id", "JLC04161H"))
+            from .stackup_engine import get_stackup_profile, solve_target_trace_width
+
+            prof = get_stackup_profile(s_id)
+            resp = prof.to_dict()
+            custom_z = arguments.get("solve_custom_z_ohms")
+            if custom_z is not None:
+                resp["solved_custom_width_mm"] = solve_target_trace_width(float(custom_z))
+            return {"content": [{"type": "text", "text": json.dumps(resp, ensure_ascii=False, indent=2)}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
