@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **20 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **22 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -228,6 +228,8 @@ python -m client.mcp_server
 18. `export_specctra_dsn`: 生成通用 Specctra DSN (v15.0) 自动布线交互文件与启发式器件自动布局，支持直接送入 Freerouting / KiCad 执行 100% 自动化走线。
 19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
+21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。
+22. `export_ipc_d356`: 导出通用工业标准 IPC-D-356A 裸板电性能飞针测试网表文件，直接喂入板厂飞针测试机 (AEMG/ATG/MicroCraft) 执行开短路连通性检验。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

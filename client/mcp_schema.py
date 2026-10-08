@@ -496,12 +496,34 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules", "netlist"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
-                "netlist": {"type": "object", "description": "Netlist dict with 'connections' (from synthesize_circuit output)."},
-                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
-                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
-                "trace_width_mm": {"type": "number", "description": "Default routing trace width in mm (default: 0.254 / 10mil).", "default": 0.254},
-                "clearance_mm": {"type": "number", "description": "Default routing clearance in mm (default: 0.200 / 8mil).", "default": 0.200},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Default routing trace width in mm (default: 0.254 / 10mil).",
+                    "default": 0.254,
+                },
+                "clearance_mm": {
+                    "type": "number",
+                    "description": "Default routing clearance in mm (default: 0.200 / 8mil).",
+                    "default": 0.200,
+                },
             },
         },
         "annotations": {
@@ -521,9 +543,16 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
                 "connections": {"type": "array", "description": "Netlist connections list (optional).", "default": []},
-                "title": {"type": "string", "description": "Schematic sheet title block title.", "default": "Hardware Design"},
+                "title": {
+                    "type": "string",
+                    "description": "Schematic sheet title block title.",
+                    "default": "Hardware Design",
+                },
             },
         },
         "annotations": {
@@ -543,7 +572,96 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_differential_skew",
+        "description": (
+            "Solve high-speed differential pair intra-pair propagation delay skew (USB 2.0 HS ≤10ps, Ethernet ≤25ps, CAN-FD ≤50ps) "
+            "and calculate required serpentine length matching tuning bumps count and geometry."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["trace_length_delta_mm"],
+            "properties": {
+                "trace_length_delta_mm": {
+                    "type": "number",
+                    "description": "Measured trace length mismatch in mm (P minus N).",
+                },
+                "protocol": {
+                    "type": "string",
+                    "enum": ["USB2_HS", "USB2_FS", "ETH_100M", "CAN_FD", "RS485"],
+                    "description": "Target protocol standard (default: USB2_HS).",
+                    "default": "USB2_HS",
+                },
+                "dielectric_er": {
+                    "type": "number",
+                    "description": "Relative dielectric permittivity Er (default: 4.2).",
+                    "default": 4.2,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Trace width in mm (default: 0.254).",
+                    "default": 0.254,
+                },
+                "height_mm": {
+                    "type": "number",
+                    "description": "Dielectric height to reference plane in mm (default: 0.100).",
+                    "default": 0.100,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "export_ipc_d356",
+        "description": (
+            "Generate universal IPC-D-356A ASCII bare-board electrical test netlist file for flying probe testers "
+            "(AEMG, ATG, MicroCraft) and bed-of-nails PCB fabrication test fixtures."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "job_name": {
+                    "type": "string",
+                    "description": "Fabrication PCB job name.",
+                    "default": "CIRCUIT_AGENT_PCB",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "Board width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "Board height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
             },
         },
         "annotations": {

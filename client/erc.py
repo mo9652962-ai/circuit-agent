@@ -19,6 +19,8 @@
   电源完整性推荐实践）。
 - MISSING_BUS_TERMINATION (warning)：CAN / RS-485 差分总线引脚间未见 120Ω 终端
   匹配电阻（ISO 11898-2 CAN / TIA/EIA-485-A 规范）。
+- HIGH_SPEED_PAIR_UNBALANCED (warning)：高速差分对正负信号线连接点数量不一致，
+  支路拓扑不对称会导致共模噪声（Common-mode noise）与时延偏斜（Skew）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -181,6 +183,29 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         "warning",
                         SRC,
                         object_id=f"diff:{p_net}/{n_net}",
+                    )
+                )
+
+    # 8. HIGH_SPEED_PAIR_UNBALANCED (warning)：高速差分对拓扑不对称
+    high_speed_pairs = [
+        ("/USB_DP", "/USB_DM", "USB 2.0 差分对"),
+        ("/ETH_TXP", "/ETH_TXN", "以太网发送差分对"),
+        ("/ETH_RXP", "/ETH_RXN", "以太网接收差分对"),
+    ]
+    for p_net, n_net, pair_name in high_speed_pairs:
+        if p_net in nets and n_net in nets:
+            p_cnt = len(nets[p_net])
+            n_cnt = len(nets[n_net])
+            if p_cnt != n_cnt:
+                issues.append(
+                    _issue(
+                        "HIGH_SPEED_PAIR_UNBALANCED",
+                        f"{pair_name}连接点不对称",
+                        f"{pair_name}正端 {p_net} 有 {p_cnt} 个连接点，负端 {n_net} 有 {n_cnt} 个连接点；"
+                        "高速差分对支路拓扑不对称会导致共模噪声增大与时延失配。",
+                        "warning",
+                        SRC,
+                        object_id=f"pair:{p_net}/{n_net}",
                     )
                 )
 
