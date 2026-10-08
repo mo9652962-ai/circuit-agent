@@ -73,7 +73,9 @@ def test_mcp_tools_list():
     assert "audit_supply_chain" in tool_names
     assert "calculate_differential_skew" in tool_names
     assert "export_ipc_d356" in tool_names
-    assert len(tools) == 22
+    assert "export_gerber_bundle" in tool_names
+    assert "calculate_pcb_stackup_impedance" in tool_names
+    assert len(tools) == 24
 
 
 def test_mcp_tool_call_synthesize():

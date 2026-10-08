@@ -21,6 +21,8 @@
   匹配电阻（ISO 11898-2 CAN / TIA/EIA-485-A 规范）。
 - HIGH_SPEED_PAIR_UNBALANCED (warning)：高速差分对正负信号线连接点数量不一致，
   支路拓扑不对称会导致共模噪声（Common-mode noise）与时延偏斜（Skew）。
+- STACKUP_IMPEDANCE_MISMATCH (warning)：走线线宽与叠层设计目标阻抗偏离度过大（IPC-2141A）。
+- MISSING_LAYER_RETURN_PATH (warning)：高速接口（USB/以太网/RF）连接器缺少参考地回路引脚。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -206,6 +208,46 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         "warning",
                         SRC,
                         object_id=f"pair:{p_net}/{n_net}",
+                    )
+                )
+
+    # 9. STACKUP_IMPEDANCE_MISMATCH (warning)：特征阻抗线宽失配检查 (IPC-2141A)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        target_z = props.get("target_impedance_ohms")
+        w_mm = props.get("trace_width_mm")
+        if target_z and w_mm:
+            # 典型 50R 微带线在标准四层板推荐 ~0.38mm (允许 ±25% 容差)
+            expected_w = 0.38 if target_z == 50.0 else (0.20 if target_z == 90.0 else 0.18)
+            if abs(w_mm - expected_w) / expected_w > 0.35:
+                issues.append(
+                    _issue(
+                        "STACKUP_IMPEDANCE_MISMATCH",
+                        "走线线宽与叠层目标阻抗失配",
+                        f"网络 {conn.get('net')} 目标阻抗 {target_z}Ω，所设线宽 {w_mm}mm 偏离"
+                        f"标准四层板推荐值 ({expected_w}mm) 超过容限，易引起信号反射。",
+                        "warning",
+                        "IPC-2141A High-Speed Controlled Impedance Guidelines",
+                        object_id=f"net:{conn.get('net')}",
+                    )
+                )
+
+    # 10. MISSING_LAYER_RETURN_PATH (warning)：高速外设接插件缺少参考地回路
+    for ref, m in modules.items():
+        val = str(m.get("value", "")).upper()
+        if any(k in val for k in ("USB", "RJ45", "ETH")):
+            # 检查是否有任何 GND 网络连接到该器件
+            gnd_pins = [pt for n in net_names if GND_RE.search(n) for pt in nets.get(n, []) if pt.startswith(f"{ref}.")]
+            if not gnd_pins:
+                issues.append(
+                    _issue(
+                        "MISSING_LAYER_RETURN_PATH",
+                        "高速外设接口缺少地回路",
+                        f"高速接插件 {ref} ({val}) 未连接任何参考地网络（GND），"
+                        "缺少高频信号回流路径，易导致 EMI 辐射超标与共模干扰。",
+                        "warning",
+                        "IPC-2141A High-Speed Return Current Path Guidelines",
+                        object_id=f"connector:{ref}",
                     )
                 )
 

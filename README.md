@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **22 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **24 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -230,6 +230,8 @@ python -m client.mcp_server
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。
 22. `export_ipc_d356`: 导出通用工业标准 IPC-D-356A 裸板电性能飞针测试网表文件，直接喂入板厂飞针测试机 (AEMG/ATG/MicroCraft) 执行开短路连通性检验。
+23. `export_gerber_bundle`: 原生直出符合 Ucamco RS-274X 扩展标准的制造级 Gerber 打包文件（板框 .gm1、顶层铜皮 .gtl、阻焊开窗 .gts、顶层丝印 .gto），摆脱对图形化 EDA 鼠标导出的依赖。
+24. `calculate_pcb_stackup_impedance`: 标准工业四层板 (JLC04161H) 与六层板 (JLC06161H) 叠层矩阵查询与 IPC-2141A 特征阻抗自动反求（50Ω RF微带线、90Ω USB、100Ω 以太网、120Ω 工业差分对）。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

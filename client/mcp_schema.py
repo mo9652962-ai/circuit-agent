@@ -671,6 +671,57 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "export_gerber_bundle",
+        "description": (
+            "Generate native fabrication-ready Gerber RS-274X layer bundle (Edge_Cuts .gm1, Top Copper .gtl, "
+            "Top Mask .gts, Top Silkscreen .gto) directly from placed modules and netlist, eliminating GUI EDA dependency."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "netlist": {"type": "object", "description": "Netlist dict with 'connections' (from synthesize_circuit output)."},
+                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
+                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_pcb_stackup_impedance",
+        "description": (
+            "Lookup standard industrial 4-layer (JLC04161H) and 6-layer (JLC06161H) PCB stackup matrices and solve "
+            "target controlled impedance trace widths (50Ω RF, 90Ω USB, 100Ω Ethernet, 120Ω CAN/485, IPC-2141A)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "stackup_id": {
+                    "type": "string",
+                    "enum": ["JLC04161H", "JLC06161H"],
+                    "description": "Standard industrial stackup model (default: JLC04161H).",
+                    "default": "JLC04161H",
+                },
+                "solve_custom_z_ohms": {
+                    "type": "number",
+                    "description": "Optional custom single-ended target impedance in Ohms to solve required trace width.",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
