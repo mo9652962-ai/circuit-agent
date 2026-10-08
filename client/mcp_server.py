@@ -660,6 +660,63 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             pnp_txt = export_openpnp_job_csv(modules, board_width_mm=bw, board_height_mm=bh)
             return {"content": [{"type": "text", "text": pnp_txt}]}
 
+        if name == "calculate_ipc7351_land_pattern":
+            pkg = arguments.get("package", "")
+            if not pkg:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'package' is required"}]}
+            density = str(arguments.get("density", "B"))
+            lead_type = arguments.get("lead_type")
+            overall_l = arguments.get("overall_length_l")
+            lead_w = arguments.get("lead_width_w")
+            lead_t = arguments.get("lead_contact_t")
+            lead_pitch = arguments.get("lead_pitch")
+            from .ipc7351_calculator import calculate_ipc7351_land_pattern
+
+            res_pat = calculate_ipc7351_land_pattern(
+                package=pkg,
+                density=density,
+                lead_type=lead_type,
+                overall_length_l=float(overall_l) if overall_l is not None else None,
+                lead_width_w=float(lead_w) if lead_w is not None else None,
+                lead_contact_t=float(lead_t) if lead_t is not None else None,
+                lead_pitch=float(lead_pitch) if lead_pitch is not None else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(res_pat.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_pcb_panel_rails":
+            bw = arguments.get("board_width_mm")
+            bh = arguments.get("board_height_mm")
+            if bw is None or bh is None:
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": "Parameters 'board_width_mm' and 'board_height_mm' are required"}
+                    ],
+                }
+            gx = int(arguments.get("grid_x", 2))
+            gy = int(arguments.get("grid_y", 2))
+            depan = str(arguments.get("depaneling_method", "v_cut"))
+            rw = float(arguments.get("rail_width_mm", 5.0))
+            sp = arguments.get("board_spacing_mm")
+            sides = str(arguments.get("rail_sides", "left_right"))
+            from .panel_frame import calculate_pcb_panel_rails
+
+            res_panel = calculate_pcb_panel_rails(
+                board_width_mm=float(bw),
+                board_height_mm=float(bh),
+                grid_x=gx,
+                grid_y=gy,
+                depaneling_method=depan,
+                rail_width_mm=rw,
+                board_spacing_mm=float(sp) if sp is not None else None,
+                rail_sides=sides,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(res_panel.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **28 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **30 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -235,6 +235,8 @@ python -m client.mcp_server
 26. `generate_interactive_bom`: Generate a lightweight self-contained single-file Interactive HTML BOM (iBOM, InteractiveHtmlBom-compatible) with interactive component grouping table, vector SVG board map, and bidirectional hover/click inspection.
 27. `calculate_smt_feeder_matrix`: SMT pick-and-place feeder slot allocator (8/12/16/24mm) and nozzle tooling matrix optimizer (502~506) adhering to EIA-481 and OpenPnP/Juki standards.
 28. `export_openpnp_job`: Export automated OpenPnP and industrial SMT pick-and-place board job CSV (part, designator, X/Y coords, rotation, nozzle ID, feeder slot assignment).
+29. `calculate_ipc7351_land_pattern`: IPC-7351B surface mount land pattern and courtyard boundary solver (Toe, Heel, Side solder goals, RMS tolerances) across Density Levels A (Most), B (Nominal), and C (Least).
+30. `calculate_pcb_panel_rails`: SMT automated assembly panel frame calculator with breakaway process rails, conveyor clamp clearances, SMEMA tooling holes (NPTH Φ3.2mm), optical fiducials, and de-paneling features (V-Cut or mouse-bites) per IPC-2221B Section 8.4 and IPC-SMEMA-9851.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

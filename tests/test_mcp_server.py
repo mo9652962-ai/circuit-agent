@@ -79,7 +79,9 @@ def test_mcp_tools_list():
     assert "generate_interactive_bom" in tool_names
     assert "calculate_smt_feeder_matrix" in tool_names
     assert "export_openpnp_job" in tool_names
-    assert len(tools) == 28
+    assert "calculate_ipc7351_land_pattern" in tool_names
+    assert "calculate_pcb_panel_rails" in tool_names
+    assert len(tools) == 30
 
 
 def test_mcp_tool_call_synthesize():

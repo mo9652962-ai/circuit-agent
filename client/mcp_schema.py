@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (15 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (30 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -859,6 +859,112 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "PCB height in mm (default: 50.0).",
                     "default": 50.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_ipc7351_land_pattern",
+        "description": (
+            "Calculate mathematically compliant surface mount land pattern geometry (pad width X, pad length Y, "
+            "pad center distance C, and courtyard boundary bounds) based on IPC-7351B standards across "
+            "Density Levels A (Most), B (Nominal), and C (Least)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["package"],
+            "properties": {
+                "package": {
+                    "type": "string",
+                    "description": "Standard footprint name (e.g. '0805', '0603', 'SOIC-8', 'QFN-32', 'TSSOP-14') or custom.",
+                },
+                "density": {
+                    "type": "string",
+                    "description": "IPC-7351B Density Level: 'A' (Most/M), 'B' (Nominal/N, default), or 'C' (Least/L).",
+                    "default": "B",
+                },
+                "lead_type": {
+                    "type": "string",
+                    "description": "Component lead style: 'chip', 'gullwing', 'no_lead' (QFN/DFN), or 'j_lead'.",
+                },
+                "overall_length_l": {
+                    "type": "number",
+                    "description": "Optional component overall tip-to-tip span (mm).",
+                },
+                "lead_width_w": {
+                    "type": "number",
+                    "description": "Optional component lead width (mm).",
+                },
+                "lead_contact_t": {
+                    "type": "number",
+                    "description": "Optional component lead contact length/band (mm).",
+                },
+                "lead_pitch": {
+                    "type": "number",
+                    "description": "Optional pin center-to-center pitch (mm) for multi-lead packages.",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_pcb_panel_rails",
+        "description": (
+            "Calculate SMT automated assembly panel frame with breakaway process rails, conveyor clamp clearances, "
+            "SMEMA tooling holes (NPTH Φ3.2mm), optical fiducials (Φ1.0mm/Φ3.0mm mask), and de-paneling features "
+            "(V-Cut score lines or perforated mouse-bites) per IPC-2221B Section 8.4 and IPC-SMEMA-9851."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["board_width_mm", "board_height_mm"],
+            "properties": {
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "Single PCB outline width (mm).",
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "Single PCB outline height (mm).",
+                },
+                "grid_x": {
+                    "type": "integer",
+                    "description": "Number of boards in X direction (default: 2).",
+                    "default": 2,
+                },
+                "grid_y": {
+                    "type": "integer",
+                    "description": "Number of boards in Y direction (default: 2).",
+                    "default": 2,
+                },
+                "depaneling_method": {
+                    "type": "string",
+                    "description": "De-paneling method: 'v_cut' (default) or 'mouse_bites'.",
+                    "default": "v_cut",
+                },
+                "rail_width_mm": {
+                    "type": "number",
+                    "description": "Conveyor clamping rail width in mm (default: 5.0, min: 3.0 per SMEMA).",
+                    "default": 5.0,
+                },
+                "board_spacing_mm": {
+                    "type": "number",
+                    "description": "Spacing between individual boards in mm (default: 0 for V-cut, 2.0 for mouse-bites).",
+                },
+                "rail_sides": {
+                    "type": "string",
+                    "description": "Rail placement: 'left_right' (default), 'top_bottom', or 'all_four'.",
+                    "default": "left_right",
                 },
             },
         },
