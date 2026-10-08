@@ -77,7 +77,9 @@ def test_mcp_tools_list():
     assert "calculate_pcb_stackup_impedance" in tool_names
     assert "export_excellon_drill" in tool_names
     assert "generate_interactive_bom" in tool_names
-    assert len(tools) == 26
+    assert "calculate_smt_feeder_matrix" in tool_names
+    assert "export_openpnp_job" in tool_names
+    assert len(tools) == 28
 
 
 def test_mcp_tool_call_synthesize():
