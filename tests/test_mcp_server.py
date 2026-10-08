@@ -71,7 +71,9 @@ def test_mcp_tools_list():
     assert "export_specctra_dsn" in tool_names
     assert "export_kicad_schematic" in tool_names
     assert "audit_supply_chain" in tool_names
-    assert len(tools) == 20
+    assert "calculate_differential_skew" in tool_names
+    assert "export_ipc_d356" in tool_names
+    assert len(tools) == 22
 
 
 def test_mcp_tool_call_synthesize():

@@ -547,6 +547,39 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             rep = audit_supply_chain(modules)
             return {"content": [{"type": "text", "text": json.dumps(rep.to_dict(), ensure_ascii=False, indent=2)}]}
 
+        if name == "calculate_differential_skew":
+            dl = float(arguments.get("trace_length_delta_mm", 0.0))
+            proto = str(arguments.get("protocol", "USB2_HS"))
+            er = float(arguments.get("dielectric_er", 4.2))
+            tw = float(arguments.get("trace_width_mm", 0.254))
+            h = float(arguments.get("height_mm", 0.100))
+            from .differential_skew import solve_differential_pair_skew
+
+            res = solve_differential_pair_skew(dl, protocol=proto, dielectric_er=er, trace_width_mm=tw, height_mm=h)
+            return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+
+        if name == "export_ipc_d356":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            job = str(arguments.get("job_name", "CIRCUIT_AGENT_PCB"))
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            from .ipc_d356_exporter import export_ipc_d356
+
+            d356_txt = export_ipc_d356(
+                modules,
+                netlist.get("connections") or [],
+                job_name=job,
+                board_width_mm=bw,
+                board_height_mm=bh,
+            )
+            return {"content": [{"type": "text", "text": d356_txt}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
