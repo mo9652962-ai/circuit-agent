@@ -166,11 +166,14 @@ def export_gerber_bundle(
         "board-F_SilkS.gto": "..."
       }
     """
+    from .excellon_exporter import export_excellon_drill
+
     layers = {
         "board-Edge_Cuts.gm1": generate_edge_cuts_gerber(board_width_mm, board_height_mm),
         "board-F_Cu.gtl": generate_top_copper_gerber(modules, connections, board_width_mm, board_height_mm),
         "board-F_Mask.gts": generate_top_solder_mask_gerber(modules, board_width_mm, board_height_mm),
         "board-F_SilkS.gto": generate_top_silkscreen_gerber(modules, board_width_mm, board_height_mm),
+        "board.drl": export_excellon_drill(modules, connections, board_width_mm=board_width_mm, board_height_mm=board_height_mm),
     }
-    log.info(f"✅ 生成原生 Gerber RS-274X 制造包: 包含 4 层标准制造文件 (尺寸 {board_width_mm:.0f}×{board_height_mm:.0f}mm)")
+    log.info(f"✅ 生成原生 Gerber RS-274X + Excellon 钻孔制造包: 包含 5 层全套制造文件 (尺寸 {board_width_mm:.0f}×{board_height_mm:.0f}mm)")
     return layers
