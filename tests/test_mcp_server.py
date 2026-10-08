@@ -81,7 +81,9 @@ def test_mcp_tools_list():
     assert "export_openpnp_job" in tool_names
     assert "calculate_ipc7351_land_pattern" in tool_names
     assert "calculate_pcb_panel_rails" in tool_names
-    assert len(tools) == 30
+    assert "calculate_ict_testpoints" in tool_names
+    assert "calculate_bga_escape_routing" in tool_names
+    assert len(tools) == 32
 
 
 def test_mcp_tool_call_synthesize():

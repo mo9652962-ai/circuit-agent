@@ -29,6 +29,8 @@
 - HIGH_VOLTAGE_ISOLATION_BARRIER_BREACH (warning)：高压/PLC 隔离网络与低压弱电之间未满足 IPC-2221B 安全爬电间隙。
 - COURTYARD_COLLISION_RISK (warning)：元件间距低于 IPC-7351B Courtyard 最小边界裕量，贴片机吸嘴干涉与贴装防撞。
 - THERMAL_RELIEF_MISSING_ON_HIGH_CURRENT (warning)：大电流/功率焊盘直接实心连接大面积铜皮而缺少热隔离十字花孔，回流焊易冷焊或立碑（IPC-2221B / IPC-A-610G）。
+- ICT_TESTPOINT_COVERAGE_DEFICIT (warning)：关键电源轨或复位引脚缺少 ICT 测试焊盘，产线自动化针床测试覆盖率不足（IPC-9252 / IPC-2221B）。
+- HIGH_FREQUENCY_CLOCK_TRACE_LENGTH (warning)：晶振高频时钟走线长度 > 15mm，易引入寄生电容导致停振或强 EMI 辐射（ST AN2867 / IPC-2141A）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -380,6 +382,44 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "散热过快会导致焊接热量被大铜皮吸收，极易引发虚焊、冷焊或立碑缺陷（IPC-2221B / IPC-A-610G）。",
                     "warning",
                     "IPC-2221B Section 9.1.2 & IPC-A-610G Solder Joint Thermal Integrity",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 17. ICT_TESTPOINT_COVERAGE_DEFICIT (warning)：关键网络缺少 ICT 测试点
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        is_crit = bool(POWER_RE.search(net_name) or "RESET" in net_name.upper() or "NRST" in net_name.upper())
+        has_tp = props.get("has_testpoint", True)
+        if is_crit and not has_tp:
+            issues.append(
+                _issue(
+                    "ICT_TESTPOINT_COVERAGE_DEFICIT",
+                    "关键电源/复位网络缺少 ICT 测试点",
+                    f"关键网络 {net_name} 未布置专属 ICT 针床测试焊盘；"
+                    "量产针床无法测试供电与复位电平，降低 PCBA 自动化首检与功能测试覆盖率（IPC-9252 / IPC-2221B）。",
+                    "warning",
+                    "IPC-9252 & IPC-2221B Section 12 Design for Testability",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 18. HIGH_FREQUENCY_CLOCK_TRACE_LENGTH (warning)：晶振高频时钟走线超长
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        is_osc = any(k in net_name.upper() for k in ("OSC_", "XTAL_", "CLK_IN", "CLK_OUT"))
+        t_len = float(props.get("trace_length_mm", 0.0) or 0.0)
+        if is_osc and t_len > 15.0:
+            issues.append(
+                _issue(
+                    "HIGH_FREQUENCY_CLOCK_TRACE_LENGTH",
+                    "高频晶体时钟走线过长风险",
+                    f"时钟网络 {net_name} 走线长度 {t_len:.1f}mm > 15mm 建议上限；"
+                    "长走线寄生杂散电容过大易导致晶体起振困难、频率漂移与高频 EMI 谐波辐射（ST AN2867 / IPC-2141A）。",
+                    "warning",
+                    "ST AN2867 Oscillator Design Guide & IPC-2141A High-Speed Layout",
                     object_id=f"net:{net_name}",
                 )
             )
