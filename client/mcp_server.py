@@ -621,7 +621,9 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             bh = float(arguments.get("board_height_mm", 50.0))
             from .excellon_exporter import export_excellon_drill
 
-            drl_txt = export_excellon_drill(modules, connections=connections, job_name=job, board_width_mm=bw, board_height_mm=bh)
+            drl_txt = export_excellon_drill(
+                modules, connections=connections, job_name=job, board_width_mm=bw, board_height_mm=bh
+            )
             return {"content": [{"type": "text", "text": drl_txt}]}
 
         if name == "generate_interactive_bom":
@@ -635,6 +637,28 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
             ibom_html = generate_interactive_bom_html(modules, title=title, board_width_mm=bw, board_height_mm=bh)
             return {"content": [{"type": "text", "text": ibom_html}]}
+
+        if name == "calculate_smt_feeder_matrix":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            from .smt_feeder_matrix import generate_smt_feeder_matrix
+
+            matrix_rep = generate_smt_feeder_matrix(modules)
+            return {
+                "content": [{"type": "text", "text": json.dumps(matrix_rep.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "export_openpnp_job":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            from .pnp_machine_exporter import export_openpnp_job_csv
+
+            pnp_txt = export_openpnp_job_csv(modules, board_width_mm=bw, board_height_mm=bh)
+            return {"content": [{"type": "text", "text": pnp_txt}]}
 
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:

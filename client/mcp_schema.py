@@ -681,10 +681,24 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules", "netlist"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
-                "netlist": {"type": "object", "description": "Netlist dict with 'connections' (from synthesize_circuit output)."},
-                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
-                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
             },
         },
         "annotations": {
@@ -732,11 +746,26 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
                 "connections": {"type": "array", "description": "Netlist connections list (optional).", "default": []},
-                "job_name": {"type": "string", "description": "PCB fabrication job name.", "default": "CIRCUIT_AGENT_PCB"},
-                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
-                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+                "job_name": {
+                    "type": "string",
+                    "description": "PCB fabrication job name.",
+                    "default": "CIRCUIT_AGENT_PCB",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
             },
         },
         "annotations": {
@@ -756,10 +785,81 @@ AVAILABLE_TOOLS = [
             "type": "object",
             "required": ["modules"],
             "properties": {
-                "modules": {"type": "object", "description": "Component modules dict (from synthesize_circuit output)."},
-                "title": {"type": "string", "description": "Inspection page title.", "default": "PCBA First Article Assembly Inspection"},
-                "board_width_mm": {"type": "number", "description": "PCB width in mm (default: 70.0).", "default": 70.0},
-                "board_height_mm": {"type": "number", "description": "PCB height in mm (default: 50.0).", "default": 50.0},
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Inspection page title.",
+                    "default": "PCBA First Article Assembly Inspection",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_smt_feeder_matrix",
+        "description": (
+            "Optimize SMT pick-and-place feeder slot allocation (8mm/12mm/16mm/24mm) and nozzle tooling selection "
+            "(502/503/504/505/506) according to EIA-481 carrier tape standard and OpenPnP/Juki machine matrices."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "export_openpnp_job",
+        "description": (
+            "Generate production OpenPnP and industrial SMT pick-and-place board job CSV (part, designator, X/Y coords, "
+            "rotation, nozzle ID, feeder slot assignment) for automated robotic assembly."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
             },
         },
         "annotations": {

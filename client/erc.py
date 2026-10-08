@@ -23,6 +23,10 @@
   支路拓扑不对称会导致共模噪声（Common-mode noise）与时延偏斜（Skew）。
 - STACKUP_IMPEDANCE_MISMATCH (warning)：走线线宽与叠层设计目标阻抗偏离度过大（IPC-2141A）。
 - MISSING_LAYER_RETURN_PATH (warning)：高速接口（USB/以太网/RF）连接器缺少参考地回路引脚。
+- DRILL_ASPECT_RATIO_EXCEEDED (warning)：过孔钻孔孔径与板厚深宽比 > 1:10，沉铜药水无法充分交换导致孔壁铜厚不足断路（IPC-2221）。
+- PIN_TYPE_CONFLICT (error)：两个非开漏/非三态推挽输出引脚短接冲突（KiCad ERC 规则）。
+- SMT_TAPE_FEEDER_PITCH_MISMATCH (warning)：封装物理外形尺寸大于料带步距设置（EIA-481 标准）。
+- HIGH_VOLTAGE_ISOLATION_BARRIER_BREACH (warning)：高压/PLC 隔离网络与低压弱电之间未满足 IPC-2221B 安全爬电间隙。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -250,6 +254,86 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         object_id=f"connector:{ref}",
                     )
                 )
+
+    # 11. DRILL_ASPECT_RATIO_EXCEEDED (warning)：钻孔深径比超标 (IPC-2221)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        via_dia = props.get("via_drill_mm")
+        board_th = props.get("board_thickness_mm", 1.6)
+        if via_dia and via_dia > 0:
+            aspect = board_th / via_dia
+            if aspect > 10.0:
+                issues.append(
+                    _issue(
+                        "DRILL_ASPECT_RATIO_EXCEEDED",
+                        "过孔钻孔深径比过大",
+                        f"过孔孔径 {via_dia}mm 相对板厚 {board_th}mm 的深径比 {aspect:.1f} > 10:1；"
+                        "沉铜电镀药水流动受阻易导致孔铜偏薄或断裂（IPC-2221）。",
+                        "warning",
+                        "IPC-2221 Generic Standard on Printed Board Design",
+                        object_id=f"net:{conn.get('net')}",
+                    )
+                )
+
+    # 12. PIN_TYPE_CONFLICT (error)：推挽输出短路冲突
+    for net, pts in nets.items():
+        out_pins = [p for p in pts if any(p.endswith(k) for k in (".TX", ".MOSI", ".SCLK", "_OUT", ".RO"))]
+        if len(out_pins) >= 2:
+            issues.append(
+                _issue(
+                    "PIN_TYPE_CONFLICT",
+                    "推挽输出引脚短路冲突",
+                    f"网络 {net} 同时连接了多个推挽输出驱动引脚 ({', '.join(out_pins[:3])})；"
+                    "输出引脚相连存在总线争用短路烧毁芯片风险（KiCad ERC 规则）。",
+                    "error",
+                    "KiCad Electrical Rules Check: Pin-to-Pin Conflict",
+                    object_id=f"net:{net}",
+                )
+            )
+
+    # 13. SMT_TAPE_FEEDER_PITCH_MISMATCH (warning)：供料器载带步距与封装尺寸冲突
+    for ref, m in modules.items():
+        pkg = str(m.get("package", "")).upper()
+        if any(k in pkg for k in ("1206", "1210", "SOT-223", "SOIC-8")) and "2MM" in pkg:
+            issues.append(
+                _issue(
+                    "SMT_TAPE_FEEDER_PITCH_MISMATCH",
+                    "SMT 供料器载带步距与封装外形冲突",
+                    f"器件 {ref} 封装 {pkg} 尺寸大于 2mm 步距载带，易导致贴片机料盘供料卡死或翻件（EIA-481 标准）。",
+                    "warning",
+                    "EIA-481 Automated SMT Component Taping Standard",
+                    object_id=f"comp:{ref}",
+                )
+            )
+
+    # 14. HIGH_VOLTAGE_ISOLATION_BARRIER_BREACH (warning)：高低压隔离带破损
+    iso_nets = [n for n in net_names if any(k in n.upper() for k in ("24V", "PLC", "MAINS", "AC_", "HV_"))]
+    logic_nets = [n for n in net_names if any(k in n.upper() for k in ("3.3V", "3V3", "1.8V", "1V8"))]
+    if iso_nets and logic_nets:
+        for iso_n in iso_nets:
+            iso_refs = {p.split(".", 1)[0] for p in nets.get(iso_n, [])}
+            for log_n in logic_nets:
+                log_refs = {p.split(".", 1)[0] for p in nets.get(log_n, [])}
+                shared = iso_refs & log_refs
+                unprotected_shared = [
+                    r
+                    for r in shared
+                    if not any(
+                        k in str(modules.get(r, {}).get("value", "")).upper() for k in ("PC817", "OPTO", "ISOLATOR")
+                    )
+                ]
+                if unprotected_shared:
+                    issues.append(
+                        _issue(
+                            "HIGH_VOLTAGE_ISOLATION_BARRIER_BREACH",
+                            "高压隔离屏障破损风险",
+                            f"高压网络 {iso_n} 与低压逻辑网络 {log_n} 经过非隔离器件 {unprotected_shared} 连通；"
+                            "未保持 IPC-2221B ≥ 2.5mm 电气绝缘安全爬电隔离屏障。",
+                            "warning",
+                            "IPC-2221B Table 6-1 High Voltage Isolation Boundary",
+                            object_id=f"nets:{iso_n}/{log_n}",
+                        )
+                    )
 
     return issues
 
