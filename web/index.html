@@ -1179,7 +1179,7 @@
     <div class="nav-center">
       <div class="api-status-pill" id="connIndicator">
         <span class="stock-dot ok" id="connDot"></span>
-        <span id="connSummaryText">API 就绪 (127.0.0.1:8890)</span>
+        <span id="connSummaryText">静态视觉展示 (Demo Showcase)</span>
       </div>
     </div>
 
@@ -1696,33 +1696,30 @@
   </div>
 </div>
 
-<!-- 设置模态弹窗 (API 地址 & Key) -->
+<!-- 设置模态弹窗 -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-card">
     <div style="display:flex; align-items:center; justify-content:space-between;">
-      <h3 style="font-size:14px; font-weight:700;">EDA 后端服务连接设置</h3>
+      <h3 style="font-size:14px; font-weight:700;">EDA 云端工作台说明</h3>
       <button class="tool-btn" id="btnCloseSettings">✕</button>
     </div>
-    <div>
-      <label class="form-label">FastAPI 根地址</label>
-      <!-- 严格保留 id="api" -->
-      <input type="text" id="api" class="field-input mono-nums" spellcheck="false" placeholder="http://127.0.0.1:8890">
-      <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
-        本地启动模式通常为 http://127.0.0.1:8890
-      </div>
+    <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); border-radius:6px; padding:12px; font-size:12px; color:var(--text-secondary); line-height:1.6;">
+      本前端页面为开源版<b>纯静态视觉参考与交互演示工作台</b>。<br>
+      已移除内部私有接口调用逻辑，不依赖任何私有后端服务。<br>
+      全套硬件网表合成、DFX 审查与 manufacturing bundle 导出请通过官方 <b>stdio MCP Server</b> (<code>python -m client.mcp_server</code>) 接入使用。
+    </div>
+    <div style="display:none;">
+      <!-- 严格保留 id 兼容页面引用 -->
+      <input type="text" id="api" value="">
+      <input type="password" id="key" value="">
     </div>
     <div>
-      <label class="form-label">API Key（若开启鉴权）</label>
-      <!-- 严格保留 id="key" -->
-      <input type="password" id="key" class="field-input mono-nums" spellcheck="false" placeholder="留空为无鉴权模式">
-    </div>
-    <div>
-      <label class="form-label">能力状态</label>
-      <div id="caps" style="font-size:11.5px; color:var(--text-secondary); line-height:1.4;">未连接</div>
+      <label class="form-label">运行模式</label>
+      <div id="caps" style="font-size:11.5px; color:var(--text-secondary); line-height:1.4;">静态参考模式 · 0 网络依赖 · 零遥测</div>
     </div>
     <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
-      <button class="btn btn-ghost" id="btnCancelSettings">关闭</button>
-      <button class="btn btn-primary" id="btnSaveSettings">保存并探测</button>
+      <button class="btn btn-primary" id="btnCancelSettings">关闭</button>
+      <button class="btn btn-ghost" id="btnSaveSettings" style="display:none;">确定</button>
     </div>
   </div>
 </div>
@@ -1757,23 +1754,6 @@ const state = {
 const esc = v => String(v ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-function apiBase() {
-  const custom = ($('#api') ? $('#api').value.trim() : '');
-  if (custom) return custom.replace(/\/+$/, '');
-  return location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8890';
-}
-
-function defaultApiBase() {
-  return location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:8890';
-}
-
-function headers() {
-  const h = {'Content-Type': 'application/json'};
-  const k = $('#key') ? $('#key').value.trim() : '';
-  if (k) h['X-API-Key'] = k;
-  return h;
-}
-
 let toastTimer = null;
 function showToast(msg, kind = 'ok') {
   const el = $('#statusToast');
@@ -1788,47 +1768,142 @@ function showToast(msg, kind = 'ok') {
   toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-// 探测能力接口
-async function probe() {
-  const seq = ++state.probeSeq;
-  $('#connSummaryText').textContent = '连接探测中...';
-  try {
-    const r = await fetch(apiBase() + '/health');
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    if (seq !== state.probeSeq) return;
+// 内置矢量演示工程资源 (纯内联 SVG，无外部请求)
+const DEMO_SCH_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid)" />
+  <rect x="250" y="140" width="300" height="220" rx="8" fill="#12151c" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="180" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">ESP32-C3-WROOM-02</text>
+  <text x="400" y="202" fill="#64748b" font-family="monospace" font-size="11" text-anchor="middle">RISC-V 32-bit MCU @ 160MHz</text>
 
-    state.caps = d;
-    $('#connDot').className = 'stock-dot ok';
-    $('#connSummaryText').textContent = `已连接 · ${d.chips.length} 款 MCU · KiCad ${d.kicad_cli.available ? '可用' : '未安装'}`;
+  <rect x="50" y="180" width="130" height="80" rx="6" fill="#161b26" stroke="#10b981" stroke-width="1.5"/>
+  <text x="115" y="215" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">Type-C 16P</text>
+  <text x="115" y="235" fill="#10b981" font-family="monospace" font-size="10" text-anchor="middle">VBUS 5.0V / CC1/CC2</text>
+  <line x1="180" y1="220" x2="250" y2="220" stroke="#10b981" stroke-width="2"/>
 
-    if ($('#caps')) {
-      $('#caps').innerHTML = [
-        `芯片 <b>${esc(d.chips.length)}</b> · 模块 <b>${esc(d.modules.length)}</b>`,
-        `固件支持 <b>${esc(d.firmware_chips.join(', ')||'无')}</b>`,
-        `KiCad <b>${d.kicad_cli.available ? '可用' : '不可用'}</b>`,
-        `鉴权 <b>${d.auth.enabled ? '开启' : '关闭'}</b>`,
-        `队列 <b>${esc(d.queue.running)}/${esc(d.queue.max_concurrent)}</b> 运行`,
-      ].join('<br>');
+  <rect x="620" y="180" width="130" height="80" rx="6" fill="#161b26" stroke="#eab308" stroke-width="1.5"/>
+  <text x="685" y="215" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="12" font-weight="bold" text-anchor="middle">AHT20 Sensor</text>
+  <text x="685" y="235" fill="#eab308" font-family="monospace" font-size="10" text-anchor="middle">I2C (SCL/SDA)</text>
+  <line x1="550" y1="220" x2="620" y2="220" stroke="#eab308" stroke-width="2"/>
+
+  <rect x="340" y="390" width="120" height="60" rx="6" fill="#161b26" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="400" y="420" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">ME6211C33 LDO</text>
+  <text x="400" y="435" fill="#6366f1" font-family="monospace" font-size="9" text-anchor="middle">3.3V Output / 500mA</text>
+  <line x1="400" y1="360" x2="400" y2="390" stroke="#6366f1" stroke-width="2"/>
+</svg>`);
+
+const DEMO_PCB_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <rect x="150" y="70" width="500" height="360" rx="12" fill="#0d1b14" stroke="#10b981" stroke-width="2"/>
+  <text x="400" y="110" fill="#34d399" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">TOP LAYER (F.Cu) - 4-LAYER CONTROLLED IMPEDANCE</text>
+
+  <rect x="320" y="160" width="160" height="180" rx="4" fill="#064e3b" stroke="#eab308" stroke-width="1.5"/>
+  <text x="400" y="255" fill="#fef08a" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">U1 ESP32-C3</text>
+
+  <circle cx="200" cy="250" r="14" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+  <circle cx="600" cy="250" r="14" fill="#1e293b" stroke="#eab308" stroke-width="2"/>
+  <line x1="214" y1="250" x2="320" y2="250" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+  <line x1="480" y1="250" x2="586" y2="250" stroke="#eab308" stroke-width="3" stroke-linecap="round"/>
+
+  <circle cx="170" cy="90" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
+  <circle cx="630" cy="90" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
+  <circle cx="170" cy="410" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
+  <circle cx="630" cy="410" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
+</svg>`);
+
+const DEMO_3D_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <polygon points="400,100 650,200 400,320 150,200" fill="#1e293b" stroke="#64748b" stroke-width="2"/>
+  <polygon points="150,200 400,320 400,420 150,300" fill="#0f172a" stroke="#64748b" stroke-width="2"/>
+  <polygon points="650,200 400,320 400,420 650,300" fill="#334155" stroke="#64748b" stroke-width="2"/>
+  <text x="400" y="220" fill="#94a3b8" font-family="monospace" font-size="14" font-weight="bold" text-anchor="middle">3D ENCLOSURE PARAMETRIC ASSEMBLY</text>
+</svg>`);
+
+// 内置预设演示工程
+const DEMO_PROJECTS = {
+  'ESP32-C3': {
+    chip: 'ESP32-C3',
+    layers: 4,
+    modules: ['i2c', 'usart', 'type_c', 'ldo', 'buttons', 'leds'],
+    netlist: {
+      project: 'ESP32-C3 IoT Sensor Node',
+      chip: 'ESP32-C3-WROOM-02',
+      modules: {
+        U1: { kind: 'MCU', value: 'ESP32-C3-WROOM-02', package: 'Module-ESP32-C3' },
+        U2: { kind: 'REGULATOR', value: 'ME6211C33M5G', package: 'SOT-23-5', lcsc: 'C2924190' },
+        J1: { kind: 'CONNECTOR', value: 'TYPE-C-16P', package: 'TYPE-C-16P', lcsc: 'C205837' },
+        S1: { kind: 'SENSOR', value: 'AHT20', package: 'SMD-4_5.0x4.0mm', lcsc: 'C533230' },
+        C1: { kind: 'CAPACITOR', value: '10uF', package: '0805', lcsc: 'C136653' },
+        C2: { kind: 'CAPACITOR', value: '100nF', package: '0402', lcsc: 'C318884' }
+      },
+      connections: [
+        { net: '/VBUS', points: ['J1.VBUS', 'U2.VIN', 'C1.1'] },
+        { net: '/3V3', points: ['U2.VOUT', 'U1.3V3', 'S1.VDD', 'C2.1'] },
+        { net: '/GND', points: ['J1.GND', 'U2.GND', 'U1.GND', 'S1.GND', 'C1.2', 'C2.2'] },
+        { net: '/I2C_SCL', points: ['U1.IO8', 'S1.SCL'] },
+        { net: '/I2C_SDA', points: ['U1.IO9', 'S1.SDA'] }
+      ]
     }
-
-    const chipSelect = $('#chip');
-    chipSelect.innerHTML = d.chips.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-
-    if (d.chips.length > 0) {
-      $('#navChipText').textContent = chipSelect.value;
-      updateFirmwareBadge(chipSelect.value);
+  },
+  'STM32F103': {
+    chip: 'STM32F103',
+    layers: 4,
+    modules: ['can', 'rs485', 'usart', 'spi', 'ldo'],
+    netlist: {
+      project: 'STM32 Industrial Controller',
+      chip: 'STM32F103C8T6',
+      modules: {
+        U1: { kind: 'MCU', value: 'STM32F103C8T6', package: 'LQFP-48', lcsc: 'C8734' },
+        U2: { kind: 'TRANSCEIVER', value: 'SN65HVD230DR', package: 'SOIC-8', lcsc: 'C39433' },
+        U3: { kind: 'TRANSCEIVER', value: 'MAX485ESA+T', package: 'SOIC-8', lcsc: 'C39434' },
+        C1: { kind: 'CAPACITOR', value: '100nF', package: '0402', lcsc: 'C318884' }
+      },
+      connections: [
+        { net: '/3V3', points: ['U1.VDD', 'U2.VCC', 'U3.VCC', 'C1.1'] },
+        { net: '/GND', points: ['U1.VSS', 'U2.GND', 'U3.GND', 'C1.2'] },
+        { net: '/CAN_TX', points: ['U1.PB9', 'U2.D'] },
+        { net: '/CAN_RX', points: ['U1.PB8', 'U2.R'] }
+      ]
     }
-
-    state.modules = new Set();
-    renderModules();
-    showToast('服务连接成功', 'ok');
-  } catch (e) {
-    if (seq !== state.probeSeq) return;
-    $('#connDot').className = 'stock-dot out';
-    $('#connSummaryText').textContent = '未连接 (127.0.0.1:8890)';
-    showToast('连接失败: ' + e.message, 'err');
   }
+};
+
+// 纯静态演示能力集
+function probe() {
+  const d = {
+    chips: ['ESP32-C3', 'STM32F103', 'RP2040', 'CH32V003', 'STM32G030', 'ATmega328P'],
+    firmware_chips: ['ESP32-C3', 'RP2040'],
+    modules: ['i2c', 'usart', 'spi', 'adc', 'pwm', 'can', 'rs485', 'type_c', 'ldo'],
+    kicad_cli: { available: true },
+    auth: { enabled: false },
+    queue: { running: 0, max_concurrent: 4 }
+  };
+  state.caps = d;
+  $('#connDot').className = 'stock-dot ok';
+  $('#connSummaryText').textContent = '静态视觉展示 (Demo Showcase)';
+
+  if ($('#caps')) {
+    $('#caps').innerHTML = [
+      `支持芯片 <b>${esc(d.chips.length)} 款</b> · 电路积木 <b>${esc(d.modules.length)} 种</b>`,
+      `运行模式 <b>纯静态展示 · 零网络依赖 · 零遥测</b>`,
+      `工业工具 <b>32 大 MCP 生产工具已就绪</b>`,
+    ].join('<br>');
+  }
+
+  const chipSelect = $('#chip');
+  chipSelect.innerHTML = d.chips.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+  $('#navChipText').textContent = chipSelect.value;
+  updateFirmwareBadge(chipSelect.value);
+
+  state.modules = new Set(['i2c', 'usart', 'type_c', 'ldo']);
+  renderModules();
+  loadExample();
 }
 
 function updateFirmwareBadge(chip) {
@@ -1867,58 +1942,37 @@ function renderModules() {
   });
 }
 
-// 载入示例网表
-async function loadExample() {
-  const chip = $('#chip').value;
-  if (!chip) return showToast('先连接探测并选择 MCU', 'err');
-  showToast(`载入 ${chip} 示例工程...`, 'ok');
-  try {
-    const r = await fetch(`${apiBase()}/examples/${encodeURIComponent(chip)}`, { headers: headers() });
-    if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? ' (需要 API Key)' : ''));
-    const d = await r.json();
-    $('#netlist').value = JSON.stringify(d.netlist, null, 2);
-    state.modules = new Set(d.modules || []);
-    renderModules();
-    showToast(`已成功载入 ${chip} 示例网表`, 'ok');
-  } catch (e) {
-    showToast('载入示例失败: ' + e.message, 'err');
-  }
+// 载入示例网表（纯前端内置工程）
+function loadExample() {
+  const chip = $('#chip').value || 'ESP32-C3';
+  const proj = DEMO_PROJECTS[chip] || DEMO_PROJECTS['ESP32-C3'];
+  $('#netlist').value = JSON.stringify(proj.netlist, null, 2);
+  state.modules = new Set(proj.modules || []);
+  renderModules();
+  showToast(`已成功载入 ${chip} 示例网表`, 'ok');
 }
 
-// 亮点 1: 自然语言合成 (/synthesize)
-async function triggerSynthesize(promptText) {
+// 亮点 1: 自然语言合成（纯前端静态演示模式）
+function triggerSynthesize(promptText) {
   const prompt = promptText || $('#nlPrompt').value.trim();
   if (!prompt) {
     showToast('请输入一句话描述', 'err');
     return;
   }
   showToast('AI CircuitBlocks 语义积木转译中...', 'ok');
-  try {
-    const r = await fetch(apiBase() + '/synthesize', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify({ prompt, project: 'custom_board' }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    const job = await r.json();
+  setTimeout(() => {
+    const isStm32 = prompt.toUpperCase().includes('STM32');
+    const targetChip = isStm32 ? 'STM32F103' : 'ESP32-C3';
+    $('#chip').value = targetChip;
+    updateFirmwareBadge(targetChip);
 
-    if (job.chip) {
-      $('#chip').value = job.chip;
-      updateFirmwareBadge(job.chip);
-    }
-    if (job.layers) {
-      $('#pcbLayers').value = String(job.layers);
-      $('#navLayerText').textContent = `${job.layers}-Layer PCB`;
-    }
-    $('#netlist').value = JSON.stringify(job, null, 2);
-    state.modules = new Set(job.modules || []);
+    const proj = DEMO_PROJECTS[targetChip] || DEMO_PROJECTS['ESP32-C3'];
+    $('#netlist').value = JSON.stringify(proj.netlist, null, 2);
+    state.modules = new Set(proj.modules);
     renderModules();
 
-    const blockCount = job.metadata?.blocks_included?.length || 0;
-    showToast(`✨ 已自动合成 ${job.chip} 网表（含 ${blockCount} 个电路积木）`, 'ok');
-  } catch (e) {
-    showToast('合成失败: ' + e.message, 'err');
-  }
+    showToast(`✨ [静态演示] 已自动合成 ${targetChip} 网表（含 ${proj.modules.length} 个电路积木）`, 'ok');
+  }, 350);
 }
 
 $('#nlSynthesize').onclick = () => triggerSynthesize();
@@ -2013,46 +2067,59 @@ async function run() {
   $('#run').disabled = true;
   startStepper();
 
-  const reqBody = {
-    chip,
-    modules: [...state.modules],
-    netlist,
-    hardware_only: state.caps ? !state.caps.firmware_chips.includes(chip) : false,
-    pcb: $('#wantPcb').checked || $('#wantRoute').checked || $('#wantEnclosure').checked,
-    route: $('#wantRoute').checked,
-    enclosure: $('#wantEnclosure').checked,
-    default_passive_package: $('#passivePkg').value,
-    layers: $('#pcbLayers').value ? parseInt($('#pcbLayers').value, 10) : null,
-  };
-
-  try {
-    const r = await fetch(apiBase() + '/runs', {
-      method: 'POST',
-      headers: headers(),
-      body: JSON.stringify(reqBody),
-    });
-    const d = await r.json();
-
-    if (r.status === 429) throw new Error('并发队列已满，稍后重试');
-    if (r.status === 401) throw new Error('鉴权失败，请检查 API Key');
-    if (r.status === 422) throw new Error(d.detail || '请求参数验证失败 (422)');
-
-    state.result = d;
-    renderWorkbenchResults(d, r.status);
-
-    if (r.status === 200) {
-      stopStepper(true);
-      showToast('🎉 设计全套工程生成成功！', 'ok');
-    } else {
-      stopStepper(false);
-      showToast('⚠️ 门禁拦截或违规，请查看详情', 'err');
-    }
-  } catch (e) {
-    stopStepper(false);
-    showToast('生成失败: ' + e.message, 'err');
-  } finally {
+  setTimeout(() => {
+    stopStepper(true);
     $('#run').disabled = false;
-  }
+
+    const mockResult = {
+      run_id: 'demo_run_2026',
+      pcb: { drc_violations: 0 },
+      bom_cost: {
+        estimated_total_cost_cny: 18.22,
+        total_parts_cost_cny: 18.22,
+        total_parts_cost_usd: 2.52,
+        total_extended_fee_cny: 0.0,
+        extended_parts_count: 0,
+        total_components: 14,
+        matched_components: 14,
+      },
+      lcsc: {
+        U1: { lcsc: 'C2364023', match_type: 'Basic', price_cny: 12.50 },
+        U2: { lcsc: 'C2924190', match_type: 'Basic', price_cny: 0.65 },
+        J1: { lcsc: 'C205837', match_type: 'Basic', price_cny: 1.20 },
+        S1: { lcsc: 'C533230', match_type: 'Basic', price_cny: 3.50 },
+        C1: { lcsc: 'C136653', match_type: 'Basic', price_cny: 0.15 },
+        C2: { lcsc: 'C318884', match_type: 'Basic', price_cny: 0.08 },
+      },
+      senior_ee: {
+        overall_score: 96,
+        grade: 'A+',
+        verdict_title: '工业级制造就绪 (Production Ready)',
+        verdict_summary: '0 DRC/ERC 违规，电源完整性符合 IPC-2152 导线温升标准，去耦电容与 ESD 保护闭环完备，无单源卡脖子料件。',
+        pillars: {
+          pi: { score: 98, status: 'PASS', summary: '电源轨均布置 100nF 陶瓷去耦，LDO 压差裕量充足 (1.7V > 0.3V)' },
+          si: { score: 95, status: 'PASS', summary: 'USB 90Ω 与 RF 50Ω 走线阻抗满足四层板设计公差 (IPC-2141A)' },
+          dfm: { score: 96, status: 'PASS', summary: '外层线宽 ≥ 0.127mm，过孔钻径 ≥ 0.2mm，无孤立锐角铜皮' },
+          supply: { score: 95, status: 'PASS', summary: '100% 选用嘉立创基础库元器件，无扩展库换料费，具备现货库存' },
+        },
+      },
+      allocation: {
+        allocations: {
+          'I2C': { SCL: 'GPIO8', SDA: 'GPIO9' },
+          'UART': { TX: 'GPIO21', RX: 'GPIO20' },
+          'USB': { DP: 'GPIO19', DM: 'GPIO18' },
+        },
+      },
+      artifacts: {
+        preview_svg: DEMO_SCH_SVG,
+        pcb_svg: DEMO_PCB_SVG,
+        enclosure_preview: DEMO_3D_SVG,
+      },
+    };
+
+    renderWorkbenchResults(mockResult, 200);
+    showToast('🎉 [静态演示] 全套设计工程展示已呈现！', 'ok');
+  }, 1000);
 }
 
 $('#run').onclick = run;
@@ -2202,58 +2269,57 @@ function renderCanvasViews(d, rid) {
   $('#emptyCanvasGuide').style.display = 'none';
   $('#floatingBar').style.display = 'flex';
 
-  const base = apiBase();
   const schImg = $('#preview');
   const pcbImg = $('#pcbpreview');
   const d3Img = $('#encpreview');
 
   if (d.artifacts?.preview_svg) {
-    schImg.src = `${base}/runs/${rid}/files/${esc(d.artifacts.preview_svg)}`;
+    schImg.src = d.artifacts.preview_svg;
     schImg.style.display = (state.activeTab === 'schematic') ? 'block' : 'none';
   }
 
   if (d.artifacts?.pcb_svg) {
-    pcbImg.src = `${base}/runs/${rid}/files/${esc(d.artifacts.pcb_svg)}`;
+    pcbImg.src = d.artifacts.pcb_svg;
     pcbImg.style.display = (state.activeTab === 'pcb') ? 'block' : 'none';
   }
 
   if (d.artifacts?.enclosure_preview) {
-    d3Img.src = `${base}/runs/${rid}/files/${esc(d.artifacts.enclosure_preview)}`;
+    d3Img.src = d.artifacts.enclosure_preview;
     d3Img.style.display = (state.activeTab === '3d') ? 'block' : 'none';
   }
 
-  // 绑定悬浮底栏下载
-  $('#dlProductionPack').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.production_pack || 'hardware/jlcpcb_production_pack.zip')}`;
-  $('#dlBomCostReport').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.bom_cost_report_md || 'hardware/bom_cost_report.md')}`;
-  $('#dlSeniorEeReport').href = `${base}/runs/${rid}/files/${esc(d.artifacts?.senior_ee_report_md || 'hardware/senior_ee_report.md')}`;
-  $('#dlAllZip').href = `${base}/runs/${rid}/bundle`;
+  const tipAction = e => {
+    e.preventDefault();
+    showToast('静态演示参考模式：制造级交付物请通过 stdio MCP 工具导出', 'ok');
+  };
+  $('#dlProductionPack').onclick = tipAction;
+  $('#dlBomCostReport').onclick = tipAction;
+  $('#dlSeniorEeReport').onclick = tipAction;
+  $('#dlAllZip').onclick = tipAction;
 }
 
 function renderArtifactsMiniGrid(d, rid) {
-  const base = apiBase();
   const container = $('#artifactsMiniGrid');
-  const links = [];
+  const links = [
+    { name: 'BOM (CSV)' },
+    { name: '贴片 CPL (CSV)' },
+    { name: 'Gerber 5层包 (ZIP)' },
+    { name: 'KiCad 原理图' },
+    { name: 'KiCad PCB' },
+    { name: '3D 壳体 (STEP)' },
+    { name: '底壳 (STL)' }
+  ];
 
-  if (d.artifacts?.bom) links.push({ name: 'BOM (CSV)', url: `${base}/runs/${rid}/files/${d.artifacts.bom}` });
-  if (d.artifacts?.cpl) links.push({ name: '贴片 CPL (CSV)', url: `${base}/runs/${rid}/files/${d.artifacts.cpl}` });
-  if (d.artifacts?.pcb_gerber_zip) links.push({ name: 'Gerber (ZIP)', url: `${base}/runs/${rid}/files/${d.artifacts.pcb_gerber_zip}` });
-  if (d.artifacts?.kicad_schematic) links.push({ name: '原理图源文件', url: `${base}/runs/${rid}/files/${d.artifacts.kicad_schematic}` });
-  if (d.artifacts?.pcb_board) links.push({ name: 'PCB 源文件', url: `${base}/runs/${rid}/files/${d.artifacts.pcb_board}` });
-  if (d.artifacts?.enclosure_assembly_step) links.push({ name: '3D 壳体 (STEP)', url: `${base}/runs/${rid}/files/${d.artifacts.enclosure_assembly_step}` });
-  if (d.artifacts?.enclosure_bottom_stl) links.push({ name: '底壳 (STL)', url: `${base}/runs/${rid}/files/${d.artifacts.enclosure_bottom_stl}` });
-
-  if (links.length > 0) {
-    container.innerHTML = links.map(l => `
-      <a class="artifact-btn mono-nums" href="${esc(l.url)}" target="_blank">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        ${esc(l.name)}
-      </a>
-    `).join('');
-  }
+  container.innerHTML = links.map(l => `
+    <a class="artifact-btn mono-nums" href="javascript:void(0)" onclick="showToast('静态演示参考模式：制造级交付物请通过 stdio MCP 工具导出', 'ok')">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      ${esc(l.name)}
+    </a>
+  `).join('');
 }
 
 function renderPinsAndViolations(d) {
@@ -2422,9 +2488,6 @@ $('#loadExample').onclick = loadExample;
 $('#btnQuickLoadHero').onclick = loadExample;
 
 window.addEventListener('DOMContentLoaded', () => {
-  if (!$('#api').value.trim()) {
-    $('#api').value = defaultApiBase();
-  }
   probe();
 });
 </script>
