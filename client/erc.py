@@ -31,6 +31,8 @@
 - THERMAL_RELIEF_MISSING_ON_HIGH_CURRENT (warning)：大电流/功率焊盘直接实心连接大面积铜皮而缺少热隔离十字花孔，回流焊易冷焊或立碑（IPC-2221B / IPC-A-610G）。
 - ICT_TESTPOINT_COVERAGE_DEFICIT (warning)：关键电源轨或复位引脚缺少 ICT 测试焊盘，产线自动化针床测试覆盖率不足（IPC-9252 / IPC-2221B）。
 - HIGH_FREQUENCY_CLOCK_TRACE_LENGTH (warning)：晶振高频时钟走线长度 > 15mm，易引入寄生电容导致停振或强 EMI 辐射（ST AN2867 / IPC-2141A）。
+- LAYER_COPPER_THIEVING_IMBALANCE (warning)：顶底层铺铜覆盖率差异 > 35%，回流焊热应力不对称极易产生弓曲/扭曲变形（IPC-2221B / IPC-TM-650 2.4.22）。
+- UNREINFORCED_VIA_ANNULAR_BREAKOUT (warning)：细线 (≤0.15mm) 直连过孔而未加泪滴倒角补强，钻孔微偏极易造成焊环破裂开路（IPC-2221B / IPC-A-600J Class 3）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -420,6 +422,46 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "长走线寄生杂散电容过大易导致晶体起振困难、频率漂移与高频 EMI 谐波辐射（ST AN2867 / IPC-2141A）。",
                     "warning",
                     "ST AN2867 Oscillator Design Guide & IPC-2141A High-Speed Layout",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 19. LAYER_COPPER_THIEVING_IMBALANCE (warning)：顶底层铺铜不平衡翘曲风险 (IPC-2221B)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        top_cov = props.get("top_copper_density_pct")
+        bot_cov = props.get("bot_copper_density_pct")
+        if top_cov is not None and bot_cov is not None:
+            diff = abs(float(top_cov) - float(bot_cov))
+            if diff > 35.0:
+                issues.append(
+                    _issue(
+                        "LAYER_COPPER_THIEVING_IMBALANCE",
+                        "顶底层铜皮覆盖率严重失衡翘曲风险",
+                        f"顶层铜皮覆盖率 ({top_cov}%) 与底层 ({bot_cov}%) 差异 {diff:.1f}% > 35%；"
+                        "焊接热应力不对称易导致 PCB 弓曲/扭曲变形超标（IPC-2221B / IPC-TM-650 2.4.22）。",
+                        "warning",
+                        "IPC-2221B Section 10.1.1 Non-Functional Copper Balancing",
+                        object_id=f"net:{conn.get('net')}",
+                    )
+                )
+
+    # 20. UNREINFORCED_VIA_ANNULAR_BREAKOUT (warning)：细线直连过孔未做泪滴补强
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        tr_w = float(props.get("trace_width_mm", 0.20) or 0.20)
+        has_v = bool(props.get("has_vias", False))
+        is_reinforced = bool(props.get("teardrop_reinforced", False))
+        if has_v and tr_w <= 0.15 and not is_reinforced:
+            issues.append(
+                _issue(
+                    "UNREINFORCED_VIA_ANNULAR_BREAKOUT",
+                    "高应力细导线直连过孔缺少泪滴补强",
+                    f"网络 {net_name} 细线 (宽 {tr_w}mm) 直连过孔且未加泪滴倒角补强；"
+                    "钻孔偏移时颈部易发生 90°/180° 断裂造成热循环开路（IPC-2221B / IPC-A-600J Class 3）。",
+                    "warning",
+                    "IPC-2221B Section 9.1.5 & IPC-A-600J Class 3 Annular Ring Integrity",
                     object_id=f"net:{net_name}",
                 )
             )

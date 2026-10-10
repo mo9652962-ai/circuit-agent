@@ -83,7 +83,9 @@ def test_mcp_tools_list():
     assert "calculate_pcb_panel_rails" in tool_names
     assert "calculate_ict_testpoints" in tool_names
     assert "calculate_bga_escape_routing" in tool_names
-    assert len(tools) == 32
+    assert "calculate_teardrop_reinforcement" in tool_names
+    assert "calculate_copper_thieving_balance" in tool_names
+    assert len(tools) == 34
 
 
 def test_mcp_tool_call_synthesize():

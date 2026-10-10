@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (32 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (34 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1058,6 +1058,86 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Escape routing neck-down trace width in mm (default: 0.10).",
                     "default": 0.10,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_teardrop_reinforcement",
+        "description": (
+            "Calculate tangent teardrop fillets for PCB vias, circular pads, and testpoints to prevent drill breakout, "
+            "eliminate mechanical/thermal crack stress, and comply with IPC-2221B Section 9.1.5 and IPC-A-600J Class 3."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["vias"],
+            "properties": {
+                "vias": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of via objects ({'x_mm', 'y_mm', 'pad_dia_mm', 'drill_dia_mm', 'trace_angle_deg'}).",
+                },
+                "default_trace_width_mm": {
+                    "type": "number",
+                    "description": "Default trace width in mm (default: 0.20).",
+                    "default": 0.20,
+                },
+                "teardrop_style": {
+                    "type": "string",
+                    "description": "Fillet geometry: 'curved' (default) or 'linear'.",
+                    "default": "curved",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_copper_thieving_balance",
+        "description": (
+            "Calculate layer copper density balance between top and bottom layers, assess reflow thermal bow/twist "
+            "warpage risk (IPC-TM-650 2.4.22 <= 0.75%), and generate non-functional dummy copper thieving dot/grid patterns "
+            "per IPC-2221B Section 10.1.1."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["board_width_mm", "board_height_mm"],
+            "properties": {
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                },
+                "top_copper_area_mm2": {
+                    "type": "number",
+                    "description": "Optional top copper area in mm².",
+                },
+                "bot_copper_area_mm2": {
+                    "type": "number",
+                    "description": "Optional bottom copper area in mm².",
+                },
+                "keepout_margin_mm": {
+                    "type": "number",
+                    "description": "Keepout margin from board edge in mm (default: 2.0).",
+                    "default": 2.0,
+                },
+                "pattern_pitch_mm": {
+                    "type": "number",
+                    "description": "Thieving dot pitch in mm (default: 2.54).",
+                    "default": 2.54,
                 },
             },
         },

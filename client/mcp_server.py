@@ -762,6 +762,49 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_bga.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_teardrop_reinforcement":
+            vias = arguments.get("vias", [])
+            if not isinstance(vias, list):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'vias' must be a list"}]}
+            def_tr_w = float(arguments.get("default_trace_width_mm", 0.20))
+            style = str(arguments.get("teardrop_style", "curved"))
+            from .teardrop_engine import calculate_teardrop_reinforcement
+
+            rep_td = calculate_teardrop_reinforcement(
+                vias=vias, default_trace_width_mm=def_tr_w, teardrop_style=style
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_td.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_copper_thieving_balance":
+            bw = arguments.get("board_width_mm")
+            bh = arguments.get("board_height_mm")
+            if bw is None or bh is None:
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": "Parameters 'board_width_mm' and 'board_height_mm' are required"}
+                    ],
+                }
+            top_cu = arguments.get("top_copper_area_mm2")
+            bot_cu = arguments.get("bot_copper_area_mm2")
+            margin = float(arguments.get("keepout_margin_mm", 2.0))
+            pitch = float(arguments.get("pattern_pitch_mm", 2.54))
+            from .copper_thieving import calculate_copper_thieving_balance
+
+            rep_cu = calculate_copper_thieving_balance(
+                board_width_mm=float(bw),
+                board_height_mm=float(bh),
+                top_copper_area_mm2=float(top_cu) if top_cu is not None else None,
+                bot_copper_area_mm2=float(bot_cu) if bot_cu is not None else None,
+                keepout_margin_mm=margin,
+                pattern_pitch_mm=pitch,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_cu.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
