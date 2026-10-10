@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **36 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **38 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -243,6 +243,8 @@ python -m client.mcp_server
 34. `calculate_copper_thieving_balance`: Layer copper density balance solver evaluating reflow thermal bow/twist warpage risk (IPC-TM-650 2.4.22 ≤0.75%), generating non-functional dummy copper thieving dot/grid patterns per IPC-2221B Section 10.1.1.
 35. `calculate_via_stitching_array`: Thermal via array solver for QFN/power exposed pads (IPC-7093 Section 7.2) or RF ground shielding fence arrays (IPC-2141A <= lambda/10 pitch) with thermal resistance metrics.
 36. `calculate_serpentine_tuning_geometry`: High-speed differential pair serpentine delay tuning geometry solver guaranteeing self-coupling avoidance (S >= 3W, H >= 3W) per IPC-2141A Section 5.3.
+37. `calculate_stencil_aperture_ratios`: Per-aperture area ratio (>= 0.66) and aspect ratio (>= 1.5) compliance evaluator per IPC-7525, identifying paste-release-deficient fine-pitch apertures that cause tombstoning, opens, and BGA head-in-pillow defects.
+38. `calculate_fiducial_layout`: Asymmetric 3-point global optical fiducial layout generator (180° rotation unambiguous) with automatic diagonal local fiducials for <= 0.5mm fine-pitch components per IPC-2221B Section 12 and JEDEC J-STD-020.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

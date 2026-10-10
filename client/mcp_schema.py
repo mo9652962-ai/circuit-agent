@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (36 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (38 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1239,6 +1239,87 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "End Y coordinate in mm (default: 20.0).",
                     "default": 20.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_stencil_aperture_ratios",
+        "description": (
+            "Evaluate SMT stencil aperture area ratio (>= 0.66 laser-cut) and aspect ratio (>= 1.5) compliance "
+            "per IPC-7525 Stencil Design Guidelines, identifying paste-release-deficient apertures."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["apertures"],
+            "properties": {
+                "apertures": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of apertures ({ref, shape: 'rect'|'circle', width_mm, length_mm}).",
+                },
+                "foil_thickness_um": {
+                    "type": "number",
+                    "description": "Stencil foil thickness in μm (default: 100).",
+                    "default": 100,
+                },
+                "min_area_ratio": {
+                    "type": "number",
+                    "description": "Minimum acceptable area ratio (default: 0.66).",
+                    "default": 0.66,
+                },
+                "min_aspect_ratio": {
+                    "type": "number",
+                    "description": "Minimum acceptable aspect ratio (default: 1.5).",
+                    "default": 1.5,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_fiducial_layout",
+        "description": (
+            "Generate asymmetric 3-point global optical fiducial layout (L-shape, 180° rotation unambiguous) and "
+            "2-point local fiducials for fine-pitch components per IPC-2221B Section 12 and JEDEC J-STD-020."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["board_width_mm", "board_height_mm"],
+            "properties": {
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm.",
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm.",
+                },
+                "fine_pitch_components": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Fine-pitch components ({ref, pitch_mm, x_mm, y_mm, half_diagonal_mm}).",
+                },
+                "edge_clearance_mm": {
+                    "type": "number",
+                    "description": "Fiducial center clearance from board edge in mm (default: 5.0).",
+                    "default": 5.0,
+                },
+                "fine_pitch_threshold_mm": {
+                    "type": "number",
+                    "description": "Component pitch below which local fiducials are required (default: 0.5).",
+                    "default": 0.5,
                 },
             },
         },
