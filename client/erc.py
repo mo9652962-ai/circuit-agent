@@ -35,6 +35,8 @@
 - UNREINFORCED_VIA_ANNULAR_BREAKOUT (warning)：细线 (≤0.15mm) 直连过孔而未加泪滴倒角补强，钻孔微偏极易造成焊环破裂开路（IPC-2221B / IPC-A-600J Class 3）。
 - EXPOSED_PAD_THERMAL_VIA_MISSING (warning)：功率 IC / QFN 底部散热焊盘缺少矩阵散热过孔，热阻过高易导致热击穿（IPC-7093 Section 7.2）。
 - RF_GROUND_SHIELDING_FENCE_SPACING (warning)：高频/RF 射频走线屏蔽地孔间距过大 (> 2.5mm)，无法有效抑制空间电磁场泄漏与串扰（IPC-2141A）。
+- STENCIL_APERTURE_RATIO_DEFICIENT (warning)：钢网开孔面积比 < 0.66，锡膏释放不足导致立碑/虚焊/BGA 枕头效应（IPC-7525）。
+- FIDUCIAL_LAYOUT_AMBIGUOUS (warning)：全局光学定位点少于 3 处或布局对称，贴片机视觉对位存在 180° 歧义风险（IPC-2221B / J-STD-020）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -505,6 +507,38 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     object_id=f"net:{net_name}",
                 )
             )
+
+    # 23. STENCIL_APERTURE_RATIO_DEFICIENT (warning)：钢网开孔面积比不足 (IPC-7525)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        st_ar = props.get("stencil_area_ratio")
+        if st_ar is not None and float(st_ar) < 0.66:
+            issues.append(
+                _issue(
+                    "STENCIL_APERTURE_RATIO_DEFICIENT",
+                    "钢网开孔面积比不足锡膏释放缺陷",
+                    f"网络 {net_name} 钢网开孔面积比 {float(st_ar):.2f} < 0.66 (IPC-7525 激光切割钢网下限)；"
+                    "锡膏释放不足将引发立碑、开路虚焊与 BGA 枕头效应 (HiP) 缺陷。",
+                    "warning",
+                    "IPC-7525 Stencil Design Guidelines Area Ratio Criteria",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 24. FIDUCIAL_LAYOUT_AMBIGUOUS (warning)：全局光学定位点不足或对称歧义 (IPC-2221B / J-STD-020)
+    global_fid = int(modules.get("__meta__", {}).get("global_fiducial_count", 3) if isinstance(modules, dict) else 3)
+    if modules and global_fid < 3:
+        issues.append(
+            _issue(
+                "FIDUCIAL_LAYOUT_AMBIGUOUS",
+                "全局光学定位点不足视觉对位歧义",
+                f"PCB 全局光学定位点数量 ({global_fid}) < 3 处，且未采用非对称 L 形布局；"
+                "贴片机视觉对位存在 180° 旋转歧义，极易发生整板贴装镜像报废（IPC-2221B / J-STD-020）。",
+                "warning",
+                "IPC-2221B Section 12 & JEDEC J-STD-020 Optical Alignment Fiducial Criteria",
+            )
+        )
 
     return issues
 

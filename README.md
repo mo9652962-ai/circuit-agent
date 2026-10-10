@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **36 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **38 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -244,6 +244,8 @@ python -m client.mcp_server
 34. `calculate_copper_thieving_balance`: 依据 IPC-2221B Section 10.1.1 评估顶底层铺铜覆盖率平衡度，预警回流焊弓曲/扭曲变形风险 (IPC-TM-650 2.4.22 ≤0.75%)，并在孤立空白区自动生成网格/阵列假铜平衡点 (Copper Thieving)。
 35. `calculate_via_stitching_array`: 依据 IPC-7093 Section 7.2 规划 QFN/功率芯片裸露散热焊盘底部的导热过孔阵列 (Φ0.3mm/1.2mm 网格)，或依据 IPC-2141A 生成高频 RF 微带线双侧屏蔽地孔栅栏 (Shielding Fence)。
 36. `calculate_serpentine_tuning_geometry`: 依据 IPC-2141A 高速传输线标准生成差分对蛇形等长绕线微调几何路径，严格保障线距自耦合抑制约束 ($S \ge 3W, H \ge 3W$)。
+37. `calculate_stencil_aperture_ratios`: 依据 IPC-7525 钢网设计规范逐开孔核算面积比 (AR ≥ 0.66) 与宽厚比 (≥ 1.5)，定位锡膏释放不足的高危细间距开孔，预防立碑/虚焊/BGA 枕头效应。
+38. `calculate_fiducial_layout`: 依据 IPC-2221B Section 12 与 JEDEC J-STD-020 生成非对称 L 形 3 点全局光学定位点布局 (消除 180° 旋转歧义)，并为 ≤0.5mm 细间距器件自动布置对角局部基准点。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

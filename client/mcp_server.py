@@ -851,6 +851,54 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_serp.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_stencil_aperture_ratios":
+            apertures = arguments.get("apertures", [])
+            if not isinstance(apertures, list) or not apertures:
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameter 'apertures' must be a non-empty list"}],
+                }
+            foil_um = float(arguments.get("foil_thickness_um", 100.0))
+            min_ar = float(arguments.get("min_area_ratio", 0.66))
+            min_asp = float(arguments.get("min_aspect_ratio", 1.5))
+            from .stencil_aperture import calculate_stencil_aperture_ratios
+
+            rep_st = calculate_stencil_aperture_ratios(
+                apertures=apertures,
+                foil_thickness_um=foil_um,
+                min_area_ratio=min_ar,
+                min_aspect_ratio=min_asp,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_st.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_fiducial_layout":
+            bw = arguments.get("board_width_mm")
+            bh = arguments.get("board_height_mm")
+            if bw is None or bh is None:
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": "Parameters 'board_width_mm' and 'board_height_mm' are required"}
+                    ],
+                }
+            comps = arguments.get("fine_pitch_components", [])
+            edge = float(arguments.get("edge_clearance_mm", 5.0))
+            thresh = float(arguments.get("fine_pitch_threshold_mm", 0.5))
+            from .fiducial_optimizer import calculate_fiducial_layout
+
+            rep_fid = calculate_fiducial_layout(
+                board_width_mm=float(bw),
+                board_height_mm=float(bh),
+                fine_pitch_components=comps if isinstance(comps, list) else [],
+                edge_clearance_mm=edge,
+                fine_pitch_threshold_mm=thresh,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_fid.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
