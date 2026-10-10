@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **34 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **36 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -242,6 +242,8 @@ python -m client.mcp_server
 32. `calculate_bga_escape_routing`: 依据 IPC-7095 标准求解 BGA 封装对角 45° 狗骨头 (Dogbone) 引脚逃孔扇出几何、通道线宽与线距，并反推最少信号走线层数与 HDI 微孔需求。
 33. `calculate_teardrop_reinforcement`: 计算导线连接过孔/焊盘处的切线圆弧与锥形泪滴 (Teardrop) 补强几何，消除热应力开裂并确保满足 IPC-2221B Section 9.1.5 与 IPC-A-600J Class 3 破孔零开路规范。
 34. `calculate_copper_thieving_balance`: 依据 IPC-2221B Section 10.1.1 评估顶底层铺铜覆盖率平衡度，预警回流焊弓曲/扭曲变形风险 (IPC-TM-650 2.4.22 ≤0.75%)，并在孤立空白区自动生成网格/阵列假铜平衡点 (Copper Thieving)。
+35. `calculate_via_stitching_array`: 依据 IPC-7093 Section 7.2 规划 QFN/功率芯片裸露散热焊盘底部的导热过孔阵列 (Φ0.3mm/1.2mm 网格)，或依据 IPC-2141A 生成高频 RF 微带线双侧屏蔽地孔栅栏 (Shielding Fence)。
+36. `calculate_serpentine_tuning_geometry`: 依据 IPC-2141A 高速传输线标准生成差分对蛇形等长绕线微调几何路径，严格保障线距自耦合抑制约束 ($S \ge 3W, H \ge 3W$)。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

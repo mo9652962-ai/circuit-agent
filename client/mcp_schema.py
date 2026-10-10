@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (34 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (36 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1138,6 +1138,107 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Thieving dot pitch in mm (default: 2.54).",
                     "default": 2.54,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_via_stitching_array",
+        "description": (
+            "Calculate thermal via matrix array under QFN/power exposed pads (IPC-7093 Section 7.2) or RF ground "
+            "shielding fence via arrays (IPC-2141A <= lambda/10 pitch) with thermal resistance reduction metrics."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pad_width_mm": {
+                    "type": "number",
+                    "description": "Exposed pad width in mm (default: 5.0).",
+                    "default": 5.0,
+                },
+                "pad_height_mm": {
+                    "type": "number",
+                    "description": "Exposed pad height in mm (default: 5.0).",
+                    "default": 5.0,
+                },
+                "center_x_mm": {
+                    "type": "number",
+                    "description": "Center X coordinate in mm (default: 0.0).",
+                    "default": 0.0,
+                },
+                "center_y_mm": {
+                    "type": "number",
+                    "description": "Center Y coordinate in mm (default: 0.0).",
+                    "default": 0.0,
+                },
+                "drill_dia_mm": {
+                    "type": "number",
+                    "description": "Via drill diameter in mm (default: 0.30).",
+                    "default": 0.30,
+                },
+                "grid_pitch_mm": {
+                    "type": "number",
+                    "description": "Via center-to-center pitch in mm (default: 1.20).",
+                    "default": 1.20,
+                },
+                "is_rf_shielding_fence": {
+                    "type": "boolean",
+                    "description": "Whether to generate dual-side ground shielding fence for RF microstrip (default: false).",
+                    "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_serpentine_tuning_geometry",
+        "description": (
+            "Calculate high-speed differential pair serpentine delay tuning meander geometry, ensuring self-coupling "
+            "suppression (S >= 3W, H >= 3W) and generating vertex paths per IPC-2141A Section 5.3."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["delta_length_mm"],
+            "properties": {
+                "delta_length_mm": {
+                    "type": "number",
+                    "description": "Target added delay length in mm (e.g. 3.5).",
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Trace width in mm (default: 0.15).",
+                    "default": 0.15,
+                },
+                "start_x_mm": {
+                    "type": "number",
+                    "description": "Start X coordinate in mm (default: 10.0).",
+                    "default": 10.0,
+                },
+                "start_y_mm": {
+                    "type": "number",
+                    "description": "Start Y coordinate in mm (default: 20.0).",
+                    "default": 20.0,
+                },
+                "end_x_mm": {
+                    "type": "number",
+                    "description": "End X coordinate in mm (default: 30.0).",
+                    "default": 30.0,
+                },
+                "end_y_mm": {
+                    "type": "number",
+                    "description": "End Y coordinate in mm (default: 20.0).",
+                    "default": 20.0,
                 },
             },
         },
