@@ -33,6 +33,8 @@
 - HIGH_FREQUENCY_CLOCK_TRACE_LENGTH (warning)：晶振高频时钟走线长度 > 15mm，易引入寄生电容导致停振或强 EMI 辐射（ST AN2867 / IPC-2141A）。
 - LAYER_COPPER_THIEVING_IMBALANCE (warning)：顶底层铺铜覆盖率差异 > 35%，回流焊热应力不对称极易产生弓曲/扭曲变形（IPC-2221B / IPC-TM-650 2.4.22）。
 - UNREINFORCED_VIA_ANNULAR_BREAKOUT (warning)：细线 (≤0.15mm) 直连过孔而未加泪滴倒角补强，钻孔微偏极易造成焊环破裂开路（IPC-2221B / IPC-A-600J Class 3）。
+- EXPOSED_PAD_THERMAL_VIA_MISSING (warning)：功率 IC / QFN 底部散热焊盘缺少矩阵散热过孔，热阻过高易导致热击穿（IPC-7093 Section 7.2）。
+- RF_GROUND_SHIELDING_FENCE_SPACING (warning)：高频/RF 射频走线屏蔽地孔间距过大 (> 2.5mm)，无法有效抑制空间电磁场泄漏与串扰（IPC-2141A）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -462,6 +464,44 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "钻孔偏移时颈部易发生 90°/180° 断裂造成热循环开路（IPC-2221B / IPC-A-600J Class 3）。",
                     "warning",
                     "IPC-2221B Section 9.1.5 & IPC-A-600J Class 3 Annular Ring Integrity",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 21. EXPOSED_PAD_THERMAL_VIA_MISSING (warning)：功率 IC / QFN 缺少散热地孔
+    for ref, m in modules.items():
+        pkg = str(m.get("package", "")).upper()
+        kind = str(m.get("kind", "")).upper()
+        has_exposed_pad = any(k in pkg for k in ("QFN", "DFN", "HTSSOP", "HSOP", "EPAD")) or kind in ("REGULATOR", "DRIVER")
+        has_thermal_vias = bool(m.get("has_thermal_vias", True))
+        if has_exposed_pad and not has_thermal_vias:
+            issues.append(
+                _issue(
+                    "EXPOSED_PAD_THERMAL_VIA_MISSING",
+                    "裸露散热焊盘缺少矩阵散热过孔",
+                    f"器件 {ref} 封装 {pkg} 具有底部裸露功率热沉，但未布置矩阵导热过孔阵列；"
+                    "热阻过高将导致结温超标并触发过温热保护（IPC-7093 Section 7.2）。",
+                    "warning",
+                    "IPC-7093 Section 7.2 Bottom Termination Components Thermal Design",
+                    object_id=f"comp:{ref}",
+                )
+            )
+
+    # 22. RF_GROUND_SHIELDING_FENCE_SPACING (warning)：RF 走线地屏蔽过孔间距过大
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        is_rf = any(k in net_name.upper() for k in ("RF_", "ANT", "WIFI_", "BLE_"))
+        fence_pitch = float(props.get("shield_via_pitch_mm", 2.0) or 2.0)
+        if is_rf and fence_pitch > 2.5:
+            issues.append(
+                _issue(
+                    "RF_GROUND_SHIELDING_FENCE_SPACING",
+                    "高频 RF 屏蔽地孔栅栏间距过大",
+                    f"射频网络 {net_name} 伴随地屏蔽过孔间距 {fence_pitch}mm > 2.5mm (超过 λ/10 上限)；"
+                    "地孔间距过大将无法阻断高频电磁场侧向泄漏，极易恶化辐射杂散与带外干扰（IPC-2141A）。",
+                    "warning",
+                    "IPC-2141A & IEEE High Frequency Shielding Via Fence Criteria",
                     object_id=f"net:{net_name}",
                 )
             )

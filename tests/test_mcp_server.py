@@ -85,7 +85,9 @@ def test_mcp_tools_list():
     assert "calculate_bga_escape_routing" in tool_names
     assert "calculate_teardrop_reinforcement" in tool_names
     assert "calculate_copper_thieving_balance" in tool_names
-    assert len(tools) == 34
+    assert "calculate_via_stitching_array" in tool_names
+    assert "calculate_serpentine_tuning_geometry" in tool_names
+    assert len(tools) == 36
 
 
 def test_mcp_tool_call_synthesize():

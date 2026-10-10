@@ -805,6 +805,52 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_cu.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_via_stitching_array":
+            pw = float(arguments.get("pad_width_mm", 5.0))
+            ph = float(arguments.get("pad_height_mm", 5.0))
+            cx = float(arguments.get("center_x_mm", 0.0))
+            cy = float(arguments.get("center_y_mm", 0.0))
+            drill = float(arguments.get("drill_dia_mm", 0.30))
+            pitch = float(arguments.get("grid_pitch_mm", 1.20))
+            is_rf = bool(arguments.get("is_rf_shielding_fence", False))
+            from .via_stitching import calculate_via_stitching_array
+
+            rep_stitch = calculate_via_stitching_array(
+                pad_width_mm=pw,
+                pad_height_mm=ph,
+                center_x_mm=cx,
+                center_y_mm=cy,
+                drill_dia_mm=drill,
+                grid_pitch_mm=pitch,
+                is_rf_shielding_fence=is_rf,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_stitch.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_serpentine_tuning_geometry":
+            delta_l = arguments.get("delta_length_mm")
+            if delta_l is None:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'delta_length_mm' is required"}]}
+            tw = float(arguments.get("trace_width_mm", 0.15))
+            sx = float(arguments.get("start_x_mm", 10.0))
+            sy = float(arguments.get("start_y_mm", 20.0))
+            ex = float(arguments.get("end_x_mm", 30.0))
+            ey = float(arguments.get("end_y_mm", 20.0))
+            from .serpentine_tuning import calculate_serpentine_tuning_geometry
+
+            rep_serp = calculate_serpentine_tuning_geometry(
+                delta_length_mm=float(delta_l),
+                trace_width_mm=tw,
+                start_x_mm=sx,
+                start_y_mm=sy,
+                end_x_mm=ex,
+                end_y_mm=ey,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_serp.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
