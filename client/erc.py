@@ -43,6 +43,7 @@
 - NPTH_PLATING_CONFLICT (warning)：非金属化孔 (NPTH) 标记为电镀，钻孔文件与成品孔径歧义将导致定位孔超差（IPC-2221B / IPC-NC-349）。
 - FINE_PITCH_MASK_DAM_UNDEFINED (warning)：≤0.5mm 细间距封装未定义阻焊坝 (Mask Dam)，相邻焊盘间阻焊桥无法制作将连锡短路（IPC-2221B / IPC-SM-782）。
 - MOUNTING_HOLES_MISSING (warning)：多器件板卡无任何机械安装孔，整机装配无固定锚点将依赖连接器悬臂受力（IPC-2221B Section 8.2）。
+- THT_WAVE_SOLDERING_UNSUITABLE (warning)：通孔器件标记为不宜波峰焊（热敏感/大体积），需转选择焊或手工焊工序（IPC-A-610G Section 7）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -664,6 +665,26 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 "IPC-2221B Section 8.2 Mechanical Mounting & Stress Relief",
             )
         )
+
+    # 31. THT_WAVE_SOLDERING_UNSUITABLE (warning)：通孔器件不宜波峰焊 (IPC-A-610G Section 7)
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        is_tht = any(k in pkg for k in ("DIP", "TO-220", "TO-247", "RADIAL", "PINHEADER", "TERMINAL", "RELAY"))
+        wave_ok = bool(m.get("wave_solderable", True))
+        if is_tht and not wave_ok:
+            issues.append(
+                _issue(
+                    "THT_WAVE_SOLDERING_UNSUITABLE",
+                    "通孔器件不宜波峰焊需转工序",
+                    f"通孔器件 {ref} (封装 {pkg}) 标记为不宜波峰焊（热敏感/大体积/遮蔽效应）；"
+                    "应转选择性焊接或手工补焊工序，并在工艺路线中单独排程（IPC-A-610G Section 7 焊接工艺选择）。",
+                    "warning",
+                    "IPC-A-610G Section 7 Soldering Process Selection for THT Components",
+                    object_id=f"comp:{ref}",
+                )
+            )
 
     return issues
 

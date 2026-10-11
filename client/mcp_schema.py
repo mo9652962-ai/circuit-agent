@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (43 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (44 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1520,6 +1520,30 @@ AVAILABLE_TOOLS = [
                     "type": "array",
                     "items": {"type": "object"},
                     "description": "Revision B connections list.",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "generate_assembly_process_plan",
+        "description": (
+            "Generate a mixed-assembly process route plan: classify each component into SMD reflow / THT wave / "
+            "THT manual / mechanical stages per IPC-A-610G Section 7, output the 10-stage EMS routing "
+            "(SPI -> reflow -> AOI -> THT insert -> wave -> manual -> ICT -> FCT -> coating -> packing)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
                 },
             },
         },
