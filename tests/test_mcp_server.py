@@ -93,7 +93,8 @@ def test_mcp_tools_list():
     assert "calculate_solder_paste_volume" in tool_names
     assert "export_ipc2581" in tool_names
     assert "export_assembly_drawing_svg" in tool_names
-    assert len(tools) == 42
+    assert "diff_netlists" in tool_names
+    assert len(tools) == 43
 
 
 def test_mcp_tool_call_synthesize():
