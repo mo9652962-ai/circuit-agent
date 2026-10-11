@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **38 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **40 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -245,6 +245,8 @@ python -m client.mcp_server
 36. `calculate_serpentine_tuning_geometry`: High-speed differential pair serpentine delay tuning geometry solver guaranteeing self-coupling avoidance (S >= 3W, H >= 3W) per IPC-2141A Section 5.3.
 37. `calculate_stencil_aperture_ratios`: Per-aperture area ratio (>= 0.66) and aspect ratio (>= 1.5) compliance evaluator per IPC-7525, identifying paste-release-deficient fine-pitch apertures that cause tombstoning, opens, and BGA head-in-pillow defects.
 38. `calculate_fiducial_layout`: Asymmetric 3-point global optical fiducial layout generator (180° rotation unambiguous) with automatic diagonal local fiducials for <= 0.5mm fine-pitch components per IPC-2221B Section 12 and JEDEC J-STD-020.
+39. `calculate_via_protection_plan`: IPC-4761 via protection type selector (Type I ~ VII) by assembly context: Type VII filled-and-capped (VIPPO) mandatory for BGA via-in-pad, Type V fill for thermal pads, Type IV tent+plug for BGA channels, Type II tent for free vias.
+40. `calculate_solder_paste_volume`: Per-aperture deposited solder paste volume assessment against target joint volume per IPC-7525A transfer analysis (accepted ratio window 1.0 ~ 2.5), flagging starved joints and excessive paste defects.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

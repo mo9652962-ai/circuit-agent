@@ -89,7 +89,9 @@ def test_mcp_tools_list():
     assert "calculate_serpentine_tuning_geometry" in tool_names
     assert "calculate_stencil_aperture_ratios" in tool_names
     assert "calculate_fiducial_layout" in tool_names
-    assert len(tools) == 38
+    assert "calculate_via_protection_plan" in tool_names
+    assert "calculate_solder_paste_volume" in tool_names
+    assert len(tools) == 40
 
 
 def test_mcp_tool_call_synthesize():
