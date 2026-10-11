@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (45 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (46 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1587,6 +1587,65 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Conveyor rail width in mm (default: 5.0).",
                     "default": 5.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_fab_cost",
+        "description": (
+            "Estimate PCB fabrication cost from fab-house published tiered pricing: layers (2/4/6), quantity tiers "
+            "(5/10/30/100), area surcharge beyond 100x100mm, solder mask color, surface finish (HASL/ENIG/OSP), "
+            "board thickness, and lead time (normal/48h/24h). Estimate only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "layers": {
+                    "type": "integer",
+                    "description": "Layer count (2, 4, or 6; default 4).",
+                    "default": 4,
+                },
+                "quantity": {
+                    "type": "integer",
+                    "description": "Board quantity (default 5).",
+                    "default": 5,
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "Board width in mm (default 100).",
+                    "default": 100.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "Board height in mm (default 100).",
+                    "default": 100.0,
+                },
+                "solder_mask_color": {
+                    "type": "string",
+                    "description": "Solder mask color: green (free), red/yellow/blue (+25), black/white (+40), matte (+60).",
+                    "default": "green",
+                },
+                "surface_finish": {
+                    "type": "string",
+                    "description": "Surface finish: hasl_lead (free), hasl_lead_free (+15), enig (+80), osp (free), silver (+45).",
+                    "default": "hasl_lead_free",
+                },
+                "thickness_mm": {
+                    "type": "string",
+                    "description": "Board thickness in mm: 0.6/0.8/1.0/1.2/1.6 (default)/2.0.",
+                    "default": "1.6",
+                },
+                "lead_time": {
+                    "type": "string",
+                    "description": "Lead time: normal (x1.0), fast_48h (x1.5), urgent_24h (x2.5).",
+                    "default": "normal",
                 },
             },
         },
