@@ -950,6 +950,27 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"content": [{"type": "text", "text": xml_txt}]}
 
+        if name == "export_assembly_drawing_svg":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict) or not modules:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be a non-empty object"}]}
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            mirrored = bool(arguments.get("mirrored_bottom", True))
+            dtitle = str(arguments.get("title", "PCBA ASSEMBLY DRAWING"))
+            rev = str(arguments.get("revision", "A"))
+            from .assembly_drawing import export_assembly_drawing_svg
+
+            drawing = export_assembly_drawing_svg(
+                modules=modules,
+                board_width_mm=bw,
+                board_height_mm=bh,
+                mirrored_bottom=mirrored,
+                title=dtitle,
+                revision=rev,
+            )
+            return {"content": [{"type": "text", "text": drawing.svg}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

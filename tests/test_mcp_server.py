@@ -92,7 +92,8 @@ def test_mcp_tools_list():
     assert "calculate_via_protection_plan" in tool_names
     assert "calculate_solder_paste_volume" in tool_names
     assert "export_ipc2581" in tool_names
-    assert len(tools) == 41
+    assert "export_assembly_drawing_svg" in tool_names
+    assert len(tools) == 42
 
 
 def test_mcp_tool_call_synthesize():

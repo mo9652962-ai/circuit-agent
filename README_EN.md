@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **41 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **42 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -248,6 +248,7 @@ python -m client.mcp_server
 39. `calculate_via_protection_plan`: IPC-4761 via protection type selector (Type I ~ VII) by assembly context: Type VII filled-and-capped (VIPPO) mandatory for BGA via-in-pad, Type V fill for thermal pads, Type IV tent+plug for BGA channels, Type II tent for free vias.
 40. `calculate_solder_paste_volume`: Per-aperture deposited solder paste volume assessment against target joint volume per IPC-7525A transfer analysis (accepted ratio window 1.0 ~ 2.5), flagging starved joints and excessive paste defects.
 41. `export_ipc2581`: Export a simplified IPC-2581B single-file intelligent fabrication data package (XML) — stackup, BOM, placed components, net pin membership, and board profile — replacing the legacy Gerber+Excellon+TXT handoff bundle accepted by Siemens X / Altium / Zuken and major EMS houses.
+42. `export_assembly_drawing_svg`: Scaled PCBA assembly drawing SVG per ASME Y14.5 and IPC-2221B Section 11 — body outlines with refDes labels, polarity marks (pin-1 dots, cathode bars, plus frames), mirrored bottom view, and ASME Y14.100 title block (revision / scale / check signature).
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
