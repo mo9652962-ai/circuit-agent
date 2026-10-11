@@ -48,6 +48,8 @@
 - PANEL_PROCESS_FEATURES_MISSING (warning)：拼版板未定义工艺边/光学定位点/定位孔，SMT 传送与视觉对位无法执行（IPC-SMEMA-9851 / IPC-2221B Section 8.4）。
 - TALL_COMPONENT_SMT_COLLISION_RISK (warning)：高低元件高差 ≥3.0mm 且水平间距 <2.0mm，贴片机吸嘴下压存在机械碰撞撞件风险（IPC-SM-782 / OpenPnP）。
 - CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT (warning)：高压网络导体间距不足安规爬电要求且未开空气隔离铣槽（IPC-2221B Table 6-1 / IEC 62368-1）。
+- IMPEDANCE_TOLERANCE_WINDOW_EXCEEDED (warning)：特征阻抗在板厂压合/蚀刻公差叠加下极差超出 ±10% 目标容限窗口（IPC-2141A）。
+- POLLUTION_DEGREE_CREEPAGE_DEFICIT (warning)：在工业污染等级 2/3 环境下基板材料 CTI 偏低导致爬电安全裕度不足（IEC 62368-1 / GB 4943.1）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -778,6 +780,69 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         "且未规划贯通空气隔离铣槽；潮湿粉尘环境下表面漏电起痕将引发介质击穿（IPC-2221B Table 6-1 / IEC 62368-1）。",
                         "warning",
                         "IPC-2221B Table 6-1 & IEC 62368-1 High Voltage Creepage Requirements",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 36. IMPEDANCE_TOLERANCE_WINDOW_EXCEEDED (warning)：特征阻抗公差波动超出 ±10%
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        target_z = props.get("target_impedance_ohms")
+        w_mm = props.get("trace_width_mm")
+        h_mm = props.get("dielectric_height_mm")
+        if target_z is not None and w_mm is not None and h_mm is not None:
+            from .impedance_tolerance_analyzer import analyze_impedance_tolerance
+
+            rep_tol = analyze_impedance_tolerance(
+                target_z0_ohms=float(target_z),
+                trace_width_mm=float(w_mm),
+                dielectric_height_mm=float(h_mm),
+                copper_thickness_mm=float(props.get("copper_thickness_mm", 0.035)),
+                dielectric_er=float(props.get("dielectric_er", 4.2)),
+            )
+            if not rep_tol.within_10pct_window:
+                issues.append(
+                    _issue(
+                        "IMPEDANCE_TOLERANCE_WINDOW_EXCEEDED",
+                        "特征阻抗制造公差波动超标",
+                        f"网络 {net_name} 目标阻抗 {target_z:g}Ω，在板厂公差叠加下波动范围 "
+                        f"[{rep_tol.min_z0_ohms:g}Ω ~ {rep_tol.max_z0_ohms:g}Ω] 超出 ±10% 目标容限窗口；"
+                        "高频信号易出现眼图闭合与阻抗不连续反射（IPC-2141A 阻抗公差模型）。",
+                        "warning",
+                        "IPC-2141A Controlled Impedance Manufacturing Tolerance Window",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 37. POLLUTION_DEGREE_CREEPAGE_DEFICIT (warning)：基材 CTI 偏低导致爬电安全裕度不足
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        v = float(props.get("voltage_v", 0.0) or 0.0)
+        cti = float(props.get("substrate_cti_v", 175.0))
+        clr = props.get("actual_clearance_mm") or props.get("clearance_mm")
+        pd = int(props.get("pollution_degree", 2))
+        if v >= 100.0 and clr is not None:
+            from .material_cti_evaluator import evaluate_material_cti_creepage
+
+            rep_cti = evaluate_material_cti_creepage(
+                working_voltage_v=v,
+                actual_clearance_mm=float(clr),
+                substrate_cti_v=cti,
+                pollution_degree=pd,
+                insulation_type=str(props.get("insulation_type", "Basic")),
+            )
+            if not rep_cti.is_compliant:
+                issues.append(
+                    _issue(
+                        "POLLUTION_DEGREE_CREEPAGE_DEFICIT",
+                        "污染等级下基材 CTI 爬电安全裕度不足",
+                        f"网络 {net_name} ({v:g}V) 在污染等级 {pd} 下要求爬电 {rep_cti.required_creepage_mm:.2f}mm，"
+                        f"当前基材 ({rep_cti.material_group}, CTI {cti:g}V) 间距 {float(clr):.2f}mm 不足；"
+                        "建议升级选用 CTI ≥ 600V 高 CTI 覆铜板或增大间距（IEC 62368-1 / GB 4943.1）。",
+                        "warning",
+                        "IEC 62368-1 Table 25 Material Group & Comparative Tracking Index Criteria",
                         object_id=f"net:{net_name}",
                     )
                 )

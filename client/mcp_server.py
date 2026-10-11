@@ -1103,6 +1103,48 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(res_slot.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "analyze_impedance_tolerance":
+            z_t = float(arguments.get("target_z0_ohms", 50.0))
+            w_m = float(arguments.get("trace_width_mm", 0.38))
+            h_m = float(arguments.get("dielectric_height_mm", 0.20))
+            t_m = float(arguments.get("copper_thickness_mm", 0.035))
+            er_v = float(arguments.get("dielectric_er", 4.2))
+            w_tol = float(arguments.get("width_tolerance_pct", 10.0))
+            h_tol = float(arguments.get("height_tolerance_pct", 10.0))
+            from .impedance_tolerance_analyzer import analyze_impedance_tolerance
+
+            rep_tol = analyze_impedance_tolerance(
+                target_z0_ohms=z_t,
+                trace_width_mm=w_m,
+                dielectric_height_mm=h_m,
+                copper_thickness_mm=t_m,
+                dielectric_er=er_v,
+                width_tolerance_pct=w_tol,
+                height_tolerance_pct=h_tol,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_tol.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "evaluate_material_cti_creepage":
+            v = float(arguments.get("working_voltage_v", 220.0))
+            clr = float(arguments.get("actual_clearance_mm", 2.0))
+            cti = float(arguments.get("substrate_cti_v", 175.0))
+            pd = int(arguments.get("pollution_degree", 2))
+            ins = str(arguments.get("insulation_type", "Basic"))
+            from .material_cti_evaluator import evaluate_material_cti_creepage
+
+            rep_cti = evaluate_material_cti_creepage(
+                working_voltage_v=v,
+                actual_clearance_mm=clr,
+                substrate_cti_v=cti,
+                pollution_degree=pd,
+                insulation_type=ins,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_cti.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

@@ -99,7 +99,9 @@ def test_mcp_tools_list():
     assert "calculate_fab_cost" in tool_names
     assert "calculate_smt_placement_clearance" in tool_names
     assert "calculate_creepage_isolation_slot" in tool_names
-    assert len(tools) == 48
+    assert "analyze_impedance_tolerance" in tool_names
+    assert "evaluate_material_cti_creepage" in tool_names
+    assert len(tools) == 50
 
 
 def test_mcp_tool_call_synthesize():
