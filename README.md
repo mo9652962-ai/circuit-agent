@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **38 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **40 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -246,6 +246,8 @@ python -m client.mcp_server
 36. `calculate_serpentine_tuning_geometry`: 依据 IPC-2141A 高速传输线标准生成差分对蛇形等长绕线微调几何路径，严格保障线距自耦合抑制约束 ($S \ge 3W, H \ge 3W$)。
 37. `calculate_stencil_aperture_ratios`: 依据 IPC-7525 钢网设计规范逐开孔核算面积比 (AR ≥ 0.66) 与宽厚比 (≥ 1.5)，定位锡膏释放不足的高危细间距开孔，预防立碑/虚焊/BGA 枕头效应。
 38. `calculate_fiducial_layout`: 依据 IPC-2221B Section 12 与 JEDEC J-STD-020 生成非对称 L 形 3 点全局光学定位点布局 (消除 180° 旋转歧义)，并为 ≤0.5mm 细间距器件自动布置对角局部基准点。
+39. `calculate_via_protection_plan`: 依据 IPC-4761 按过孔装配场景选型保护结构 (Type I~VII)：BGA 盘中孔强制 Type VII 填孔+电镀盖帽 (VIPPO) 防渗锡，热沉焊盘 Type V 填孔，BGA 通道 Type IV，开阔区 Type II。
+40. `calculate_solder_paste_volume`: 依据 IPC-7525A 锡膏转移分析逐开孔核算沉积锡膏体积比 (合规窗口 1.0~2.5)，预警焊料饥饿 (开路/立碑/枕头效应) 与锡膏过量 (桥连/锡珠) 缺陷。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

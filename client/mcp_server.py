@@ -899,6 +899,36 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_fid.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_via_protection_plan":
+            vias = arguments.get("vias", [])
+            if not isinstance(vias, list) or not vias:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'vias' must be a non-empty list"}]}
+            from .via_protection import calculate_via_protection_plan
+
+            rep_vp = calculate_via_protection_plan(vias=vias)
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_vp.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_solder_paste_volume":
+            apertures = arguments.get("apertures", [])
+            if not isinstance(apertures, list) or not apertures:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'apertures' must be a non-empty list"}]}
+            foil_um = float(arguments.get("foil_thickness_um", 100.0))
+            eta = float(arguments.get("transfer_efficiency", 0.90))
+            standoff = float(arguments.get("target_standoff_mm", 0.10))
+            from .solder_paste_volume import calculate_solder_paste_volume
+
+            rep_pv = calculate_solder_paste_volume(
+                apertures=apertures,
+                foil_thickness_um=foil_um,
+                transfer_efficiency=eta,
+                target_standoff_mm=standoff,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_pv.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

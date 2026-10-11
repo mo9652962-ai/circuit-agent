@@ -37,6 +37,8 @@
 - RF_GROUND_SHIELDING_FENCE_SPACING (warning)：高频/RF 射频走线屏蔽地孔间距过大 (> 2.5mm)，无法有效抑制空间电磁场泄漏与串扰（IPC-2141A）。
 - STENCIL_APERTURE_RATIO_DEFICIENT (warning)：钢网开孔面积比 < 0.66，锡膏释放不足导致立碑/虚焊/BGA 枕头效应（IPC-7525）。
 - FIDUCIAL_LAYOUT_AMBIGUOUS (warning)：全局光学定位点少于 3 处或布局对称，贴片机视觉对位存在 180° 歧义风险（IPC-2221B / J-STD-020）。
+- VIA_IN_PAD_SOLDER_WICKING_RISK (warning)：BGA 焊盘内过孔未做 Type VII 填孔+电镀盖帽 (VIPPO)，回流焊锡膏毛细渗流导致焊料饥饿（IPC-4761）。
+- POLARIZED_MARKING_MISSING (warning)：极性器件 (LED/二极管/电解电容) 未标记丝印极性标识，人工检验与返修时易反向贴装（IPC-A-610G）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -539,6 +541,45 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 "IPC-2221B Section 12 & JEDEC J-STD-020 Optical Alignment Fiducial Criteria",
             )
         )
+
+    # 25. VIA_IN_PAD_SOLDER_WICKING_RISK (warning)：盘中孔未做 IPC-4761 Type VII 填孔盖帽
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        vip = bool(props.get("has_vias_in_pad", False))
+        vippo_ok = bool(props.get("vippo_filled_capped", False))
+        if vip and not vippo_ok:
+            issues.append(
+                _issue(
+                    "VIA_IN_PAD_SOLDER_WICKING_RISK",
+                    "盘中孔缺少填孔电镀盖帽渗锡风险",
+                    f"网络 {net_name} 存在焊盘内过孔 (VIPPO) 且未做 IPC-4761 Type VII 填孔+电镀盖帽；"
+                    "回流焊时锡膏沿孔壁毛细渗流导致焊料饥饿、枕头效应 (HiP) 与开路缺陷。",
+                    "warning",
+                    "IPC-4761 Type VII Filled and Capped Via-in-Pad Requirement",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 26. POLARIZED_MARKING_MISSING (warning)：极性器件缺少丝印极性标识 (IPC-A-610G)
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        kind = str(m.get("kind", "")).upper()
+        is_polar = kind in ("LED", "DIODE", "TVS") or bool(m.get("polarized", False))
+        silk_marked = bool(m.get("silk_marked", True))
+        if is_polar and not silk_marked:
+            issues.append(
+                _issue(
+                    "POLARIZED_MARKING_MISSING",
+                    "极性器件缺少丝印极性标识",
+                    f"极性器件 {ref} ({kind}) 未在丝印层标注极性/第一脚标识；"
+                    "人工目检、返修与售后维修时极易反向贴装，反向通电将直接损坏器件（IPC-A-610G 极性标识要求）。",
+                    "warning",
+                    "IPC-A-610G Section 5.2 Component Orientation & Polarity Marking",
+                    object_id=f"comp:{ref}",
+                )
+            )
 
     return issues
 

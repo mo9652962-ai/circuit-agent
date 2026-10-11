@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (38 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (40 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1320,6 +1320,70 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Component pitch below which local fiducials are required (default: 0.5).",
                     "default": 0.5,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_via_protection_plan",
+        "description": (
+            "Select IPC-4761 via protection types (Type I ~ VII) per via assembly context: Type VII filled-and-capped "
+            "(VIPPO) mandatory for BGA via-in-pad, Type V fill for thermal pads, Type IV tent+plug for BGA channels, "
+            "Type II tent for free vias."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["vias"],
+            "properties": {
+                "vias": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Via list ({id, in_pad, land_type: 'bga'|'thermal'|'signal', in_bga_pitch, vippo_filled}).",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_solder_paste_volume",
+        "description": (
+            "Assess per-aperture deposited solder paste volume against target joint volume per IPC-7525A transfer "
+            "analysis (accepted ratio window 1.0 ~ 2.5), flagging starved joints and excessive paste defects."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["apertures"],
+            "properties": {
+                "apertures": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Aperture list ({ref, shape: 'rect'|'circle', width_mm, length_mm}).",
+                },
+                "foil_thickness_um": {
+                    "type": "number",
+                    "description": "Stencil foil thickness in μm (default: 100).",
+                    "default": 100,
+                },
+                "transfer_efficiency": {
+                    "type": "number",
+                    "description": "Paste transfer efficiency η (default: 0.90; nano-coated laser-cut foil).",
+                    "default": 0.90,
+                },
+                "target_standoff_mm": {
+                    "type": "number",
+                    "description": "Target solder standoff height in mm (default: 0.10).",
+                    "default": 0.10,
                 },
             },
         },
