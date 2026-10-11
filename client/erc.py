@@ -42,6 +42,7 @@
 - BGA_ESCAPE_ROUTING_UNPLANNED (warning)：BGA 封装器件未提供逃逸扇出规划，量产布线将无通道可用（IPC-7095 Section 5.2）。
 - NPTH_PLATING_CONFLICT (warning)：非金属化孔 (NPTH) 标记为电镀，钻孔文件与成品孔径歧义将导致定位孔超差（IPC-2221B / IPC-NC-349）。
 - FINE_PITCH_MASK_DAM_UNDEFINED (warning)：≤0.5mm 细间距封装未定义阻焊坝 (Mask Dam)，相邻焊盘间阻焊桥无法制作将连锡短路（IPC-2221B / IPC-SM-782）。
+- MOUNTING_HOLES_MISSING (warning)：多器件板卡无任何机械安装孔，整机装配无固定锚点将依赖连接器悬臂受力（IPC-2221B Section 8.2）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -643,6 +644,26 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     object_id=f"comp:{ref}",
                 )
             )
+
+    # 30. MOUNTING_HOLES_MISSING (warning)：多器件板卡缺少机械安装孔 (IPC-2221B Section 8.2)
+    real_refs = [r for r in modules if r != "__meta__"]
+    has_mount = any(
+        str(m.get("kind", "")).upper() in ("MOUNT_HOLE", "HOLE", "STANDOFF")
+        or "MOUNT" in str(m.get("value", "")).upper()
+        for m in modules.values()
+        if isinstance(m, dict)
+    )
+    if len(real_refs) >= 8 and not has_mount:
+        issues.append(
+            _issue(
+                "MOUNTING_HOLES_MISSING",
+                "板卡缺少机械安装孔固定锚点",
+                f"板卡含 {len(real_refs)} 个器件但无任何机械安装孔 (Mounting Hole/Standoff)；"
+                "整机装配将依赖连接器悬臂受力，振动/插拔应力易导致焊点开裂（IPC-2221B Section 8.2 机械固定要求）。",
+                "warning",
+                "IPC-2221B Section 8.2 Mechanical Mounting & Stress Relief",
+            )
+        )
 
     return issues
 

@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (42 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (43 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1482,6 +1482,44 @@ AVAILABLE_TOOLS = [
                     "type": "string",
                     "description": "Drawing revision letter (default: A).",
                     "default": "A",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "diff_netlists",
+        "description": (
+            "Engineering Change Order (ECO) netlist diff: compare two netlist revisions and report added/removed "
+            "components, value/package changes, added/removed nets, pin membership moves, total change count, and "
+            "ECO severity (NONE / MINOR / MAJOR) for PLM change management."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["old_modules", "old_connections", "new_modules", "new_connections"],
+            "properties": {
+                "old_modules": {
+                    "type": "object",
+                    "description": "Revision A component modules dict.",
+                },
+                "old_connections": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Revision A connections list.",
+                },
+                "new_modules": {
+                    "type": "object",
+                    "description": "Revision B component modules dict.",
+                },
+                "new_connections": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Revision B connections list.",
                 },
             },
         },

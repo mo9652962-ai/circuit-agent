@@ -971,6 +971,27 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"content": [{"type": "text", "text": drawing.svg}]}
 
+        if name == "diff_netlists":
+            old_modules = arguments.get("old_modules")
+            new_modules = arguments.get("new_modules")
+            old_conns = arguments.get("old_connections")
+            new_conns = arguments.get("new_connections")
+            if not isinstance(old_modules, dict) or not isinstance(new_modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameters 'old_modules' and 'new_modules' must be objects"}]}
+            if not isinstance(old_conns, list) or not isinstance(new_conns, list):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameters 'old_connections' and 'new_connections' must be lists"}]}
+            from .netlist_diff import diff_netlists
+
+            rep_diff = diff_netlists(
+                old_modules=old_modules,
+                old_connections=old_conns,
+                new_modules=new_modules,
+                new_connections=new_conns,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_diff.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
