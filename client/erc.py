@@ -41,6 +41,7 @@
 - POLARIZED_MARKING_MISSING (warning)：极性器件 (LED/二极管/电解电容) 未标记丝印极性标识，人工检验与返修时易反向贴装（IPC-A-610G）。
 - BGA_ESCAPE_ROUTING_UNPLANNED (warning)：BGA 封装器件未提供逃逸扇出规划，量产布线将无通道可用（IPC-7095 Section 5.2）。
 - NPTH_PLATING_CONFLICT (warning)：非金属化孔 (NPTH) 标记为电镀，钻孔文件与成品孔径歧义将导致定位孔超差（IPC-2221B / IPC-NC-349）。
+- FINE_PITCH_MASK_DAM_UNDEFINED (warning)：≤0.5mm 细间距封装未定义阻焊坝 (Mask Dam)，相邻焊盘间阻焊桥无法制作将连锡短路（IPC-2221B / IPC-SM-782）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -619,6 +620,27 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "warning",
                     "IPC-2221B & IPC-NC-349 Non-Plated Hole Fabrication Requirements",
                     object_id=f"net:{net_name}",
+                )
+            )
+
+    # 29. FINE_PITCH_MASK_DAM_UNDEFINED (warning)：细间距封装阻焊坝未定义 (IPC-2221B / IPC-SM-782)
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        fine_pitch_pkgs = ("QFN", "DFN", "LQFP", "TSSOP", "BGA")
+        is_fine = any(k in pkg for k in fine_pitch_pkgs) or float(m.get("pitch_mm", 1.0) or 1.0) <= 0.5
+        mask_dam_defined = bool(m.get("mask_dam_defined", True))
+        if is_fine and not mask_dam_defined:
+            issues.append(
+                _issue(
+                    "FINE_PITCH_MASK_DAM_UNDEFINED",
+                    "细间距封装阻焊坝未定义连锡短路风险",
+                    f"器件 {ref} 封装 {pkg} 为细间距，但未定义阻焊坝 (Solder Mask Dam ≥0.1mm)；"
+                    "相邻焊盘间阻焊桥无法制作，回流焊锡膏互连将造成引脚桥连短路（IPC-2221B & IPC-SM-782）。",
+                    "warning",
+                    "IPC-2221B & IPC-SM-782 Solder Mask Dam Design Requirements",
+                    object_id=f"comp:{ref}",
                 )
             )
 

@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (41 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (42 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1433,6 +1433,55 @@ AVAILABLE_TOOLS = [
                     "type": "string",
                     "description": "Project/organization name embedded in the XML (default: HARDWARE_PROJECT).",
                     "default": "HARDWARE_PROJECT",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "export_assembly_drawing_svg",
+        "description": (
+            "Generate a scaled PCBA assembly drawing SVG per ASME Y14.5 and IPC-2221B Section 11: body outlines with "
+            "refDes labels, polarity marks (pin-1 dots, cathode bars, plus frames), mirrored bottom view, and an "
+            "ASME Y14.100 title block with revision and check signature."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output, with positions).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "mirrored_bottom": {
+                    "type": "boolean",
+                    "description": "Render bottom view mirrored in X (default: true).",
+                    "default": True,
+                },
+                "title": {
+                    "type": "string",
+                    "description": "Drawing title (default: PCBA ASSEMBLY DRAWING).",
+                    "default": "PCBA ASSEMBLY DRAWING",
+                },
+                "revision": {
+                    "type": "string",
+                    "description": "Drawing revision letter (default: A).",
+                    "default": "A",
                 },
             },
         },
