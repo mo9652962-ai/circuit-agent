@@ -1054,6 +1054,55 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(res_fab.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_smt_placement_clearance":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            min_tall = float(arguments.get("min_tall_component_height_mm", 4.0))
+            min_env = float(arguments.get("min_clearance_envelope_mm", 2.0))
+            from .smt_placement_clearance import calculate_smt_placement_clearance
+
+            rep_smt = calculate_smt_placement_clearance(
+                modules=modules,
+                board_width_mm=bw,
+                board_height_mm=bh,
+                min_tall_component_height_mm=min_tall,
+                min_clearance_envelope_mm=min_env,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_smt.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_creepage_isolation_slot":
+            v = float(arguments.get("voltage_v", 220.0))
+            c1 = arguments.get("cond1_coords")
+            c2 = arguments.get("cond2_coords")
+            if not isinstance(c1, (list, tuple)) or not isinstance(c2, (list, tuple)):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'cond1_coords' and 'cond2_coords' must be arrays"}],
+                }
+            r_c = float(arguments.get("conductor_radius_mm", 1.0))
+            w_slot = float(arguments.get("slot_width_mm", 1.2))
+            ext_slot = float(arguments.get("slot_extension_mm", 2.0))
+            is_reinf = bool(arguments.get("is_reinforced_insulation", False))
+            from .creepage_slot import calculate_creepage_isolation_slot
+
+            res_slot = calculate_creepage_isolation_slot(
+                voltage_v=v,
+                cond1_coords=(float(c1[0]), float(c1[1])),
+                cond2_coords=(float(c2[0]), float(c2[1])),
+                conductor_radius_mm=r_c,
+                slot_width_mm=w_slot,
+                slot_extension_mm=ext_slot,
+                is_reinforced_insulation=is_reinf,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(res_slot.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

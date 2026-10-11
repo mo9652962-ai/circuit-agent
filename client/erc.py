@@ -46,6 +46,8 @@
 - THT_WAVE_SOLDERING_UNSUITABLE (warning)：通孔器件标记为不宜波峰焊（热敏感/大体积），需转选择焊或手工焊工序（IPC-A-610G Section 7）。
 - MOUNTING_HOLE_KEEPOUT_MISSING (warning)：机械安装孔未定义隔离环/电气禁布区，紧固件与孔壁铜箔短路（IPC-2221B Section 8.2）。
 - PANEL_PROCESS_FEATURES_MISSING (warning)：拼版板未定义工艺边/光学定位点/定位孔，SMT 传送与视觉对位无法执行（IPC-SMEMA-9851 / IPC-2221B Section 8.4）。
+- TALL_COMPONENT_SMT_COLLISION_RISK (warning)：高低元件高差 ≥3.0mm 且水平间距 <2.0mm，贴片机吸嘴下压存在机械碰撞撞件风险（IPC-SM-782 / OpenPnP）。
+- CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT (warning)：高压网络导体间距不足安规爬电要求且未开空气隔离铣槽（IPC-2221B Table 6-1 / IEC 62368-1）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -735,6 +737,50 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     object_id=f"net:{net_name}",
                 )
             )
+
+    # 34. TALL_COMPONENT_SMT_COLLISION_RISK (warning)：SMT 吸嘴高低元件碰撞干涉风险
+    if modules and len(modules) >= 2:
+        from .smt_placement_clearance import calculate_smt_placement_clearance
+
+        rep_clr = calculate_smt_placement_clearance(modules)
+        for cp in rep_clr.collision_pairs:
+            if cp.is_collision_risk:
+                issues.append(
+                    _issue(
+                        "TALL_COMPONENT_SMT_COLLISION_RISK",
+                        "高低元件间距不足贴片吸嘴碰撞风险",
+                        f"矮件 {cp.low_ref} (高 {cp.low_height_mm}mm) 与高件 {cp.high_ref} (高 {cp.high_height_mm}mm) "
+                        f"高差达 {cp.height_delta_mm}mm 但间距仅 {cp.center_dist_mm}mm < 2.0mm；"
+                        "贴片机吸嘴下压时易发生机械干涉击碎元件，需按由矮到高分层贴装并拉大间距（IPC-SM-782 / OpenPnP）。",
+                        "warning",
+                        "IPC-SM-782 Component Height Envelope & SMT Nozzle Z-Clearance Guidelines",
+                        object_id=f"pair:{cp.low_ref}/{cp.high_ref}",
+                    )
+                )
+
+    # 35. CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT (warning)：高压爬电间隙不足且未开防爬电铣槽
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        v = float(props.get("voltage_v", 0.0) or 0.0)
+        direct_dist = props.get("clearance_mm")
+        has_slot = bool(props.get("has_isolation_slot", False))
+        if v >= 100.0 and direct_dist is not None:
+            from .creepage_slot import get_required_creepage
+
+            req_c = get_required_creepage(v)
+            if float(direct_dist) < req_c and not has_slot:
+                issues.append(
+                    _issue(
+                        "CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT",
+                        "高压爬电距离不足且未开防爬电隔离槽",
+                        f"高压网络 {net_name} ({v:g}V) 间距 {float(direct_dist):.2f}mm < 要求的 {req_c:.2f}mm，"
+                        "且未规划贯通空气隔离铣槽；潮湿粉尘环境下表面漏电起痕将引发介质击穿（IPC-2221B Table 6-1 / IEC 62368-1）。",
+                        "warning",
+                        "IPC-2221B Table 6-1 & IEC 62368-1 High Voltage Creepage Requirements",
+                        object_id=f"net:{net_name}",
+                    )
+                )
 
     return issues
 

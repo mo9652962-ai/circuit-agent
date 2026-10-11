@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **46 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **48 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -253,6 +253,8 @@ python -m client.mcp_server
 44. `generate_assembly_process_plan`: Mixed-assembly process route planner — classifies each component into SMD reflow / THT wave / THT manual / mechanical stages per IPC-A-610G Section 7 and outputs the 10-stage EMS routing (SPI -> reflow -> AOI -> THT insert -> wave/selective -> manual -> ICT -> FCT -> coating -> packing).
 45. `optimize_panel_grid`: Panel grid utilization optimizer — enumerates grid_x x grid_y combinations with rail layouts and de-paneling methods (V-cut / mouse-bites), filters layouts exceeding the fab panel limit (default 300x300mm), and ranks feasible options by material utilization percentage.
 46. `calculate_fab_cost`: PCB fabrication cost estimator — tiered pricing model (2/4/6 layers x 5/10/30/100 quantity tiers, area surcharge beyond 100x100mm, solder mask color, surface finish HASL/ENIG/OSP, thickness, lead-time factor) returning total and per-unit estimates.
+47. `calculate_smt_placement_clearance`: SMT nozzle Z-clearance & height envelope analyzer — evaluates keepout envelopes (min 2.0mm horizontal gap) between tall components (H >= 4.0mm) and low components (0402/0603) and generates layered placement priority sequences per IPC-SM-782 and OpenPnP.
+48. `calculate_creepage_isolation_slot`: High-voltage creepage isolation slot calculator — assesses conductor spacing against IPC-2221B Table 6-1 and IEC 62368-1, planning milled air isolation slots (width, length, endpoints, and expanded path) when surface distance is insufficient.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

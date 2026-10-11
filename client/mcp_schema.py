@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (46 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (48 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1646,6 +1646,104 @@ AVAILABLE_TOOLS = [
                     "type": "string",
                     "description": "Lead time: normal (x1.0), fast_48h (x1.5), urgent_24h (x2.5).",
                     "default": "normal",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_smt_placement_clearance",
+        "description": (
+            "Analyze SMT pick-and-place nozzle collision clearance between tall (H >= 4.0mm) and low components, "
+            "evaluate nozzle keepout envelopes (min 2.0mm horizontal gap), and generate layered placement priority "
+            "sequences (lowest to tallest) per IPC-SM-782 and OpenPnP guidelines."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output, with positions).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "Board width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "Board height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "min_tall_component_height_mm": {
+                    "type": "number",
+                    "description": "Threshold height for tall components in mm (default: 4.0).",
+                    "default": 4.0,
+                },
+                "min_clearance_envelope_mm": {
+                    "type": "number",
+                    "description": "Minimum required horizontal clearance between tall and low components (default: 2.0).",
+                    "default": 2.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_creepage_isolation_slot",
+        "description": (
+            "Evaluate high-voltage electrical creepage compliance per IPC-2221B Table 6-1 and IEC 62368-1, "
+            "and plan an air isolation milled slot (slot width, length, endpoints, and expanded effective creepage path) "
+            "between high-voltage and low-voltage conductors when surface distance is insufficient."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["voltage_v", "cond1_coords", "cond2_coords"],
+            "properties": {
+                "voltage_v": {
+                    "type": "number",
+                    "description": "Operating voltage difference between conductors (e.g. 220.0).",
+                },
+                "cond1_coords": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "description": "Coordinates [x, y] of first conductor.",
+                },
+                "cond2_coords": {
+                    "type": "array",
+                    "items": {"type": "number"},
+                    "description": "Coordinates [x, y] of second conductor.",
+                },
+                "conductor_radius_mm": {
+                    "type": "number",
+                    "description": "Conductor/pad radius in mm (default: 1.0).",
+                    "default": 1.0,
+                },
+                "slot_width_mm": {
+                    "type": "number",
+                    "description": "Width of milled isolation slot in mm (default: 1.2).",
+                    "default": 1.2,
+                },
+                "slot_extension_mm": {
+                    "type": "number",
+                    "description": "Slot extension past conductor edges in mm (default: 2.0).",
+                    "default": 2.0,
+                },
+                "is_reinforced_insulation": {
+                    "type": "boolean",
+                    "description": "Whether reinforced insulation (2x clearance) is required per IEC 62368-1 (default: false).",
+                    "default": False,
                 },
             },
         },
