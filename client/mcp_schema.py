@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (44 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (45 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1544,6 +1544,49 @@ AVAILABLE_TOOLS = [
                 "modules": {
                     "type": "object",
                     "description": "Component modules dict (from synthesize_circuit output).",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "optimize_panel_grid",
+        "description": (
+            "Enumerate panel grid combinations (grid_x x grid_y, rail sides, V-cut vs mouse-bites), filter options "
+            "exceeding the max panel size (default 300x300mm fab limit), and rank feasible layouts by material "
+            "utilization percentage."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["board_width_mm", "board_height_mm"],
+            "properties": {
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "Single board width in mm.",
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "Single board height in mm.",
+                },
+                "max_grid": {
+                    "type": "integer",
+                    "description": "Maximum grid count per axis (default: 4).",
+                    "default": 4,
+                },
+                "max_panel_mm": {
+                    "type": "number",
+                    "description": "Maximum panel dimension in mm (default: 300.0).",
+                    "default": 300.0,
+                },
+                "rail_width_mm": {
+                    "type": "number",
+                    "description": "Conveyor rail width in mm (default: 5.0).",
+                    "default": 5.0,
                 },
             },
         },

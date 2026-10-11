@@ -95,7 +95,8 @@ def test_mcp_tools_list():
     assert "export_assembly_drawing_svg" in tool_names
     assert "diff_netlists" in tool_names
     assert "generate_assembly_process_plan" in tool_names
-    assert len(tools) == 44
+    assert "optimize_panel_grid" in tool_names
+    assert len(tools) == 45
 
 
 def test_mcp_tool_call_synthesize():
