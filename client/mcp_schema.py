@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (40 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (41 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1384,6 +1384,55 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Target solder standoff height in mm (default: 0.10).",
                     "default": 0.10,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "export_ipc2581",
+        "description": (
+            "Export a simplified IPC-2581B single-file intelligent fabrication data package (XML) — stackup, BOM, "
+            "placed components, nets with pin membership, and board profile — replacing the legacy "
+            "Gerber+Excellon+TXT handoff bundle accepted by Siemens X / Altium / Zuken / EMS houses."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "connections": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Netlist connections list.",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "stackup_layers": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Optional stackup layers ({name, class: 'CONDUCTOR'|'DIELECTRIC', thickness_um, material}).",
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "Project/organization name embedded in the XML (default: HARDWARE_PROJECT).",
+                    "default": "HARDWARE_PROJECT",
                 },
             },
         },

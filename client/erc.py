@@ -39,6 +39,8 @@
 - FIDUCIAL_LAYOUT_AMBIGUOUS (warning)：全局光学定位点少于 3 处或布局对称，贴片机视觉对位存在 180° 歧义风险（IPC-2221B / J-STD-020）。
 - VIA_IN_PAD_SOLDER_WICKING_RISK (warning)：BGA 焊盘内过孔未做 Type VII 填孔+电镀盖帽 (VIPPO)，回流焊锡膏毛细渗流导致焊料饥饿（IPC-4761）。
 - POLARIZED_MARKING_MISSING (warning)：极性器件 (LED/二极管/电解电容) 未标记丝印极性标识，人工检验与返修时易反向贴装（IPC-A-610G）。
+- BGA_ESCAPE_ROUTING_UNPLANNED (warning)：BGA 封装器件未提供逃逸扇出规划，量产布线将无通道可用（IPC-7095 Section 5.2）。
+- NPTH_PLATING_CONFLICT (warning)：非金属化孔 (NPTH) 标记为电镀，钻孔文件与成品孔径歧义将导致定位孔超差（IPC-2221B / IPC-NC-349）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -578,6 +580,45 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "warning",
                     "IPC-A-610G Section 5.2 Component Orientation & Polarity Marking",
                     object_id=f"comp:{ref}",
+                )
+            )
+
+    # 27. BGA_ESCAPE_ROUTING_UNPLANNED (warning)：BGA 器件逃逸扇出未规划 (IPC-7095)
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        is_bga = "BGA" in pkg
+        escape_planned = bool(m.get("escape_planned", True))
+        if is_bga and not escape_planned:
+            issues.append(
+                _issue(
+                    "BGA_ESCAPE_ROUTING_UNPLANNED",
+                    "BGA 器件逃逸扇出布线未规划",
+                    f"器件 {ref} 封装 {pkg} 未提供逃逸扇出规划 (dogbone/通道布线/层数需求)；"
+                    "量产布线阶段将无通道可用，焊球环层深挖需要额外内层，成本与交期不可控（IPC-7095 Section 5.2）。",
+                    "warning",
+                    "IPC-7095 Section 5.2 BGA Escape Routing & Fanout Planning",
+                    object_id=f"comp:{ref}",
+                )
+            )
+
+    # 28. NPTH_PLATING_CONFLICT (warning)：非金属化孔与电镀属性冲突 (IPC-2221B / IPC-NC-349)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        hole_type = str(props.get("hole_type", "")).lower()
+        plated = bool(props.get("plated", False))
+        if hole_type == "npth" and plated:
+            issues.append(
+                _issue(
+                    "NPTH_PLATING_CONFLICT",
+                    "非金属化孔标记为电镀钻孔歧义",
+                    f"网络 {net_name} 孔属性 hole_type=npth 但 plated=true；"
+                    "钻孔文件与成品孔径存在歧义，定位孔/安装孔电镀后将超差无法装配（IPC-2221B & IPC-NC-349 钻孔规范）。",
+                    "warning",
+                    "IPC-2221B & IPC-NC-349 Non-Plated Hole Fabrication Requirements",
+                    object_id=f"net:{net_name}",
                 )
             )
 

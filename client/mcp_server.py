@@ -929,6 +929,27 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_pv.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "export_ipc2581":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict) or not modules:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be a non-empty object"}]}
+            conns = arguments.get("connections", [])
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            stack = arguments.get("stackup_layers")
+            proj = str(arguments.get("project_name", "HARDWARE_PROJECT"))
+            from .ipc2581_exporter import export_ipc2581
+
+            xml_txt = export_ipc2581(
+                modules=modules,
+                connections=conns if isinstance(conns, list) else [],
+                board_width_mm=bw,
+                board_height_mm=bh,
+                stackup_layers=stack if isinstance(stack, list) else None,
+                project_name=proj,
+            )
+            return {"content": [{"type": "text", "text": xml_txt}]}
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
