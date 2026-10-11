@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **45 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **46 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -253,6 +253,7 @@ python -m client.mcp_server
 43. `diff_netlists`: 网表 ECO 比对引擎——对改版前后两版网表输出元件增删、值/封装变更、网络增删、引脚归属迁移与变更等级 (NONE/MINOR/MAJOR)，支撑 PLM 工程变更 (ECO) 流程向制造/采购/测试部门准确传递改版差异。
 44. `generate_assembly_process_plan`: 混装装配工艺路线规划器——依据 IPC-A-610G Section 7 将每个器件分配至 SMD 回流 / THT 波峰 / THT 手工 / 机械装配工序，输出 EMS 十段标准工艺路线 (SPI → 回流 → AOI → 插件 → 波峰/选择焊 → 手工补焊 → ICT → FCT → 三防 → 包装)。
 45. `optimize_panel_grid`: 拼版网格利用率优化器——枚举 grid_x × grid_y、工艺边布局与分板方式 (V-cut/邮票孔) 组合，过滤超出板厂上限 (默认 300×300mm) 的方案，按基材利用率降序输出 Top-10 可行拼版方案。
+46. `calculate_fab_cost`: PCB 制造费用估算器——按板厂公开阶梯计价 (2/4/6 层 × 5/10/30/100 件数量档、超 100×100mm 面积加收、阻焊颜色/表面工艺 HASL·ENIG·OSP/板厚/交期加急系数) 输出总价与单价估算。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

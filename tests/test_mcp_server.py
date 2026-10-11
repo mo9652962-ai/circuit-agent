@@ -96,7 +96,8 @@ def test_mcp_tools_list():
     assert "diff_netlists" in tool_names
     assert "generate_assembly_process_plan" in tool_names
     assert "optimize_panel_grid" in tool_names
-    assert len(tools) == 45
+    assert "calculate_fab_cost" in tool_names
+    assert len(tools) == 46
 
 
 def test_mcp_tool_call_synthesize():

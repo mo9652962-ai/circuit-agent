@@ -45,6 +45,7 @@
 - MOUNTING_HOLES_MISSING (warning)：多器件板卡无任何机械安装孔，整机装配无固定锚点将依赖连接器悬臂受力（IPC-2221B Section 8.2）。
 - THT_WAVE_SOLDERING_UNSUITABLE (warning)：通孔器件标记为不宜波峰焊（热敏感/大体积），需转选择焊或手工焊工序（IPC-A-610G Section 7）。
 - MOUNTING_HOLE_KEEPOUT_MISSING (warning)：机械安装孔未定义隔离环/电气禁布区，紧固件与孔壁铜箔短路（IPC-2221B Section 8.2）。
+- PANEL_PROCESS_FEATURES_MISSING (warning)：拼版板未定义工艺边/光学定位点/定位孔，SMT 传送与视觉对位无法执行（IPC-SMEMA-9851 / IPC-2221B Section 8.4）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -704,6 +705,34 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "warning",
                     "IPC-2221B Section 8.2 Mounting Hole Keepout & Chassis Ground Ring",
                     object_id=f"comp:{ref}",
+                )
+            )
+
+    # 33. PANEL_PROCESS_FEATURES_MISSING (warning)：拼版工艺特征缺失 (IPC-SMEMA-9851 / IPC-2221B 8.4)
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        if not props.get("panelized", False):
+            continue
+        missing = [
+            name
+            for name, flag in (
+                ("工艺边 Process Rails", props.get("has_process_rails", False)),
+                ("光学定位点 Fiducials", props.get("has_fiducials", False)),
+                ("定位孔 Tooling Holes", props.get("has_tooling_holes", False)),
+            )
+            if not flag
+        ]
+        if missing:
+            issues.append(
+                _issue(
+                    "PANEL_PROCESS_FEATURES_MISSING",
+                    "拼版板工艺特征缺失",
+                    f"网络 {net_name} 标记为拼版 (panelized) 但缺少: {', '.join(missing)}；"
+                    "SMT 传送夹持与贴片机视觉对位将无法执行（IPC-SMEMA-9851 导轨接口 & IPC-2221B Section 8.4）。",
+                    "warning",
+                    "IPC-SMEMA-9851 Conveyor Interface & IPC-2221B Section 8.4 Panelization",
+                    object_id=f"net:{net_name}",
                 )
             )
 

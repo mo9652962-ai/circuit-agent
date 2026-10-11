@@ -1029,6 +1029,31 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_opt.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_fab_cost":
+            layers = int(arguments.get("layers", 4))
+            qty = int(arguments.get("quantity", 5))
+            bw = float(arguments.get("board_width_mm", 100.0))
+            bh = float(arguments.get("board_height_mm", 100.0))
+            color = str(arguments.get("solder_mask_color", "green"))
+            finish = str(arguments.get("surface_finish", "hasl_lead_free"))
+            thick = str(arguments.get("thickness_mm", "1.6"))
+            lead = str(arguments.get("lead_time", "normal"))
+            from .fab_cost import calculate_fab_cost
+
+            res_fab = calculate_fab_cost(
+                layers=layers,
+                quantity=qty,
+                board_width_mm=bw,
+                board_height_mm=bh,
+                solder_mask_color=color,
+                surface_finish=finish,
+                thickness_mm=thick,
+                lead_time=lead,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(res_fab.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
