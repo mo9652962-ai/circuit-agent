@@ -992,6 +992,17 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_diff.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "generate_assembly_process_plan":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict) or not modules:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be a non-empty object"}]}
+            from .process_planner import generate_assembly_process_plan
+
+            rep_plan = generate_assembly_process_plan(modules=modules)
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_plan.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

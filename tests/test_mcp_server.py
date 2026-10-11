@@ -94,7 +94,8 @@ def test_mcp_tools_list():
     assert "export_ipc2581" in tool_names
     assert "export_assembly_drawing_svg" in tool_names
     assert "diff_netlists" in tool_names
-    assert len(tools) == 43
+    assert "generate_assembly_process_plan" in tool_names
+    assert len(tools) == 44
 
 
 def test_mcp_tool_call_synthesize():

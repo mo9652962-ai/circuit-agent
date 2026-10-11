@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **43 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **44 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -250,6 +250,7 @@ python -m client.mcp_server
 41. `export_ipc2581`: Export a simplified IPC-2581B single-file intelligent fabrication data package (XML) — stackup, BOM, placed components, net pin membership, and board profile — replacing the legacy Gerber+Excellon+TXT handoff bundle accepted by Siemens X / Altium / Zuken and major EMS houses.
 42. `export_assembly_drawing_svg`: Scaled PCBA assembly drawing SVG per ASME Y14.5 and IPC-2221B Section 11 — body outlines with refDes labels, polarity marks (pin-1 dots, cathode bars, plus frames), mirrored bottom view, and ASME Y14.100 title block (revision / scale / check signature).
 43. `diff_netlists`: Engineering Change Order (ECO) netlist diff engine — reports added/removed components, value/package changes, added/removed nets, pin membership moves, and ECO severity (NONE/MINOR/MAJOR) between two netlist revisions, supporting PLM change management hand-off to manufacturing, procurement, and test.
+44. `generate_assembly_process_plan`: Mixed-assembly process route planner — classifies each component into SMD reflow / THT wave / THT manual / mechanical stages per IPC-A-610G Section 7 and outputs the 10-stage EMS routing (SPI -> reflow -> AOI -> THT insert -> wave/selective -> manual -> ICT -> FCT -> coating -> packing).
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
