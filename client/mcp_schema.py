@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (48 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (50 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1744,6 +1744,104 @@ AVAILABLE_TOOLS = [
                     "type": "boolean",
                     "description": "Whether reinforced insulation (2x clearance) is required per IEC 62368-1 (default: false).",
                     "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "analyze_impedance_tolerance",
+        "description": (
+            "Analyze PCB characteristic impedance manufacturing tolerance window and sensitivities per IPC-2141A "
+            "and Polar SI9000 models: evaluates dielectric height (+-10%), trace width (+-10%), copper thickness (+-15%), "
+            "and Er (+-5%) cumulative variations, calculating Zmin, Zmax, dZ/dW, dZ/dH, and yield within +-10% target."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target_z0_ohms": {
+                    "type": "number",
+                    "description": "Target characteristic impedance (default: 50.0).",
+                    "default": 50.0,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Nominal trace width in mm (default: 0.38).",
+                    "default": 0.38,
+                },
+                "dielectric_height_mm": {
+                    "type": "number",
+                    "description": "Nominal dielectric height in mm (default: 0.20).",
+                    "default": 0.20,
+                },
+                "copper_thickness_mm": {
+                    "type": "number",
+                    "description": "Nominal copper thickness in mm (default: 0.035 for 1oz).",
+                    "default": 0.035,
+                },
+                "dielectric_er": {
+                    "type": "number",
+                    "description": "Substrate dielectric constant (default: 4.2 for FR-4).",
+                    "default": 4.2,
+                },
+                "width_tolerance_pct": {
+                    "type": "number",
+                    "description": "Trace width tolerance percentage (default: 10.0).",
+                    "default": 10.0,
+                },
+                "height_tolerance_pct": {
+                    "type": "number",
+                    "description": "Dielectric height tolerance percentage (default: 10.0).",
+                    "default": 10.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "evaluate_material_cti_creepage",
+        "description": (
+            "Evaluate substrate Comparative Tracking Index (CTI) Material Group (Group I >= 600V to Group IIIb) "
+            "and required safety creepage under Pollution Degrees 1/2/3 and Basic/Reinforced insulation per "
+            "IEC 62368-1 Table 25 and IPC-2221B, calculating safety margins and recommending high-CTI laminates."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "working_voltage_v": {
+                    "type": "number",
+                    "description": "Operating rms/DC voltage (default: 220.0).",
+                    "default": 220.0,
+                },
+                "actual_clearance_mm": {
+                    "type": "number",
+                    "description": "Actual physical conductor spacing in mm (default: 2.0).",
+                    "default": 2.0,
+                },
+                "substrate_cti_v": {
+                    "type": "number",
+                    "description": "Substrate CTI rating in Volts (default: 175.0 for standard FR-4; 600.0 for Group I).",
+                    "default": 175.0,
+                },
+                "pollution_degree": {
+                    "type": "integer",
+                    "description": "Pollution degree 1, 2, or 3 (default: 2).",
+                    "default": 2,
+                },
+                "insulation_type": {
+                    "type": "string",
+                    "description": "Insulation classification: 'Basic' (default) or 'Reinforced'.",
+                    "default": "Basic",
                 },
             },
         },
