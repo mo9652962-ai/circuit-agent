@@ -1003,6 +1003,32 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_plan.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "optimize_panel_grid":
+            bw = arguments.get("board_width_mm")
+            bh = arguments.get("board_height_mm")
+            if bw is None or bh is None:
+                return {
+                    "isError": True,
+                    "content": [
+                        {"type": "text", "text": "Parameters 'board_width_mm' and 'board_height_mm' are required"}
+                    ],
+                }
+            max_grid = int(arguments.get("max_grid", 4))
+            max_panel = float(arguments.get("max_panel_mm", 300.0))
+            rail = float(arguments.get("rail_width_mm", 5.0))
+            from .panel_optimizer import optimize_panel_grid
+
+            rep_opt = optimize_panel_grid(
+                board_width_mm=float(bw),
+                board_height_mm=float(bh),
+                max_grid=max_grid,
+                max_panel_mm=max_panel,
+                rail_width_mm=rail,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_opt.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

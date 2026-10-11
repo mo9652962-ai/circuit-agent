@@ -44,6 +44,7 @@
 - FINE_PITCH_MASK_DAM_UNDEFINED (warning)：≤0.5mm 细间距封装未定义阻焊坝 (Mask Dam)，相邻焊盘间阻焊桥无法制作将连锡短路（IPC-2221B / IPC-SM-782）。
 - MOUNTING_HOLES_MISSING (warning)：多器件板卡无任何机械安装孔，整机装配无固定锚点将依赖连接器悬臂受力（IPC-2221B Section 8.2）。
 - THT_WAVE_SOLDERING_UNSUITABLE (warning)：通孔器件标记为不宜波峰焊（热敏感/大体积），需转选择焊或手工焊工序（IPC-A-610G Section 7）。
+- MOUNTING_HOLE_KEEPOUT_MISSING (warning)：机械安装孔未定义隔离环/电气禁布区，紧固件与孔壁铜箔短路（IPC-2221B Section 8.2）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -682,6 +683,26 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     "应转选择性焊接或手工补焊工序，并在工艺路线中单独排程（IPC-A-610G Section 7 焊接工艺选择）。",
                     "warning",
                     "IPC-A-610G Section 7 Soldering Process Selection for THT Components",
+                    object_id=f"comp:{ref}",
+                )
+            )
+
+    # 32. MOUNTING_HOLE_KEEPOUT_MISSING (warning)：机械安装孔隔离环缺失 (IPC-2221B Section 8.2)
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        kind = str(m.get("kind", "")).upper()
+        is_mount = kind in ("MOUNT_HOLE", "HOLE", "STANDOFF") or "MOUNT" in str(m.get("value", "")).upper()
+        has_keepout = bool(m.get("has_keepout_ring", True))
+        if is_mount and not has_keepout:
+            issues.append(
+                _issue(
+                    "MOUNTING_HOLE_KEEPOUT_MISSING",
+                    "机械安装孔隔离环未定义",
+                    f"机械安装孔 {ref} 未定义电气隔离环/禁布区 (Keepout Ring)；"
+                    "紧固件压入后与孔周铜箔/走线短路，或屏蔽地环与机壳地设计意图不明（IPC-2221B Section 8.2）。",
+                    "warning",
+                    "IPC-2221B Section 8.2 Mounting Hole Keepout & Chassis Ground Ring",
                     object_id=f"comp:{ref}",
                 )
             )
