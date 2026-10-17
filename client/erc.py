@@ -50,6 +50,8 @@
 - CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT (warning)：高压网络导体间距不足安规爬电要求且未开空气隔离铣槽（IPC-2221B Table 6-1 / IEC 62368-1）。
 - IMPEDANCE_TOLERANCE_WINDOW_EXCEEDED (warning)：特征阻抗在板厂压合/蚀刻公差叠加下极差超出 ±10% 目标容限窗口（IPC-2141A）。
 - POLLUTION_DEGREE_CREEPAGE_DEFICIT (warning)：在工业污染等级 2/3 环境下基板材料 CTI 偏低导致爬电安全裕度不足（IEC 62368-1 / GB 4943.1）。
+- BOTTOM_SMD_WAVE_ORIENTATION_MISALIGNED (warning)：底面 SMD 阻容平行于波峰流向或 SOIC 垂直于流向，极易发生立碑与桥连（IPC-7351B / SMTA）。
+- PRESS_FIT_PTH_TOLERANCE_VIOLATION (warning)：无焊压接鱼眼针过孔成品孔径偏离 0.94~1.09mm 或孔铜 < 25μm，机械开裂或微动磨损断路（IPC-9797 / IEC 60352-5）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -846,6 +848,59 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         object_id=f"net:{net_name}",
                     )
                 )
+
+    # 38. BOTTOM_SMD_WAVE_ORIENTATION_MISALIGNED (warning)：底面 SMD 阻容/SOIC 焊接朝向角失配
+    if modules:
+        flow_dir = str(modules.get("__meta__", {}).get("wave_flow_direction", "X+"))
+        bottom_smds = {
+            r: m for r, m in modules.items() if r != "__meta__" and bool(m.get("bottom_side", False))
+        }
+        if bottom_smds:
+            from .wave_solder_orientation import calculate_wave_solder_orientation_audit
+
+            rep_ori = calculate_wave_solder_orientation_audit(bottom_smds, flow_direction=flow_dir)
+            for iss in rep_ori.issues:
+                issues.append(
+                    _issue(
+                        "BOTTOM_SMD_WAVE_ORIENTATION_MISALIGNED",
+                        "底面贴片器件波峰焊几何朝向角失配",
+                        iss.detail,
+                        "warning",
+                        "IPC-7351B Section 3.1.4 & SMTA Wave Soldering Guidelines",
+                        object_id=f"comp:{iss.ref}",
+                    )
+                )
+
+    # 39. PRESS_FIT_PTH_TOLERANCE_VIOLATION (warning)：鱼眼压接针孔径公差或孔壁铜厚违规
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        if bool(props.get("is_press_fit", False)):
+            from .press_fit_analyzer import calculate_press_fit_hole_compliance
+
+            pin_item = [{
+                "pin_id": net_name,
+                "connector_ref": str(props.get("connector_ref", "CONN")),
+                "drill_dia_mm": float(props.get("drill_dia_mm", 1.15)),
+                "copper_thickness_um": float(props.get("copper_thickness_um", 25.0)),
+                "finished_dia_mm": float(props["finished_dia_mm"]) if "finished_dia_mm" in props else None,
+            }]
+            # filter out None
+            pin_item = [{k: v for k, v in pin_item[0].items() if v is not None}]
+            rep_pf = calculate_press_fit_hole_compliance(pin_item)
+            for chk in rep_pf.checks:
+                if not chk.is_compliant:
+                    issues.append(
+                        _issue(
+                            "PRESS_FIT_PTH_TOLERANCE_VIOLATION",
+                            "无焊压接孔径公差或孔壁铜厚违规",
+                            f"压接引脚 {chk.pin_id} ({chk.connector_ref}) 违规: {chk.violation_reason}；"
+                            "超出 IPC-9797 汽车级公差要求，存在压溃 PCB 内部走线层或振动接触不良风险。",
+                            "warning",
+                            "IPC-9797 Table 4-1 & IEC 60352-5 Press-Fit Specification",
+                            object_id=f"net:{net_name}",
+                        )
+                    )
 
     return issues
 

@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (50 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (52 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1842,6 +1842,70 @@ AVAILABLE_TOOLS = [
                     "type": "string",
                     "description": "Insulation classification: 'Basic' (default) or 'Reinforced'.",
                     "default": "Basic",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_wave_solder_orientation_audit",
+        "description": (
+            "Audit bottom-side SMD component wave soldering orientation angles and hydrodynamic shadowing per IPC-7351B "
+            "and SMTA guidelines: chip passives (0603/0805) perpendicular to flow to prevent tombstoning, SOIC ICs parallel "
+            "to flow to prevent solder bridging, and 3xH shadow keepout zones behind tall components."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (with rotation_deg, position, and package).",
+                },
+                "flow_direction": {
+                    "type": "string",
+                    "description": "Conveyor wave flow direction: 'X+' (default), 'X-', 'Y+', or 'Y-'.",
+                    "default": "X+",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_press_fit_hole_compliance",
+        "description": (
+            "Evaluate automotive and industrial solderless press-fit compliant pin (eye-of-the-needle) finished hole diameter "
+            "tolerances (standard 0.94mm ~ 1.09mm) and copper barrel plating thickness (>= 25μm) per IPC-9797 and IEC 60352-5, "
+            "estimating insertion and retention forces to prevent inner-layer tear or vibration disconnects."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["pins"],
+            "properties": {
+                "pins": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of press-fit pin dicts ({pin_id, connector_ref, drill_dia_mm, copper_thickness_um, finished_dia_mm}).",
+                },
+                "nominal_finished_dia_mm": {
+                    "type": "number",
+                    "description": "Nominal compliant pin hole diameter in mm (default: 1.00).",
+                    "default": 1.00,
+                },
+                "min_copper_plating_um": {
+                    "type": "number",
+                    "description": "Minimum barrel copper plating thickness in μm (default: 25.0).",
+                    "default": 25.0,
                 },
             },
         },

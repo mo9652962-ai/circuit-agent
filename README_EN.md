@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **50 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **52 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -257,6 +257,8 @@ python -m client.mcp_server
 48. `calculate_creepage_isolation_slot`: High-voltage creepage isolation slot calculator — assesses conductor spacing against IPC-2221B Table 6-1 and IEC 62368-1, planning milled air isolation slots (width, length, endpoints, and expanded path) when surface distance is insufficient.
 49. `analyze_impedance_tolerance`: Characteristic impedance manufacturing tolerance & sensitivity analyzer — models Polar SI9000 parameter variations (H +-10%, W +-10%, T +-15%, Er +-5%) to calculate Zmin/Zmax, sensitivities (dZ/dW, dZ/dH), and yield within +-10% target per IPC-2141A.
 50. `evaluate_material_cti_creepage`: Substrate Comparative Tracking Index (CTI) & creepage evaluator — classifies Material Groups (Group I >=600V to Group IIIb) per IEC 62368-1 Table 25 and IPC-2221B, calculating safety margins under Pollution Degrees 1/2/3 and recommending high-CTI laminates.
+51. `calculate_wave_solder_orientation_audit`: Wave soldering component orientation & shadow auditor — audits chip passives (0603/0805) perpendicular to wave flow (prevents tombstoning), SOIC ICs parallel to flow (prevents pin bridging), and 3xH shadow keepout envelopes per IPC-7351B Section 3.1.4 and SMTA guidelines.
+52. `calculate_press_fit_hole_compliance`: Press-fit compliant pin PTH tolerance analyzer — evaluates finished hole diameter (standard 0.94mm~1.09mm) and copper barrel plating (>=25μm) per IPC-9797 and IEC 60352-5, estimating insertion and retention forces to prevent barrel tear or vibration disconnects.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

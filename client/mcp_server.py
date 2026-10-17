@@ -1145,6 +1145,35 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_cti.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_wave_solder_orientation_audit":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            flow_dir = str(arguments.get("flow_direction", "X+"))
+            from .wave_solder_orientation import calculate_wave_solder_orientation_audit
+
+            rep_ori = calculate_wave_solder_orientation_audit(modules, flow_direction=flow_dir)
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_ori.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_press_fit_hole_compliance":
+            pins = arguments.get("pins", [])
+            if not isinstance(pins, list) or not pins:
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'pins' must be a non-empty list"}]}
+            nom_d = float(arguments.get("nominal_finished_dia_mm", 1.00))
+            t_cu = float(arguments.get("min_copper_plating_um", 25.0))
+            from .press_fit_analyzer import calculate_press_fit_hole_compliance
+
+            rep_pf = calculate_press_fit_hole_compliance(
+                pins=pins,
+                nominal_finished_dia_mm=nom_d,
+                min_copper_plating_um=t_cu,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_pf.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
