@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **50 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **52 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -258,6 +258,8 @@ python -m client.mcp_server
 48. `calculate_creepage_isolation_slot`: 高压安规防爬电隔离铣槽计算器——依据 IPC-2221B Table 6-1 与 IEC 62368-1 评估高低压导体表面间距，当爬电距离不足时自动规划贯通空气隔离铣槽 (端点/槽宽/绕行等效爬电扩展)。
 49. `analyze_impedance_tolerance`: 多层板特征阻抗制造公差与灵敏度分析器——对标 Polar SI9000 模型评估介质厚度 (±10%)、线宽 (±10%)、铜厚 (±15%)、Er (±5%) 公差叠加下的 Zmin/Zmax 与偏导灵敏度，核准 ±10% 目标容限合格率。
 50. `evaluate_material_cti_creepage`: 基材相对漏电起痕指数 CTI 与安规爬电评定器——依据 IEC 62368-1 Table 25 与 IPC-2221B 划分材料组别 (Group I ≥600V 至 Group IIIb)，在污染等级 1/2/3 下核算爬电安全裕量并给出高 CTI 基材升级建议。
+51. `calculate_wave_solder_orientation_audit`: SMT 底面元件波峰焊排布朝向角与阴影效应审计器——依据 IPC-7351B Section 3.1.4 与 SMTA 规范审计片式无源件垂直于波峰流向 (防立碑虚焊)、SOIC 芯片平行于流向 (防密集引脚连锡桥连)、以及高器件下风向 3xH 阴影禁布区。
+52. `calculate_press_fit_hole_compliance`: 汽车与工业无焊压接鱼眼端子过孔合规分析器——依据 IPC-9797 与 IEC 60352-5 标准核准无焊压接引脚成品孔径 (标准 0.94mm~1.09mm) 与孔壁铜厚 (≥25μm)，估算压入力与保持力防孔壁分层与振动脱落。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：
