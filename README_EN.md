@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **52 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **54 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -259,6 +259,8 @@ python -m client.mcp_server
 50. `evaluate_material_cti_creepage`: Substrate Comparative Tracking Index (CTI) & creepage evaluator — classifies Material Groups (Group I >=600V to Group IIIb) per IEC 62368-1 Table 25 and IPC-2221B, calculating safety margins under Pollution Degrees 1/2/3 and recommending high-CTI laminates.
 51. `calculate_wave_solder_orientation_audit`: Wave soldering component orientation & shadow auditor — audits chip passives (0603/0805) perpendicular to wave flow (prevents tombstoning), SOIC ICs parallel to flow (prevents pin bridging), and 3xH shadow keepout envelopes per IPC-7351B Section 3.1.4 and SMTA guidelines.
 52. `calculate_press_fit_hole_compliance`: Press-fit compliant pin PTH tolerance analyzer — evaluates finished hole diameter (standard 0.94mm~1.09mm) and copper barrel plating (>=25μm) per IPC-9797 and IEC 60352-5, estimating insertion and retention forces to prevent barrel tear or vibration disconnects.
+53. `audit_fab_capabilities`: PCB fab house capability profile auditor — checks layout design parameters against real-world fab house constraints (JLCPCB standard/advanced, PCBWay, OSH Park) including min trace/space, min via drill, annular rings, aspect ratio, and slot widths to prevent engineering query (EQ) holds.
+54. `validate_manufacturing_package`: Headless manufacturing package validator — validates 5-layer Gerbers, Excellon drill files, BOM, and CPL for completeness, non-emptiness, and refDes consistency, computing a SHA-256 tamper-proof ledger for automated CI/CD release pipelines.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

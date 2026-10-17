@@ -52,6 +52,8 @@
 - POLLUTION_DEGREE_CREEPAGE_DEFICIT (warning)：在工业污染等级 2/3 环境下基板材料 CTI 偏低导致爬电安全裕度不足（IEC 62368-1 / GB 4943.1）。
 - BOTTOM_SMD_WAVE_ORIENTATION_MISALIGNED (warning)：底面 SMD 阻容平行于波峰流向或 SOIC 垂直于流向，极易发生立碑与桥连（IPC-7351B / SMTA）。
 - PRESS_FIT_PTH_TOLERANCE_VIOLATION (warning)：无焊压接鱼眼针过孔成品孔径偏离 0.94~1.09mm 或孔铜 < 25μm，机械开裂或微动磨损断路（IPC-9797 / IEC 60352-5）。
+- FAB_CAPABILITY_LIMIT_EXCEEDED (warning)：走线线宽、线距或过孔钻孔低于板厂基础制程能力下限，工程 CAM 预审驳回（IPC-6012）。
+- SILKSCREEN_OVER_EXPOSED_COPPER (warning)：丝印层文字/图形覆盖到裸露焊盘铜皮上，阻焊与润湿不良引发焊接虚焊缺陷（IPC-A-600J / IPC-7351B）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -901,6 +903,55 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                             object_id=f"net:{net_name}",
                         )
                     )
+
+    # 40. FAB_CAPABILITY_LIMIT_EXCEEDED (warning)：线宽/线距/过孔超出板厂能力极限
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        w = props.get("trace_width_mm")
+        s = props.get("trace_clearance_mm")
+        v_d = props.get("via_drill_mm")
+        fab_id = str(props.get("target_fab_id", "")).lower()
+        if (w is not None and float(w) < 0.09) or (s is not None and float(s) < 0.09) or (v_d is not None and float(v_d) < 0.20):
+            from .fab_capabilities import audit_fab_capabilities
+
+            rep_fab = audit_fab_capabilities(
+                fab_id=fab_id or "jlcpcb_standard",
+                min_trace_width_mm=float(w) if w is not None else 0.127,
+                min_trace_clearance_mm=float(s) if s is not None else 0.127,
+                min_via_drill_mm=float(v_d) if v_d is not None else 0.20,
+            )
+            if not rep_fab.is_compliant:
+                v_desc = "; ".join(v.description for v in rep_fab.violations)
+                issues.append(
+                    _issue(
+                        "FAB_CAPABILITY_LIMIT_EXCEEDED",
+                        "物理几何特征超出板厂制造能力极限",
+                        f"网络 {net_name} 存在超出 {rep_fab.fab_name} 制程能力指标: {v_desc}；"
+                        "板厂工程预审 (CAM EQ) 将驳回订单或产生昂贵的高阶工艺附加费（IPC-6012）。",
+                        "warning",
+                        "IPC-6012 Class 2 / Fab House Process Limits",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 41. SILKSCREEN_OVER_EXPOSED_COPPER (warning)：丝印字符压在裸露焊接焊盘上
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        has_silk_clash = bool(m.get("silkscreen_over_pad", False))
+        if has_silk_clash:
+            issues.append(
+                _issue(
+                    "SILKSCREEN_OVER_EXPOSED_COPPER",
+                    "丝印文字遮挡裸露焊盘铜皮",
+                    f"器件 {ref} 丝印层文字/图形与裸露焊盘发生交叉重叠；"
+                    "丝印油墨耐温沾染焊盘将导致焊锡无法润湿，产生虚焊与立碑缺陷（IPC-A-600J / IPC-7351B）。",
+                    "warning",
+                    "IPC-A-600J & IPC-7351B Silkscreen-to-Pad Clearance Rules",
+                    object_id=f"comp:{ref}",
+                )
+            )
 
     return issues
 
