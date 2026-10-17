@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **52 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **54 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -260,6 +260,8 @@ python -m client.mcp_server
 50. `evaluate_material_cti_creepage`: 基材相对漏电起痕指数 CTI 与安规爬电评定器——依据 IEC 62368-1 Table 25 与 IPC-2221B 划分材料组别 (Group I ≥600V 至 Group IIIb)，在污染等级 1/2/3 下核算爬电安全裕量并给出高 CTI 基材升级建议。
 51. `calculate_wave_solder_orientation_audit`: SMT 底面元件波峰焊排布朝向角与阴影效应审计器——依据 IPC-7351B Section 3.1.4 与 SMTA 规范审计片式无源件垂直于波峰流向 (防立碑虚焊)、SOIC 芯片平行于流向 (防密集引脚连锡桥连)、以及高器件下风向 3xH 阴影禁布区。
 52. `calculate_press_fit_hole_compliance`: 汽车与工业无焊压接鱼眼端子过孔合规分析器——依据 IPC-9797 与 IEC 60352-5 标准核准无焊压接引脚成品孔径 (标准 0.94mm~1.09mm) 与孔壁铜厚 (≥25μm)，估算压入力与保持力防孔壁分层与振动脱落。
+53. `audit_fab_capabilities`: PCB 制造厂工艺极限能力核查器——对接 JLCPCB (标准/高精阶梯)、PCBWay、OSH Park 实际产线工艺能力库，严格核查最小线宽/线距、最小过孔钻孔/焊盘环宽、板厚纵横比 (Aspect Ratio) 与最小铣槽槽宽，防止工程确认 (EQ) 拒单与返修。
+54. `validate_manufacturing_package`: 无头自动化制造交付包完整性与防篡改核验器——自动化核查 5 层基础 Gerber、Excellon 数控钻孔、BOM 物料清单与 CPL 贴片坐标文件的完整性与非空状态，校验位号一致性并自动生成全包 SHA-256 防篡改验签总账，支撑 CI/CD 无人值守发布流水线。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

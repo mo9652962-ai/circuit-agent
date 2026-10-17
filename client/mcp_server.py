@@ -1174,6 +1174,46 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_pf.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "audit_fab_capabilities":
+            f_id = str(arguments.get("fab_id", "jlcpcb_standard"))
+            tw = float(arguments.get("min_trace_width_mm", 0.127))
+            tc = float(arguments.get("min_trace_clearance_mm", 0.127))
+            vd = float(arguments.get("min_via_drill_mm", 0.200))
+            vp = float(arguments.get("min_via_pad_mm", 0.450))
+            bt = float(arguments.get("board_thickness_mm", 1.600))
+            ms = float(arguments.get("min_slot_width_mm", 0.800))
+            from .fab_capabilities import audit_fab_capabilities
+
+            rep_fab = audit_fab_capabilities(
+                fab_id=f_id,
+                min_trace_width_mm=tw,
+                min_trace_clearance_mm=tc,
+                min_via_drill_mm=vd,
+                min_via_pad_mm=vp,
+                board_thickness_mm=bt,
+                min_slot_width_mm=ms,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_fab.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "validate_manufacturing_package":
+            artifacts = arguments.get("artifacts_dict", {})
+            if not isinstance(artifacts, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'artifacts_dict' must be an object"}]}
+            modules = arguments.get("modules")
+            j_name = str(arguments.get("job_name", "PCB_PROJECT"))
+            from .mfg_validator import validate_manufacturing_package
+
+            rep_mfg = validate_manufacturing_package(
+                artifacts_dict=artifacts,
+                modules=modules if isinstance(modules, dict) else None,
+                job_name=j_name,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_mfg.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

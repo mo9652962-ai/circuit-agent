@@ -42,6 +42,7 @@ from .export_engine import (
     export_kicad_netlist,
     render_ascii_topology,
 )
+from .fab_capabilities import audit_fab_capabilities
 from .industrial_dfx import (
     IPC2221_CLEARANCES,
     DFXViolation,
@@ -53,6 +54,7 @@ from .industrial_dfx import (
     solve_trace_width_ipc2152,
 )
 from .lcsc_client import search_lcsc_parts
+from .mfg_validator import validate_manufacturing_package
 from .parametric_equations import (
     DividerResult,
     I2CPullUpResult,
@@ -67,7 +69,7 @@ from .parametric_equations import (
 )
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.3.8"
+__version__ = "0.3.9"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -83,6 +85,7 @@ __all__ = [
     "TraceCurrentResult",
     "__version__",
     "apply_chip_pinout",
+    "audit_fab_capabilities",
     "audit_industrial_dfx",
     "block_battery_tp4056",
     "block_button",
@@ -126,5 +129,6 @@ __all__ = [
     "solve_resistor_divider",
     "solve_trace_width_ipc2152",
     "synthesize_from_prompt",
+    "validate_manufacturing_package",
     "validate_pin_allocation",
 ]

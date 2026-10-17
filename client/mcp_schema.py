@@ -2,7 +2,7 @@
 
 This module is pure data — no logic, no imports beyond the standard library.
 Keeping it separate from :mod:`client.mcp_server` means the published MCP
-contract (52 tools / 8 resources / 4 prompts) can be reviewed, diffed and
+contract (54 tools / 8 resources / 4 prompts) can be reviewed, diffed and
 validated on its own, without reading a 1,100-line server implementation.
 
 If you change anything here, update ``README.md`` and ``README_EN.md`` in the
@@ -1906,6 +1906,93 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "Minimum barrel copper plating thickness in μm (default: 25.0).",
                     "default": 25.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "audit_fab_capabilities",
+        "description": (
+            "Audit PCB layout physical design rules against real-world fab house capabilities (JLCPCB standard/advanced, "
+            "PCBWay, OSH Park): verifies min trace width, min clearance, min via drill, annular ring, aspect ratio, "
+            "and slot width against published fab process limits to prevent CAM engineering query (EQ) rejections."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "fab_id": {
+                    "type": "string",
+                    "description": "Fab house identifier: 'jlcpcb_standard' (default), 'jlcpcb_advanced', 'pcbway_standard', 'oshpark_standard'.",
+                    "default": "jlcpcb_standard",
+                },
+                "min_trace_width_mm": {
+                    "type": "number",
+                    "description": "Smallest conductor trace width in mm (default: 0.127).",
+                    "default": 0.127,
+                },
+                "min_trace_clearance_mm": {
+                    "type": "number",
+                    "description": "Smallest conductor-to-conductor gap in mm (default: 0.127).",
+                    "default": 0.127,
+                },
+                "min_via_drill_mm": {
+                    "type": "number",
+                    "description": "Smallest via drill diameter in mm (default: 0.200).",
+                    "default": 0.200,
+                },
+                "min_via_pad_mm": {
+                    "type": "number",
+                    "description": "Smallest via outer pad diameter in mm (default: 0.450).",
+                    "default": 0.450,
+                },
+                "board_thickness_mm": {
+                    "type": "number",
+                    "description": "Nominal PCB thickness in mm (default: 1.600).",
+                    "default": 1.600,
+                },
+                "min_slot_width_mm": {
+                    "type": "number",
+                    "description": "Smallest mechanical milled slot width in mm (default: 0.800).",
+                    "default": 0.800,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "validate_manufacturing_package",
+        "description": (
+            "Headless manufacturing package validator for automated CI/CD and developer hand-off: checks completeness "
+            "and non-emptiness of 5-layer Gerbers, Excellon drill, BOM, and CPL, verifies component refDes consistency, "
+            "and calculates SHA-256 cryptographic tamper-proof ledger."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["artifacts_dict"],
+            "properties": {
+                "artifacts_dict": {
+                    "type": "object",
+                    "description": "Dict mapping filename (e.g. 'board-Edge_Cuts.gm1', 'bom.csv') to content string or bytes.",
+                },
+                "modules": {
+                    "type": "object",
+                    "description": "Optional component modules dict from synthesis for BOM cross-verification.",
+                },
+                "job_name": {
+                    "type": "string",
+                    "description": "Project job name for manifest header (default: PCB_PROJECT).",
+                    "default": "PCB_PROJECT",
                 },
             },
         },

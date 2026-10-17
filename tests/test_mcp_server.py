@@ -103,7 +103,9 @@ def test_mcp_tools_list():
     assert "evaluate_material_cti_creepage" in tool_names
     assert "calculate_wave_solder_orientation_audit" in tool_names
     assert "calculate_press_fit_hole_compliance" in tool_names
-    assert len(tools) == 52
+    assert "audit_fab_capabilities" in tool_names
+    assert "validate_manufacturing_package" in tool_names
+    assert len(tools) == 54
 
 
 def test_mcp_tool_call_synthesize():
