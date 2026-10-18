@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **54 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **56 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -262,6 +262,8 @@ python -m client.mcp_server
 52. `calculate_press_fit_hole_compliance`: 汽车与工业无焊压接鱼眼端子过孔合规分析器——依据 IPC-9797 与 IEC 60352-5 标准核准无焊压接引脚成品孔径 (标准 0.94mm~1.09mm) 与孔壁铜厚 (≥25μm)，估算压入力与保持力防孔壁分层与振动脱落。
 53. `audit_fab_capabilities`: PCB 制造厂工艺极限能力核查器——对接 JLCPCB (标准/高精阶梯)、PCBWay、OSH Park 实际产线工艺能力库，严格核查最小线宽/线距、最小过孔钻孔/焊盘环宽、板厚纵横比 (Aspect Ratio) 与最小铣槽槽宽，防止工程确认 (EQ) 拒单与返修。
 54. `validate_manufacturing_package`: 无头自动化制造交付包完整性与防篡改核验器——自动化核查 5 层基础 Gerber、Excellon 数控钻孔、BOM 物料清单与 CPL 贴片坐标文件的完整性与非空状态，校验位号一致性并自动生成全包 SHA-256 防篡改验签总账，支撑 CI/CD 无人值守发布流水线。
+55. `audit_ipc6012_class_compliance`: 刚性印制板 IPC-6012E 与 IPC-A-600J Class 1/2/3 验收准则审计器——逐项核查外层与内层焊盘环宽、Class 3 严苛零破出 (0° breakout) 硬门禁、通孔孔壁平均电镀铜厚 (Class 3 ≥25μm) 与最薄点铜厚、蚀刻线宽蚀损率以及阻焊桥绿油桥宽，生成军工/医疗/汽车电子可靠性合规报告。
+56. `optimize_smt_feeder_setup`: 工业 SMT 贴片机飞达供料器料车排产优化器——基于松下 NPM / 富士 NXT / 西门子 ASM 标准 80 槽料车，应用成组技术 (GT) 规划常驻通用料块 (100nF、10k 免换线固定料槽)、按贴装频次将高密度物料聚合于悬臂中心以最小化龙门行进时间，并预测各料卷接料耗尽瓶颈 (IPC-9851)。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

@@ -953,6 +953,46 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 )
             )
 
+    # 42. CLASS3_ANNULAR_RING_BREAKOUT_FORBIDDEN (error)：Class 3 高可靠严禁孔破且外环宽 >= 0.050mm
+    target_class = str(modules.get("__meta__", {}).get("ipc_class", "")).strip()
+    if "3" in target_class:
+        for conn in connections or []:
+            props = conn.get("properties") or {}
+            net_name = conn.get("net", "")
+            ext_ring = props.get("annular_ring_mm")
+            has_breakout = bool(props.get("hole_breakout", False))
+            if has_breakout or (ext_ring is not None and float(ext_ring) < 0.050):
+                issues.append(
+                    _issue(
+                        "CLASS3_ANNULAR_RING_BREAKOUT_FORBIDDEN",
+                        "IPC Class 3 高可靠严禁钻孔破出且外环宽不足",
+                        f"网络 {net_name} 环宽 {ext_ring}mm 或存在孔破破出；"
+                        "IPC-6012E Class 3 航天/军工/医疗级硬性规定焊盘外环宽必须 ≥ 0.050mm (2.0 mil) 且零破出 (0° breakout)（IPC-6012E §3.6.2.1）。",
+                        "error",
+                        "IPC-6012E Table 3-5 & IPC-A-600J §2.8.1.3 Class 3 Acceptability",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 43. SMT_FEEDER_CAPACITY_EXCEEDED (warning)：SMT 贴片机供料飞达料枪槽位超限
+    if modules:
+        from .smt_feeder_optimizer import optimize_smt_feeder_setup
+
+        cart_cap = int(modules.get("__meta__", {}).get("feeder_cart_capacity", 80))
+        feeder_plan = optimize_smt_feeder_setup(modules, feeder_cart_capacity=cart_cap)
+        if feeder_plan.slots_demanded > cart_cap:
+            issues.append(
+                _issue(
+                    "SMT_FEEDER_CAPACITY_EXCEEDED",
+                    "SMT 贴片机料车飞达料位超出单台容量",
+                    f"当前设计需求 {feeder_plan.slots_demanded} 个飞达料槽，超过单台标准料车上限 ({cart_cap} 槽)；"
+                    "需拆分双贴片机连线 (Ganging) 或分批次二次换型，将显著增加产线换线停机时间（IPC-9851）。",
+                    "warning",
+                    "IPC-9851 & Panasonic/Fuji SMT Feeder Trolley Capacity Standards",
+                    object_id="mfg:smt_feeder",
+                )
+            )
+
     return issues
 
 

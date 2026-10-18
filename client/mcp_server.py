@@ -1214,6 +1214,52 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_mfg.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "audit_ipc6012_class_compliance":
+            t_cls = str(arguments.get("target_class", "Class 2"))
+            ext_ring = float(arguments.get("external_annular_ring_mm", 0.125))
+            int_ring = float(arguments.get("internal_annular_ring_mm", 0.100))
+            brk = bool(arguments.get("has_hole_breakout", False))
+            brk_ang = float(arguments.get("breakout_angle_deg", 0.0))
+            avg_cu = float(arguments.get("avg_copper_barrel_um", 22.0))
+            min_cu = float(arguments.get("min_copper_barrel_um", 19.0))
+            red_pct = float(arguments.get("conductor_width_reduction_pct", 5.0))
+            min_dam = float(arguments.get("min_solder_mask_dam_mm", 0.090))
+            from .ipc6012_auditor import audit_ipc6012_class_compliance
+
+            rep_6012 = audit_ipc6012_class_compliance(
+                target_class=t_cls,
+                external_annular_ring_mm=ext_ring,
+                internal_annular_ring_mm=int_ring,
+                has_hole_breakout=brk,
+                breakout_angle_deg=brk_ang,
+                avg_copper_barrel_um=avg_cu,
+                min_copper_barrel_um=min_cu,
+                conductor_width_reduction_pct=red_pct,
+                min_solder_mask_dam_mm=min_dam,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_6012.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "optimize_smt_feeder_setup":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            cart_cap = int(arguments.get("feeder_cart_capacity", 80))
+            b_size = int(arguments.get("batch_size", 1000))
+            c_parts = arguments.get("common_parts_list")
+            from .smt_feeder_optimizer import optimize_smt_feeder_setup
+
+            plan_smt = optimize_smt_feeder_setup(
+                modules=modules,
+                feeder_cart_capacity=cart_cap,
+                batch_size=b_size,
+                common_parts_list=c_parts if isinstance(c_parts, list) else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(plan_smt.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
