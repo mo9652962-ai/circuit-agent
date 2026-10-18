@@ -105,7 +105,9 @@ def test_mcp_tools_list():
     assert "calculate_press_fit_hole_compliance" in tool_names
     assert "audit_fab_capabilities" in tool_names
     assert "validate_manufacturing_package" in tool_names
-    assert len(tools) == 54
+    assert "audit_ipc6012_class_compliance" in tool_names
+    assert "optimize_smt_feeder_setup" in tool_names
+    assert len(tools) == 56
 
 
 def test_mcp_tool_call_synthesize():

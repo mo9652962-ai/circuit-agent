@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **54 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **56 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -261,6 +261,8 @@ python -m client.mcp_server
 52. `calculate_press_fit_hole_compliance`: Press-fit compliant pin PTH tolerance analyzer — evaluates finished hole diameter (standard 0.94mm~1.09mm) and copper barrel plating (>=25μm) per IPC-9797 and IEC 60352-5, estimating insertion and retention forces to prevent barrel tear or vibration disconnects.
 53. `audit_fab_capabilities`: PCB fab house capability profile auditor — checks layout design parameters against real-world fab house constraints (JLCPCB standard/advanced, PCBWay, OSH Park) including min trace/space, min via drill, annular rings, aspect ratio, and slot widths to prevent engineering query (EQ) holds.
 54. `validate_manufacturing_package`: Headless manufacturing package validator — validates 5-layer Gerbers, Excellon drill files, BOM, and CPL for completeness, non-emptiness, and refDes consistency, computing a SHA-256 tamper-proof ledger for automated CI/CD release pipelines.
+55. `audit_ipc6012_class_compliance`: Rigid PCB qualification and Class 1/2/3 acceptance criteria auditor per IPC-6012E and IPC-A-600J — audits external/internal annular rings, zero-breakout constraints for Class 3, average PTH barrel copper plating (Class 3 >= 25μm), conductor width reduction limits, and solder mask dam widths.
+56. `optimize_smt_feeder_setup`: SMT pick-and-place feeder trolley allocation optimizer — applies Group Technology (GT) to pin common passive reels (100nF, 10k) on standard 80-slot feeder carts (Panasonic NPM / Fuji NXT / ASM SIPLACE), clusters high-density reels near the gantry centroid to minimize travel time, and forecasts reel run-out exhaustion points per batch size per IPC-9851.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

@@ -2003,6 +2003,109 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "audit_ipc6012_class_compliance",
+        "description": (
+            "Audit PCB physical and metallurgical design parameters against IPC-6012E and IPC-A-600J Class 1/2/3 acceptance criteria: "
+            "evaluates external/internal annular rings, zero-breakout constraints for Class 3, PTH copper barrel plating thickness "
+            "(avg >= 25μm for Class 3), etch conductor width reduction, and solder mask dam widths."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target_class": {
+                    "type": "string",
+                    "description": "Target IPC reliability class: 'Class 1', 'Class 2' (default), or 'Class 3'.",
+                    "default": "Class 2",
+                },
+                "external_annular_ring_mm": {
+                    "type": "number",
+                    "description": "Smallest external annular ring width in mm (default: 0.125).",
+                    "default": 0.125,
+                },
+                "internal_annular_ring_mm": {
+                    "type": "number",
+                    "description": "Smallest internal annular ring width in mm (default: 0.100).",
+                    "default": 0.100,
+                },
+                "has_hole_breakout": {
+                    "type": "boolean",
+                    "description": "Whether drill hole breakout from annular ring is observed (strictly 0° allowed in Class 3).",
+                    "default": False,
+                },
+                "breakout_angle_deg": {
+                    "type": "number",
+                    "description": "Observed breakout angle in degrees (default: 0.0).",
+                    "default": 0.0,
+                },
+                "avg_copper_barrel_um": {
+                    "type": "number",
+                    "description": "Average electroplated copper thickness in PTH barrels in μm (default: 22.0).",
+                    "default": 22.0,
+                },
+                "min_copper_barrel_um": {
+                    "type": "number",
+                    "description": "Minimum thin-point PTH copper plating thickness in μm (default: 19.0).",
+                    "default": 19.0,
+                },
+                "conductor_width_reduction_pct": {
+                    "type": "number",
+                    "description": "Conductor width reduction percentage from etch defects (default: 5.0).",
+                    "default": 5.0,
+                },
+                "min_solder_mask_dam_mm": {
+                    "type": "number",
+                    "description": "Smallest solder mask dam width between adjacent exposed pads in mm (default: 0.090).",
+                    "default": 0.090,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "optimize_smt_feeder_setup",
+        "description": (
+            "Optimize SMT pick-and-place feeder trolley allocation (Panasonic NPM / Fuji NXT / ASM SIPLACE standard 80-slot cart): "
+            "applies Group Technology (GT) to pin permanent common passive reels (100nF, 10k), places high-frequency reels near "
+            "the gantry center to minimize travel time, and forecasts reel run-out exhaustion points per batch size per IPC-9851."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (e.g. from synthesis or netlist).",
+                },
+                "feeder_cart_capacity": {
+                    "type": "integer",
+                    "description": "Total feeder slots on trolley cart (default: 80).",
+                    "default": 80,
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "description": "Production batch size in boards (default: 1000).",
+                    "default": 1000,
+                },
+                "common_parts_list": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of common component identifiers to pin into the permanent feeder block.",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

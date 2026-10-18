@@ -53,6 +53,7 @@ from .industrial_dfx import (
     get_ipc2221_clearance,
     solve_trace_width_ipc2152,
 )
+from .ipc6012_auditor import audit_ipc6012_class_compliance
 from .lcsc_client import search_lcsc_parts
 from .mfg_validator import validate_manufacturing_package
 from .parametric_equations import (
@@ -67,9 +68,10 @@ from .parametric_equations import (
     snap_to_e_series,
     solve_resistor_divider,
 )
+from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.3.9"
+__version__ = "0.4.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -87,6 +89,7 @@ __all__ = [
     "apply_chip_pinout",
     "audit_fab_capabilities",
     "audit_industrial_dfx",
+    "audit_ipc6012_class_compliance",
     "block_battery_tp4056",
     "block_button",
     "block_buzzer",
@@ -122,6 +125,7 @@ __all__ = [
     "get_chip_rule",
     "get_ipc2221_clearance",
     "list_supported_chips",
+    "optimize_smt_feeder_setup",
     "register_chip_rule",
     "render_ascii_topology",
     "search_lcsc_parts",
