@@ -36,6 +36,7 @@ from .circuit_blocks import (
     block_usb_c_power,
     block_watchdog_supervisor,
 )
+from .copper_pour_analyzer import calculate_copper_pour_current_drop
 from .export_engine import (
     export_jlcpcb_bom,
     export_jlcpcb_cpl,
@@ -56,6 +57,7 @@ from .industrial_dfx import (
 from .ipc6012_auditor import audit_ipc6012_class_compliance
 from .lcsc_client import search_lcsc_parts
 from .mfg_validator import validate_manufacturing_package
+from .msl_manager import audit_component_msl_floor_life
 from .parametric_equations import (
     DividerResult,
     I2CPullUpResult,
@@ -71,7 +73,7 @@ from .parametric_equations import (
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -87,6 +89,7 @@ __all__ = [
     "TraceCurrentResult",
     "__version__",
     "apply_chip_pinout",
+    "audit_component_msl_floor_life",
     "audit_fab_capabilities",
     "audit_industrial_dfx",
     "audit_ipc6012_class_compliance",
@@ -114,6 +117,7 @@ __all__ = [
     "block_testpoint_matrix",
     "block_usb_c_power",
     "block_watchdog_supervisor",
+    "calculate_copper_pour_current_drop",
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",

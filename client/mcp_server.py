@@ -1260,6 +1260,52 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(plan_smt.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_copper_pour_current_drop":
+            if "current_a" not in arguments:
+                return {"isError": True, "content": [{"type": "text", "text": "Missing required parameter 'current_a'"}]}
+            i_load = float(arguments["current_a"])
+            cu_wt = float(arguments.get("copper_weight_oz", 1.0))
+            l_eff = float(arguments.get("effective_length_mm", 50.0))
+            w_eff = float(arguments.get("effective_width_mm", 20.0))
+            w_bot = float(arguments["bottleneck_width_mm"]) if "bottleneck_width_mm" in arguments else None
+            t_amb = float(arguments.get("ambient_temp_c", 25.0))
+            dt_allow = float(arguments.get("max_allowed_temp_rise_c", 30.0))
+            j_ceil = float(arguments.get("max_allowed_current_density_a_per_mm2", 35.0))
+            from .copper_pour_analyzer import calculate_copper_pour_current_drop
+
+            rep_pour = calculate_copper_pour_current_drop(
+                current_a=i_load,
+                copper_weight_oz=cu_wt,
+                effective_length_mm=l_eff,
+                effective_width_mm=w_eff,
+                bottleneck_width_mm=w_bot,
+                ambient_temp_c=t_amb,
+                max_allowed_temp_rise_c=dt_allow,
+                max_allowed_current_density_a_per_mm2=j_ceil,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_pour.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "audit_component_msl_floor_life":
+            modules = arguments.get("modules", {})
+            if not isinstance(modules, dict):
+                return {"isError": True, "content": [{"type": "text", "text": "Parameter 'modules' must be an object"}]}
+            exp_def = float(arguments.get("exposed_hours_default", 48.0))
+            t_amb = float(arguments.get("ambient_temp_c", 25.0))
+            rh_amb = float(arguments.get("ambient_rh_pct", 55.0))
+            from .msl_manager import audit_component_msl_floor_life
+
+            rep_msl = audit_component_msl_floor_life(
+                modules=modules,
+                exposed_hours_default=exp_def,
+                ambient_temp_c=t_amb,
+                ambient_rh_pct=rh_amb,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_msl.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

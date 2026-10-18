@@ -993,6 +993,59 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 )
             )
 
+    # 44. COPPER_POUR_CURRENT_DENSITY_EXCEEDED (warning)：大面积多边形覆铜颈缩区电流密度过载
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        pour_current = props.get("pour_current_a")
+        if pour_current is not None and float(pour_current) > 0:
+            from .copper_pour_analyzer import calculate_copper_pour_current_drop
+
+            w_eff = float(props.get("pour_effective_width_mm", 20.0))
+            w_bot = float(props.get("pour_bottleneck_width_mm", w_eff))
+            cu_oz = float(props.get("copper_weight_oz", 1.0))
+            rep_pour = calculate_copper_pour_current_drop(
+                current_a=float(pour_current),
+                copper_weight_oz=cu_oz,
+                effective_width_mm=w_eff,
+                bottleneck_width_mm=w_bot,
+            )
+            if not rep_pour.is_density_compliant:
+                issues.append(
+                    _issue(
+                        "COPPER_POUR_CURRENT_DENSITY_EXCEEDED",
+                        "大功率铜皮局部瓶颈区电流密度超标",
+                        f"网络 {net_name} 覆铜在 {pour_current}A 负载下，颈缩区电流密度达 "
+                        f"{rep_pour.bottleneck_current_density_a_per_mm2:.1f} A/mm² > 35.0 A/mm²；"
+                        "高密度焦耳热无法有效散热，存在阻焊层碳化起泡或铜箔烧断高危（IPC-2152 §5.0）。",
+                        "warning",
+                        "IPC-2152 Section 5.0 & IEC 60092-352 Current Density Limits",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 45. MSL_FLOOR_LIFE_EXPIRED_WITHOUT_BAKE (warning)：潮敏器件车间开袋暴露时间超期未烘烤
+    if modules:
+        from .msl_manager import audit_component_msl_floor_life
+
+        default_exp = float(modules.get("__meta__", {}).get("shop_floor_exposed_hours", 0.0))
+        if default_exp > 0.0:
+            rep_msl = audit_component_msl_floor_life(modules, exposed_hours_default=default_exp)
+            for item in rep_msl.baking_action_items:
+                ref_d = item["ref_des"]
+                issues.append(
+                    _issue(
+                        "MSL_FLOOR_LIFE_EXPIRED_WITHOUT_BAKE",
+                        "潮湿敏感贴片芯片暴露车间寿命超期未烘烤",
+                        f"器件 {ref_d} ({item['package']}, {item['msl_level']}) 已开袋暴露 {item['exposed_hours']}h "
+                        f"> 允许寿命 {item['allowed_hours']}h；直接过 260°C 回流焊极易引发水汽爆米花分层裂纹，"
+                        f"推荐除湿烘烤方案: {item['baking_plan']}（JEDEC J-STD-033D）。",
+                        "warning",
+                        "JEDEC J-STD-033D Table 4-1 & IPC-M-109 Moisture Management",
+                        object_id=f"comp:{ref_d}",
+                    )
+                )
+
     return issues
 
 

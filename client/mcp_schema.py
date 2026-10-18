@@ -2106,6 +2106,103 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "calculate_copper_pour_current_drop",
+        "description": (
+            "Calculate DC IR-drop, Joule heating dissipation, and localized bottleneck current density in polygon copper pours "
+            "and power busbars per IPC-2152 Section 5.0 and IEC 60092-352, verifying current density <= 35.0 A/mm² to prevent "
+            "copper foil delamination or blistering under heavy loads."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["current_a"],
+            "properties": {
+                "current_a": {
+                    "type": "number",
+                    "description": "Continuous DC load current in Amperes.",
+                },
+                "copper_weight_oz": {
+                    "type": "number",
+                    "description": "Finished copper foil weight in oz (default: 1.0).",
+                    "default": 1.0,
+                },
+                "effective_length_mm": {
+                    "type": "number",
+                    "description": "Conduction path length from source to load in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "effective_width_mm": {
+                    "type": "number",
+                    "description": "Average conduction width of the copper pour in mm (default: 20.0).",
+                    "default": 20.0,
+                },
+                "bottleneck_width_mm": {
+                    "type": "number",
+                    "description": "Narrowest constriction neck width (e.g. around cutouts or anti-pads) in mm.",
+                },
+                "ambient_temp_c": {
+                    "type": "number",
+                    "description": "Ambient operating temperature in °C (default: 25.0).",
+                    "default": 25.0,
+                },
+                "max_allowed_temp_rise_c": {
+                    "type": "number",
+                    "description": "Allowable conductor temperature rise ΔT in °C (default: 30.0).",
+                    "default": 30.0,
+                },
+                "max_allowed_current_density_a_per_mm2": {
+                    "type": "number",
+                    "description": "Maximum safe current density ceiling in A/mm² (default: 35.0).",
+                    "default": 35.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "audit_component_msl_floor_life",
+        "description": (
+            "Audit SMD plastic packages (BGA, QFN, CSP, TQFP) for moisture sensitivity level (MSL 1 to 6) and open-bag shop floor "
+            "life per JEDEC J-STD-033D and IPC-M-109, flagging expired components and generating recommended dehumidification "
+            "baking schedules (e.g. 125°C for 24h or 40°C for 192h) to prevent 260°C reflow popcorning defects."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict with refDes, package, and optional msl_level or exposed_hours.",
+                },
+                "exposed_hours_default": {
+                    "type": "number",
+                    "description": "Default shop floor exposure hours since unsealing moisture barrier bag (default: 48.0).",
+                    "default": 48.0,
+                },
+                "ambient_temp_c": {
+                    "type": "number",
+                    "description": "Workshop ambient temperature in °C (default: 25.0).",
+                    "default": 25.0,
+                },
+                "ambient_rh_pct": {
+                    "type": "number",
+                    "description": "Workshop ambient relative humidity percentage (default: 55.0).",
+                    "default": 55.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
