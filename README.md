@@ -187,7 +187,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **56 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **58 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 运行方式
 ```bash
@@ -264,6 +264,8 @@ python -m client.mcp_server
 54. `validate_manufacturing_package`: 无头自动化制造交付包完整性与防篡改核验器——自动化核查 5 层基础 Gerber、Excellon 数控钻孔、BOM 物料清单与 CPL 贴片坐标文件的完整性与非空状态，校验位号一致性并自动生成全包 SHA-256 防篡改验签总账，支撑 CI/CD 无人值守发布流水线。
 55. `audit_ipc6012_class_compliance`: 刚性印制板 IPC-6012E 与 IPC-A-600J Class 1/2/3 验收准则审计器——逐项核查外层与内层焊盘环宽、Class 3 严苛零破出 (0° breakout) 硬门禁、通孔孔壁平均电镀铜厚 (Class 3 ≥25μm) 与最薄点铜厚、蚀刻线宽蚀损率以及阻焊桥绿油桥宽，生成军工/医疗/汽车电子可靠性合规报告。
 56. `optimize_smt_feeder_setup`: 工业 SMT 贴片机飞达供料器料车排产优化器——基于松下 NPM / 富士 NXT / 西门子 ASM 标准 80 槽料车，应用成组技术 (GT) 规划常驻通用料块 (100nF、10k 免换线固定料槽)、按贴装频次将高密度物料聚合于悬臂中心以最小化龙门行进时间，并预测各料卷接料耗尽瓶颈 (IPC-9851)。
+57. `calculate_copper_pour_current_drop`: 大面积多边形覆铜与电源铜排直流压降与电流密度分析器——依据 IPC-2152 Section 5.0 与 IEC 60092-352 计算复杂几何多边形覆铜的方块电阻、直流内阻、IR 压降与焦耳热耗，校核过孔阵列/开槽颈缩区的电流密度上限 (≤35.0 A/mm²)，防止高载流大功率电源板铜箔碳化起泡分层。
+58. `audit_component_msl_floor_life`: 贴片器件潮湿敏感度等级 (MSL) 开袋车间暴露寿命与除湿烘烤方案审计器——依据 JEDEC J-STD-033D 与 IPC-M-109 规范跟踪高密度塑封芯片 (BGA/QFN/CSP/TQFP) 在产线环境温湿度下的暴露时间，精准识别超期芯片并生成标准化烘烤工单 (125°C 高温或 40°C 低湿干燥)，从源头杜绝 260°C 回流焊“爆米花”开裂分层。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

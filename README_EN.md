@@ -186,7 +186,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **56 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **58 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Start stdio Server
 ```bash
@@ -263,6 +263,8 @@ python -m client.mcp_server
 54. `validate_manufacturing_package`: Headless manufacturing package validator — validates 5-layer Gerbers, Excellon drill files, BOM, and CPL for completeness, non-emptiness, and refDes consistency, computing a SHA-256 tamper-proof ledger for automated CI/CD release pipelines.
 55. `audit_ipc6012_class_compliance`: Rigid PCB qualification and Class 1/2/3 acceptance criteria auditor per IPC-6012E and IPC-A-600J — audits external/internal annular rings, zero-breakout constraints for Class 3, average PTH barrel copper plating (Class 3 >= 25μm), conductor width reduction limits, and solder mask dam widths.
 56. `optimize_smt_feeder_setup`: SMT pick-and-place feeder trolley allocation optimizer — applies Group Technology (GT) to pin common passive reels (100nF, 10k) on standard 80-slot feeder carts (Panasonic NPM / Fuji NXT / ASM SIPLACE), clusters high-density reels near the gantry centroid to minimize travel time, and forecasts reel run-out exhaustion points per batch size per IPC-9851.
+57. `calculate_copper_pour_current_drop`: Polygon copper pour and power busbar DC IR-drop & thermal density analyzer — models sheet resistance, total resistance, voltage drop, and Joule power dissipation per IPC-2152 Section 5.0 and IEC 60092-352, checking bottleneck constriction current density (<=35.0 A/mm²) to prevent trace blistering or delamination.
+58. `audit_component_msl_floor_life`: SMD moisture sensitivity level (MSL) shop floor life and baking auditor — tracks plastic package (BGA/QFN/CSP/TQFP) open-bag ambient exposure time against JEDEC J-STD-033D and IPC-M-109 limits, flagging expired devices and prescribing standardized dehumidification bake schedules (125°C or 40°C desiccant bake) to prevent 260°C reflow popcorning delamination.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
