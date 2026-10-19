@@ -9,16 +9,19 @@
 **Prompt → Schematic → Layout → 3D Enclosure → Fabrication Bundle**
 
 <p align="center">
+  <a href="https://mo9652962-ai.github.io/circuit-agent/"><img src="https://img.shields.io/badge/Demo-在线%20EDA%20工作台-success?style=flat-square&logo=googlechrome&logoColor=white" alt="Live Demo"></a>
   <a href="https://github.com/mo9652962-ai/circuit-agent/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mo9652962-ai/circuit-agent/ci.yml?style=flat-square&label=CI" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License: MIT"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+"></a>
-  <a href="tests/"><img src="https://img.shields.io/badge/Tests-240%20passing-success?style=flat-square" alt="Tests"></a>
-  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/Release-v0.1.6-blueviolet?style=flat-square" alt="Release"></a>
+  <a href="tests/"><img src="https://img.shields.io/badge/Tests-383%20passing-success?style=flat-square" alt="Tests"></a>
+  <a href="https://github.com/mo9652962-ai/circuit-agent/releases"><img src="https://img.shields.io/badge/Release-v0.4.1-blueviolet?style=flat-square" alt="Release"></a>
   <a href="https://github.com/modelcontextprotocol/registry"><img src="https://img.shields.io/badge/MCP_Registry-circuit--agent-black?style=flat-square" alt="MCP Registry"></a>
   <img src="https://img.shields.io/badge/KiCad-10.0%20Export-314CE0?style=flat-square&logo=kicad&logoColor=white" alt="KiCad 10">
 </p>
 
 <p align="center">
+  <a href="https://mo9652962-ai.github.io/circuit-agent/"><b>🌐 在线 EDA 工作台 / Live Demo</b></a>
+  ·
   <a href="README.md"><b>🇨🇳 中文说明</b></a>
   ·
   <a href="README_EN.md"><b>🇬🇧 English</b></a>
