@@ -43,7 +43,8 @@ def test_mcp_ping():
     req = {"jsonrpc": "2.0", "id": 42, "method": "ping"}
     resp = mcp.process_message(req)
     assert resp["id"] == 42
-    assert resp["result"] == {}
+    # 2026-07-28: every result carries `resultType`, including ping.
+    assert resp["result"]["resultType"] == "complete"
 
 
 def test_mcp_tools_list():
@@ -328,7 +329,9 @@ def test_mcp_resources_read_unknown():
     }
     resp = mcp.process_message(req)
     assert "error" in resp
-    assert resp["error"]["code"] == -32002
+    # 2026-07-28 moved resource-not-found to -32602 (Invalid Params); the old
+    # -32002 code is retired for this purpose by the error-allocation policy.
+    assert resp["error"]["code"] == -32602
 
 
 def test_mcp_prompts_list():

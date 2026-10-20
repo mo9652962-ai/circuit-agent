@@ -192,6 +192,24 @@ CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标�
 
 当前暴露 **58 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
+### 协议版本：MCP `2026-07-28`
+
+服务器实现 **2026-07-28 无状态协议核心**，同时向后兼容到 `2024-11-05` 的握手客户端：
+
+| 能力 | 实现 |
+|:---|:---|
+| `server/discover` | ✅ 强制方法，一次交互返回支持版本/能力/身份，也是 stdio 的向后兼容探针 |
+| 无握手请求 | ✅ 每个请求在 `params._meta` 自描述协议版本与客户端能力，无 `initialize` 也能工作 |
+| `resultType` | ✅ 所有结果携带 `"complete"`（或 `"input_required"`），旧客户端可安全忽略 |
+| 缓存提示 | ✅ `tools/list` / `resources/list` / `prompts/list` 返回 `ttlMs` + `cacheScope` |
+| 确定性顺序 | ✅ 工具目录顺序稳定，客户端与上游 prompt 缓存可命中 |
+| 错误码分配 | ✅ 使用规范保留区 `-32020`~`-32099`；资源未找到改为 `-32602` |
+| 旧版握手 | ✅ `initialize` 保留并协商版本，不断掉 2026 年前的客户端 |
+
+`server/discover` 的 `instructions` 字段直接写给 LLM 看：先 `synthesize_circuit` 出网表，再 `run_erc` 门禁，
+然后 `audit_industrial_dfx` 与 `validate_manufacturing_package`，最后才导出。`calculate_*` / `analyze_*`
+全是纯函数（无网络、无状态），可放心试探；只有 `search_lcsc_parts` 联网且免 Key。
+
 ### 运行方式
 ```bash
 python -m client.mcp_server

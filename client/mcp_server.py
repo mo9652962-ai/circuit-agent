@@ -1,31 +1,19 @@
 """Standard Model Context Protocol (MCP) Server for CircuitAgent (Community Edition).
 
-Fully compliant with the Anthropic Model Context Protocol (2024-11-05 / 2026-07-28 specifications).
-Provides the complete MCP Triad:
-    1. Tools (6 engineering tools):
-       - synthesize_circuit: Prompt to deterministic hardware netlist & modules
-       - search_lcsc_parts: Key-free live query of LCSC/JLCPCB parts, stock, pricing, and packaging
-       - list_circuit_blocks: Query all 12 pre-audited CircuitBlocks in the hardware DSL
-       - list_supported_chips: Query built-in & third-party MCU pinout allocation rules
-       - register_custom_chip: Dynamically register third-party chips & peripheral routes
-       - validate_netlist: JSON Schema verification against Draft-07 specification
-       - calculate_trace_impedance: Closed-form IPC-2141 microstrip & differential pair impedance solver
-       - calculate_bom_cost: PCBA cost estimator calculating bare parts + JLCPCB feeder surcharge
-    2. Resources (7 hardware engineering resources):
-       - circuit://specs/netlist-schema: Formal Draft-07 JSON Schema
-       - circuit://specs/cpl-standard: JLCPCB SMT CPL coordinate & rotation standard
-       - circuit://blocks/catalog: Full JSON catalogue of 10 standard CircuitBlocks
-       - circuit://rules/jlc-smt: JLCPCB SMT manufacturing rules and feeder fee structure
-       - circuit://examples/esp32c3-minimal: Minimal reference IoT node netlist
-       - circuit://examples/stm32f103-controller: Industrial controller reference netlist
-       - circuit://examples/rp2040-dualcore: Dual-core high-density reference netlist
-    3. Prompts (3 slash-command engineering workflows):
-       - design_hardware_project: End-to-end prompt for synthesizing and auditing hardware designs
-       - audit_schematic_netlist: Senior EE inspection prompt (PI/SI/DFM gates)
-       - optimize_bom_cost: Cost-reduction prompt converting Extended parts to Basic parts
+Speaks MCP ``2026-07-28`` (stateless core) and answers legacy handshake clients
+back to ``2024-11-05``. The protocol layer lives in :mod:`client.mcp_protocol`;
+this module only dispatches.
 
-Runs over stdio (JSON-RPC 2.0). Compatible with Claude Desktop, Cursor, and Windsurf.
-Implemented using only the Python standard library (zero external pip packages required).
+Surface:
+    1. Tools — 58 deterministic hardware-engineering tools (synthesis, ERC,
+       DFM/DFA/DFT audits, calculators, manufacturing exporters).
+    2. Resources — ``circuit://`` URIs exposing the netlist schema, CPL standard,
+       DFX rule book, block catalogue and reference netlists.
+    3. Prompts — slash-command engineering workflows.
+
+Runs over stdio (JSON-RPC 2.0). Compatible with Claude Desktop, Cursor, Windsurf
+and any MCP client on 2026-07-28 or older.
+Implemented using only the Python standard library (zero external pip packages).
 
 Usage:
     python -m client.mcp_server
@@ -79,6 +67,20 @@ from .industrial_dfx import (
     solve_trace_width_ipc2152,
 )
 from .lcsc_client import search_lcsc_parts
+from .mcp_protocol import (
+    CATALOG_TTL_MS,
+    DISCOVER_INSTRUCTIONS,
+    PROTOCOL_VERSION,
+    RESOURCE_TTL_MS,
+    SUPPORTED_VERSIONS,
+    complete,
+    discover_result,
+    is_supported,
+    requested_version,
+    server_info,
+    unsupported_version_error,
+    with_cache,
+)
 from .mcp_schema import AVAILABLE_PROMPTS, AVAILABLE_RESOURCES, AVAILABLE_TOOLS
 from .parametric_equations import (
     calculate_i2c_pullup,
@@ -90,10 +92,21 @@ from .synthesizer import synthesize_from_prompt
 
 logger = logging.getLogger("circuit_agent_mcp")
 
-PROTOCOL_VERSION = "2024-11-05"
+#: Re-exported for callers that used to read it off this module.
+__all_protocol__ = PROTOCOL_VERSION
+
+#: Single source of truth for the version stamp. ``client.__version__`` is the
+#: package version; the server advertises it so a client can tell two builds
+#: apart. Read lazily to avoid a circular import at module load.
+def _server_version() -> str:
+    from . import __version__
+
+    return __version__
+
+
 SERVER_INFO = {
     "name": "circuit-agent-mcp",
-    "version": "0.2.3",
+    "version": _server_version(),
 }
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -1499,19 +1512,45 @@ def handle_prompt_get(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
     method = msg.get("method")
     msg_id = msg.get("id")
+    params = msg.get("params") or {}
 
+    # --- 2026-07-28 stateless core ---------------------------------------- #
+    # `server/discover` is mandatory in this revision and is also the stdio
+    # backward-compatibility probe: a modern client calls it first and only
+    # falls back to `initialize` when the method is unknown.
+    if method == "server/discover":
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": discover_result(_server_version(), DISCOVER_INSTRUCTIONS),
+        }
+
+    # A request that declares its protocol version must declare a known one.
+    # Legacy callers (no `_meta`) skip this check entirely.
+    claimed = requested_version(params)
+    if not is_supported(claimed):
+        return {
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "error": unsupported_version_error(str(claimed)),
+        }
+
+    # Legacy handshake, retained only for clients on pre-2026 revisions.
     if method == "initialize":
+        client_version = params.get("protocolVersion")
+        # Echo the client's version when we know it, otherwise advertise ours.
+        negotiated = client_version if client_version in SUPPORTED_VERSIONS else PROTOCOL_VERSION
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
             "result": {
-                "protocolVersion": PROTOCOL_VERSION,
+                "protocolVersion": negotiated,
                 "capabilities": {
                     "tools": {"listChanged": False},
                     "resources": {"subscribe": False, "listChanged": False},
                     "prompts": {"listChanged": False},
                 },
-                "serverInfo": SERVER_INFO,
+                "serverInfo": server_info(_server_version()),
             },
         }
 
@@ -1522,7 +1561,7 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {},
+            "result": complete({}),
         }
 
     # --- Tools ---
@@ -1530,20 +1569,23 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {
-                "tools": AVAILABLE_TOOLS,
-            },
+            "result": complete(
+                with_cache(
+                    {"tools": AVAILABLE_TOOLS},
+                    ttl_ms=CATALOG_TTL_MS,
+                    scope="public",
+                )
+            ),
         }
 
     if method == "tools/call":
-        params = msg.get("params", {})
         tool_name = params.get("name", "")
         tool_args = params.get("arguments", {})
         res = handle_tool_call(tool_name, tool_args)
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": res,
+            "result": complete(res),
         }
 
     # --- Resources ---
@@ -1551,36 +1593,47 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {
-                "resources": AVAILABLE_RESOURCES,
-            },
+            "result": complete(
+                with_cache(
+                    {"resources": AVAILABLE_RESOURCES},
+                    ttl_ms=CATALOG_TTL_MS,
+                    scope="public",
+                )
+            ),
         }
 
     if method == "resources/templates/list":
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {
-                "resourceTemplates": [],
-            },
+            "result": complete(
+                with_cache(
+                    {"resourceTemplates": []},
+                    ttl_ms=CATALOG_TTL_MS,
+                    scope="public",
+                )
+            ),
         }
 
     if method == "resources/read":
-        params = msg.get("params", {})
         uri = params.get("uri", "")
         try:
             res = handle_resource_read(uri)
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
-                "result": res,
+                "result": complete(
+                    with_cache(res, ttl_ms=RESOURCE_TTL_MS, scope="private")
+                ),
             }
         except Exception as e:
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "error": {
-                    "code": -32002,
+                    # -32602 (Invalid Params) since 2026-07-28; the old -32002
+                    # resource-not-found code is retired for this purpose.
+                    "code": -32602,
                     "message": str(e),
                 },
             }
@@ -1590,13 +1643,16 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {
-                "prompts": AVAILABLE_PROMPTS,
-            },
+            "result": complete(
+                with_cache(
+                    {"prompts": AVAILABLE_PROMPTS},
+                    ttl_ms=CATALOG_TTL_MS,
+                    scope="public",
+                )
+            ),
         }
 
     if method == "prompts/get":
-        params = msg.get("params", {})
         prompt_name = params.get("name", "")
         prompt_args = params.get("arguments", {})
         try:
@@ -1604,7 +1660,7 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
             return {
                 "jsonrpc": "2.0",
                 "id": msg_id,
-                "result": res,
+                "result": complete(res),
             }
         except Exception as e:
             return {

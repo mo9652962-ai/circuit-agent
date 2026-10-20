@@ -191,6 +191,25 @@ CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written
 
 It currently exposes **58 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
+### Protocol revision: MCP `2026-07-28`
+
+The server implements the **2026-07-28 stateless core** and stays backward compatible with handshake clients down to `2024-11-05`:
+
+| Capability | Status |
+|:---|:---|
+| `server/discover` | ✅ Mandatory method — versions, capabilities and identity in one exchange; also the stdio backward-compatibility probe |
+| Handshake-free requests | ✅ Every request self-describes its protocol version and client capabilities in `params._meta`; works without `initialize` |
+| `resultType` | ✅ All results carry `"complete"` (or `"input_required"`); older clients safely ignore it |
+| Cache hints | ✅ `tools/list` / `resources/list` / `prompts/list` return `ttlMs` + `cacheScope` |
+| Deterministic ordering | ✅ Tool catalogue order is stable so client and upstream prompt caches hit |
+| Error-code allocation | ✅ Uses the spec-reserved `-32020`–`-32099` range; resource-not-found moved to `-32602` |
+| Legacy handshake | ✅ `initialize` retained with version negotiation, so pre-2026 clients keep working |
+
+The `instructions` field of `server/discover` is written for an LLM to read: call `synthesize_circuit` for a netlist,
+gate it with `run_erc`, then `audit_industrial_dfx` and `validate_manufacturing_package`, and only then export.
+Everything named `calculate_*` / `analyze_*` is a pure function (no network, no state) and safe to probe;
+`search_lcsc_parts` is the only networked tool, and it is key-free.
+
 ### Start stdio Server
 ```bash
 python -m client.mcp_server

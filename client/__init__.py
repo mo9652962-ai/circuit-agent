@@ -73,7 +73,7 @@ from .parametric_equations import (
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
