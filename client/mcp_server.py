@@ -276,6 +276,69 @@ def _calc_bom_breakdown(queries: list[str]) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 
+def _resolve_export_input(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Normalise what a caller passes to an export tool.
+
+    Export tools were strict: they read ``arguments["netlist"]`` and nothing
+    else. But ``synthesize_circuit`` returns ``{"modules": ..., "netlist": ...}``,
+    so the obvious call — feed the synthesizer's own output straight into an
+    export — silently produced an empty document. That is the worst failure mode
+    available: exit code 0, a valid-looking file, no components in it.
+
+    Three shapes are accepted, in order:
+
+    1. The full ``synthesize_circuit`` result (has ``modules``) — passed through.
+    2. A bare netlist under ``netlist`` — passed through.
+    3. The arguments themselves, if they already look like a netlist.
+
+    Returns ``None`` when nothing usable was supplied, so the caller can report
+    the error instead of exporting an empty file.
+    """
+    netlist = arguments.get("netlist")
+    if isinstance(netlist, dict) and netlist:
+        # Shape 1: synthesizer output nested under `netlist` still carries modules.
+        return netlist
+
+    modules = arguments.get("modules")
+    if isinstance(modules, dict) and modules:
+        # Shape 2: the whole synthesizer result, modules at the top level.
+        return arguments
+
+    if isinstance(netlist, dict):
+        # Shape 3: an explicitly empty netlist. Not usable, but the caller did
+        # pass the right key — let them know the components are the problem.
+        return None
+
+    # Shape 4: arguments are the netlist ({"connections": [...]}).
+    if arguments.get("connections"):
+        return arguments
+
+    return None
+
+
+def _export_input_error(tool_name: str) -> dict[str, Any]:
+    """Error result for an export call that carried no components."""
+    return {
+        "isError": True,
+        "content": [
+            {
+                "type": "text",
+                "text": (
+                    f"{tool_name} received no components. Pass the full `synthesize_circuit` "
+                    "output, or an object containing a non-empty `modules` map, or a netlist "
+                    "with `connections`."
+                ),
+            }
+        ],
+    }
+
+
+def _bom_row_count(bom_csv: str) -> int:
+    """Count component rows in a JLCPCB BOM, excluding the header and blanks."""
+    lines = [ln for ln in bom_csv.splitlines() if ln.strip()]
+    return max(0, len(lines) - 1)
+
+
 def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     try:
         if name == "synthesize_circuit":
@@ -421,24 +484,35 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             return {"content": [{"type": "text", "text": json.dumps(dfx_rep.to_dict(), ensure_ascii=False, indent=2)}]}
 
         if name == "export_kicad_netlist":
-            netlist = arguments.get("netlist", {})
+            netlist = _resolve_export_input(arguments)
             title = arguments.get("title", "CircuitAgent_Design")
-            if not isinstance(netlist, dict):
-                return {
-                    "isError": True,
-                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
-                }
+            if netlist is None:
+                return _export_input_error("export_kicad_netlist")
             kicad_str = export_kicad_netlist(netlist, title=title)
             return {"content": [{"type": "text", "text": kicad_str}]}
 
         if name == "export_manufacturing_bom":
-            netlist = arguments.get("netlist", {})
-            if not isinstance(netlist, dict):
+            netlist = _resolve_export_input(arguments)
+            if netlist is None:
+                return _export_input_error("export_manufacturing_bom")
+            bom_csv = export_jlcpcb_bom(netlist)
+            # An empty BOM is not a successful export: it means the components
+            # were never found, and a manufacturing file with no rows is a
+            # dangerous thing to hand someone.
+            if _bom_row_count(bom_csv) == 0:
                 return {
                     "isError": True,
-                    "content": [{"type": "text", "text": "Parameter 'netlist' must be a JSON object"}],
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "BOM export produced zero component rows. The input carried no "
+                                "components — pass the full `synthesize_circuit` output, or an object "
+                                "with a non-empty `modules` map."
+                            ),
+                        }
+                    ],
                 }
-            bom_csv = export_jlcpcb_bom(netlist)
             return {"content": [{"type": "text", "text": bom_csv}]}
 
         if name == "calculate_parametric_circuit":

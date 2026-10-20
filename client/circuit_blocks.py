@@ -98,7 +98,13 @@ def block_power_ldo_3v3(vin_net: str = "/VBUS", vout_net: str = "/+3.3V", gnd_ne
         description="AMS1117-3.3 LDO with 10uF input/output bulk capacitors",
         components=[
             CircuitComponent(
-                "U_LDO1", "IC", "AMS1117-3.3", "SOT-223", "C6186", {"1": gnd_net, "2": vout_net, "3": vin_net}
+                # Kind is LDO, not IC: the ERC's power-source rule looks for
+                # components whose *job* is to produce a rail. Tagging a regulator
+                # as a generic IC meant the rule could not see the source on a
+                # board that plainly had one, and every powered design was reported
+                # as unsourced. `LDO` is the name the published output schema
+                # already enumerates.
+                "U_LDO1", "LDO", "AMS1117-3.3", "SOT-223", "C6186", {"1": gnd_net, "2": vout_net, "3": vin_net}
             ),
             CircuitComponent("C_IN1", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vin_net, "2": gnd_net}),
             CircuitComponent("C_OUT1", "CAPACITOR", "10uF", "C0805", "C15849", {"1": vout_net, "2": gnd_net}),
@@ -399,7 +405,13 @@ def block_sensor_aht20(
             "AHT20",
             "DFN-6_L3.0-W3.0-P1.00-BL",
             "C2757850",
-            {"1": "/NC_AHT1", "2": vcc_net, "3": scl_net, "4": sda_net, "5": gnd_net, "6": "/NC_AHT2"},
+            # Pins 1 and 6 are factory-marked NC on the AHT20. Leaving them as
+            # dangling pins is correct; giving them net names was not. A net with
+            # one endpoint is indistinguishable from a broken connection, so the
+            # ERC reported both NC pins as FLOATING_NET on every design that used
+            # this sensor — two false positives on a part that was wired exactly
+            # right. Unconnected pins stay unconnected: they get no net at all.
+            {"2": vcc_net, "3": scl_net, "4": sda_net, "5": gnd_net},
         ),
         CircuitComponent("C_AHT1", "CAPACITOR", "100nF", "C0603", "C14663", {"1": vcc_net, "2": gnd_net}),
     ]
@@ -408,8 +420,6 @@ def block_sensor_aht20(
         gnd_net: [f"{ic_ref}.5", "C_AHT1.2"],
         scl_net: [f"{ic_ref}.3"],
         sda_net: [f"{ic_ref}.4"],
-        "/NC_AHT1": [f"{ic_ref}.1"],
-        "/NC_AHT2": [f"{ic_ref}.6"],
     }
     if include_pullups:
         components.extend(
@@ -561,8 +571,15 @@ def block_esd_usb_tvs(
 
 
 def block_esd_rs485_tvs(
-    a_net: str = "/RS485_A",
-    b_net: str = "/RS485_B",
+    # These defaults must match `block_rs485_transceiver`, which names the bus
+    # nets `/485_A` and `/485_B`. They were `/RS485_A` / `/RS485_B`, so the TVS
+    # landed on two nets of its own that nothing else touched: the protection
+    # part was present in the BOM and absent from the circuit, and the ERC saw
+    # the bus as unterminated-by-protection while reporting the TVS nets as
+    # floating. A protection device that protects nothing is worse than no
+    # protection device, because it makes the BOM look covered.
+    a_net: str = "/485_A",
+    b_net: str = "/485_B",
     gnd_net: str = "/GND",
     tvs_ref: str = "D_TVS_485",
 ) -> CircuitBlock:
@@ -627,7 +644,12 @@ def block_esd_can_tvs(
 
 
 def block_reverse_polarity_protection(
-    vin_raw_net: str = "/VIN_RAW",
+    # The default input net must be the one the power block actually drives.
+    # `block_usb_c_power` names its output `/VBUS`; this block used to default to
+    # `/VIN_RAW`, so a design that asked for both got a Type-C connector feeding
+    # an empty net and a protection diode fed by nothing. Both nets had a single
+    # endpoint, and the whole board had no path from 5 V to anything.
+    vin_raw_net: str = "/VBUS",
     vin_net: str = "/VIN",
     gnd_net: str = "/GND",
     method: str = "schottky",
@@ -668,7 +690,13 @@ def block_reverse_polarity_protection(
 
 
 def block_power_pi_filter(
-    vin_net: str = "/VIN",
+    # Defaults follow the power chain that `synthesize_from_prompt` actually
+    # builds: VBUS (Type-C) → reverse-polarity diode → VIN → π-filter → VCC_CLEAN.
+    # The input used to default to `/VIN`, which is the net the protection diode
+    # drives — so a design with no explicit power request got a filter fed from
+    # nothing while `/VIN` still had the diode on it. Anchoring to `/VBUS` keeps
+    # the chain connected whether or not the protection block is present.
+    vin_net: str = "/VBUS",
     vout_net: str = "/VCC_CLEAN",
     gnd_net: str = "/GND",
 ) -> CircuitBlock:

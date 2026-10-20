@@ -200,31 +200,33 @@ def synthesize_from_prompt(
     not_requested: list[str] = []
     unsupported: list[str] = _detect_unsupported(prompt_lower, prompt)
 
+    # The logic rail every peripheral block pulls up to. Blocks default to
+    # /+3.3V, which is right for most parts but wrong for a 5 V MCU: a 51 board
+    # ended up with buttons and an LED pulling up to a 3.3 V rail that nothing
+    # produced, while the MCU itself sat on /+5V.
+    logic_rail = "/+5V" if chip_id == "STC89C52RC" else "/+3.3V"
+
     # --- power ------------------------------------------------------------
-    if _has(prompt_lower, prompt, _POWER_TOKENS):
-        blocks.append(block_usb_c_power())
-        # A bare 51 board is usually fed from a 5V adapter; MCUs below run at 3.3V.
-        if chip_id != "STC89C52RC" and getattr(rule, "supply_voltage", 3.3) <= 3.6:
-            blocks.append(block_power_ldo_3v3())
-    else:
+    wants_power_input = _has(prompt_lower, prompt, _POWER_TOKENS)
+    if not wants_power_input:
         not_requested.append("power")
 
     # --- buttons ----------------------------------------------------------
     if _has(prompt_lower, prompt, _BUTTON_TOKENS):
         for i in range(1, _detect_count(prompt, _BUTTON_TOKENS) + 1):
-            blocks.append(block_button(f"SW{i}", f"/BTN{i}"))
+            blocks.append(block_button(f"SW{i}", f"/BTN{i}", vcc_net=logic_rail))
     else:
         not_requested.append("button")
 
     # --- status LED -------------------------------------------------------
     if _has(prompt_lower, prompt, _LED_TOKENS):
-        blocks.append(block_led())
+        blocks.append(block_led(vcc_net=logic_rail))
     else:
         not_requested.append("led")
 
     # --- buzzer -----------------------------------------------------------
     if _has(prompt_lower, prompt, _BUZZER_TOKENS):
-        blocks.append(block_buzzer())
+        blocks.append(block_buzzer(vcc_net=logic_rail))
     else:
         not_requested.append("buzzer")
 
@@ -233,16 +235,16 @@ def synthesize_from_prompt(
     has_mpu = _has(prompt_lower, prompt, _MPU6050_TOKENS)
 
     if has_aht:
-        blocks.append(block_sensor_aht20())
+        blocks.append(block_sensor_aht20(vcc_net=logic_rail))
 
     if has_mpu:
-        blocks.append(block_sensor_mpu6050())
+        blocks.append(block_sensor_mpu6050(vcc_net=logic_rail))
 
     # --- I2C header -------------------------------------------------------
     if _has(prompt_lower, prompt, _I2C_TOKENS):
         header_explicit = any(k in prompt for k in ("插座", "排针", "接口", "header", "oled"))
         if not (has_aht or has_mpu) or header_explicit:
-            blocks.append(block_i2c_header())
+            blocks.append(block_i2c_header(vcc_net=logic_rail))
     elif not (has_aht or has_mpu):
         not_requested.append("i2c")
 
@@ -266,24 +268,14 @@ def synthesize_from_prompt(
     is_industrial = _has(prompt_lower, prompt, _INDUSTRIAL_TOKENS)
     has_tvs = _has(prompt_lower, prompt, _TVS_TOKENS)
 
-    has_usb = any(b.name == "USB_C_Power" for b in blocks)
     has_rs485 = any(b.name == "RS485_Transceiver" for b in blocks)
     has_can = any(b.name == "CAN_Transceiver" for b in blocks)
-
-    if has_usb and (is_industrial or has_tvs):
-        blocks.append(block_esd_usb_tvs())
 
     if has_rs485 and (is_industrial or has_tvs):
         blocks.append(block_esd_rs485_tvs())
 
     if has_can and (is_industrial or has_tvs):
         blocks.append(block_esd_can_tvs())
-
-    if _has(prompt_lower, prompt, _REV_TOKENS) or (is_industrial and not has_usb):
-        blocks.append(block_reverse_polarity_protection())
-
-    if _has(prompt_lower, prompt, _PI_TOKENS) or (is_industrial and (has_rs485 or has_can)):
-        blocks.append(block_power_pi_filter())
 
     if _has(prompt_lower, prompt, _DFT_TOKENS) or is_industrial:
         blocks.append(block_testpoint_matrix())
@@ -305,6 +297,111 @@ def synthesize_from_prompt(
 
     if _has(prompt_lower, prompt, _OPTO_TOKENS):
         blocks.append(block_optocoupler_isolated_io())
+
+    # --- power chain ------------------------------------------------------
+    #
+    # The chain is built here, once, as a series rather than as independent
+    # blocks that happen to share net names. Doing it in the order the prompt
+    # mentioned things produced parallel branches — `/VBUS` fed both the LDO and
+    # the pi-filter, so `/VIN` and `/VCC_CLEAN` dead-ended at the filter and the
+    # regulator drew from unfiltered 5 V. Electrically that is two half-circuits,
+    # not one supply.
+    #
+    # Series topology, which is what the blocks were written for:
+    #
+    #   VBUS (Type-C) -> reverse-polarity diode -> VIN -> pi-filter -> VCC_CLEAN
+    #                                                        |
+    #                                                        +-> LDO -> +3.3V
+    #
+    # A stage is added when the design needs it or the prompt asked for it, and
+    # never otherwise, so a bare 5 V 51 board does not grow a 3.3 V regulator it
+    # has no use for. `power_chain_added` records what was added on the user's
+    # behalf so the output stays honest about it.
+    power_chain_added: list[str] = []
+    block_names = {b.name for b in blocks}
+    needs_3v3 = any(
+        comp.kind in {"IC", "MCU", "SENSOR", "TRANSCEIVER"} and "/+3.3V" in comp.pins.values()
+        for b in blocks
+        for comp in b.components
+    )
+    # The MCU itself is a load on the 3.3 V rail even before its pins are bound:
+    # a 3.3 V part needs a 3.3 V supply regardless of what peripherals the prompt
+    # mentioned. Checking only block components meant an RP2040 dev board with a
+    # Type-C connector got no regulator at all, and the MCU's supply pins were
+    # then bound to a rail nothing produced.
+    if getattr(rule, "supply_voltage", 3.3) <= 3.6 and chip_id != "STC89C52RC":
+        needs_3v3 = True
+    is_5v_part = chip_id == "STC89C52RC" or getattr(rule, "supply_voltage", 3.3) > 3.6
+    needs_ldo = needs_3v3 and not is_5v_part
+    needs_protection = (
+        _has(prompt_lower, prompt, _REV_TOKENS) or is_industrial or wants_power_input
+    )
+    needs_filter = (
+        _has(prompt_lower, prompt, _PI_TOKENS) or (is_industrial and (has_rs485 or has_can))
+    )
+
+    # Any of the downstream stages implies the 5 V input exists to feed it.
+    needs_input = wants_power_input or needs_ldo or needs_filter
+    if needs_input and "USB_C_Power" not in block_names:
+        blocks.insert(0, block_usb_c_power())
+        if not wants_power_input:
+            power_chain_added.append("USB_C_Power")
+
+    # The LDO input net depends on what sits between it and the connector:
+    # the filter's output if a filter is present, otherwise the protection
+    # diode's output, otherwise the connector's own rail. Picking the wrong one
+    # leaves an orphan net (`/VIN` fed by the diode, read by nothing).
+    # Walk the chain from the connector forward and take the last stage that
+    # exists before the regulator. Anything else leaves the regulator drawing
+    # from a net nothing drives.
+    if needs_filter:
+        ldo_vin = "/VCC_CLEAN"
+    elif needs_protection:
+        # Protection is present but no filter: the diode drives /VBUS when a
+        # regulator follows it (see prot_out below), so that is the LDO input.
+        ldo_vin = "/VBUS"
+    else:
+        ldo_vin = "/VBUS"
+    if needs_filter and "Power_Pi_Filter" not in block_names:
+        # The filter's input is the protection diode's output when protection is
+        # present, otherwise the connector rail directly. Defaulting to /VBUS
+        # while the diode drove /VIN left the filter fed by the wrong net and
+        # /VIN with a single endpoint.
+        blocks.append(block_power_pi_filter(vin_net="/VIN" if needs_protection else "/VBUS"))
+        power_chain_added.append("Power_Pi_Filter")
+    if needs_protection and "Reverse_Polarity_Protection" not in block_names:
+        # Protection sits between the connector and everything else. Its output
+        # net is whatever consumes it next: the filter's input if a filter
+        # follows, otherwise the rail the parts actually use — a diode feeding a
+        # net with no load is an orphan net, which the ERC correctly flags.
+        if needs_filter:
+            prot_out = "/VIN"
+        elif needs_ldo:
+            # The regulator's input is /VBUS, so the diode drives that rail.
+            prot_out = "/VBUS"
+        elif is_5v_part:
+            # A 5 V part with no regulator: the diode output *is* the rail.
+            prot_out = "/+5V"
+        else:
+            prot_out = "/VBUS"
+        blocks.append(block_reverse_polarity_protection(vin_net=prot_out))
+        power_chain_added.append("Reverse_Polarity_Protection")
+    if needs_ldo and "LDO_3V3" not in block_names:
+        blocks.append(block_power_ldo_3v3(vin_net=ldo_vin))
+        power_chain_added.append("LDO_3V3")
+
+    # --- USB ESD protection, after the power chain -------------------------
+    #
+    # This check has to run after the connector exists. `USB_C_Power` can be
+    # added by the power-chain step above (a design that needs 3.3 V gets a
+    # Type-C input whether or not the prompt said "供电"), so asking earlier
+    # missed exactly the boards that have a USB port. The result was a Type-C
+    # receptacle with bare D+/D- and a CRITICAL EMC finding in the DFX audit —
+    # the audit was right, the synthesizer had simply never looked.
+    has_usb = any(b.name == "USB_C_Power" for b in blocks)
+    if has_usb and (is_industrial or has_tvs) and "ESD_TVS_USB" not in {b.name for b in blocks}:
+        blocks.append(block_esd_usb_tvs())
+
 
     # --- flatten (insertion order is deterministic) ------------------------
     modules: dict[str, Any] = {}

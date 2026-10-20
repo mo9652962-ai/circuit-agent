@@ -79,12 +79,16 @@ def test_erc_differential_bus_termination():
         "R_GND": {"kind": "RESISTOR", "value": "10k"},
         "J1": {"kind": "CONNECTOR", "value": "HDR-3P"},
         "C_PWR": {"kind": "CAPACITOR", "value": "100nF"},
+        # A regulator is present so the 3.3 V rail has a source: an unsourced
+        # rail is now an error, and this fixture is about bus termination.
+        "U_LDO": {"kind": "LDO", "value": "AMS1117-3.3"},
     }
     conns_no_term = [
-        {"net": "/GND", "points": ["U_CAN.2", "R_GND.1", "J1.3", "C_PWR.2"]},
+        {"net": "/GND", "points": ["U_CAN.2", "R_GND.1", "J1.3", "C_PWR.2", "U_LDO.1"]},
         {"net": "/CAN_H", "points": ["U_CAN.7", "J1.1"]},
         {"net": "/CAN_L", "points": ["U_CAN.6", "J1.2"]},
-        {"net": "/+3.3V", "points": ["U_CAN.3", "C_PWR.1"]},
+        {"net": "/+3.3V", "points": ["U_CAN.3", "C_PWR.1", "U_LDO.2"]},
+        {"net": "/VBUS", "points": ["U_LDO.3"]},
     ]
     issues = run_erc(modules_no_term, conns_no_term)
     codes = {i["code"] for i in issues}
@@ -95,10 +99,11 @@ def test_erc_differential_bus_termination():
     modules_with_term = dict(modules_no_term)
     modules_with_term["R_TERM"] = {"kind": "RESISTOR", "value": "120R"}
     conns_with_term = [
-        {"net": "/GND", "points": ["U_CAN.2", "R_GND.1", "J1.3", "C_PWR.2"]},
+        {"net": "/GND", "points": ["U_CAN.2", "R_GND.1", "J1.3", "C_PWR.2", "U_LDO.1"]},
         {"net": "/CAN_H", "points": ["U_CAN.7", "J1.1", "R_TERM.1"]},
         {"net": "/CAN_L", "points": ["U_CAN.6", "J1.2", "R_TERM.2"]},
-        {"net": "/+3.3V", "points": ["U_CAN.3", "C_PWR.1"]},
+        {"net": "/+3.3V", "points": ["U_CAN.3", "C_PWR.1", "U_LDO.2"]},
+        {"net": "/VBUS", "points": ["U_LDO.3"]},
     ]
 
     issues2 = run_erc(modules_with_term, conns_with_term)

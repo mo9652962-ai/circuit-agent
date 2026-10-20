@@ -63,6 +63,12 @@ class SMTPlacementClearanceReport:
     collision_risks_count: int
     placement_priority_layers: list[list[str]] = field(default_factory=list)
     collision_pairs: list[CollisionPair] = field(default_factory=list)
+    #: Height-differential pairs that could not be judged because at least one
+    #: part carries no coordinates. Reported separately from `collision_pairs`
+    #: so "no collisions found" and "not enough data to look" stay distinct
+    #: claims — conflating them is how an unchecked board passes a gate.
+    unverified_pairs_count: int = 0
+    unverified_pairs: list[list[str]] = field(default_factory=list)
     ipc_standard: str = "IPC-SM-782 / OpenPnP Placement Sequence Guidance"
 
     def to_dict(self) -> dict[str, Any]:
@@ -98,10 +104,18 @@ def calculate_smt_placement_clearance(
         if ref == "__meta__":
             continue
         h = _estimate_height(m)
-        pos = m.get("position") or [board_width_mm / 2.0, board_height_mm / 2.0]
-        x = float(pos[0]) if len(pos) >= 2 else board_width_mm / 2.0
-        y = float(pos[1]) if len(pos) >= 2 else board_height_mm / 2.0
-        components.append((ref, h, x, y))
+        raw_pos = m.get("position")
+        placed = isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2
+        if placed:
+            x = float(raw_pos[0])
+            y = float(raw_pos[1])
+        else:
+            # No coordinates: keep the board-centre placeholder for the report's
+            # placement list, but flag the part so the collision pass knows the
+            # distance is unknown rather than zero.
+            x = board_width_mm / 2.0
+            y = board_height_mm / 2.0
+        components.append((ref, h, x, y, placed))
 
     low_list = [c[0] for c in components if c[1] <= 2.0]
     med_list = [c[0] for c in components if 2.0 < c[1] <= 4.0]
@@ -111,30 +125,51 @@ def calculate_smt_placement_clearance(
     layers = [l for l in (low_list, med_list, tall_list) if l]
 
     # 碰撞对检测
+    #
+    # A part with no `position` cannot have a collision distance computed for it.
+    # The previous behaviour defaulted every unplaced part to the board centre,
+    # which made every pair of unplaced parts sit at distance 0 and report a
+    # collision — on a 40-component board that produced 144 identical warnings,
+    # which is the same as producing none: nobody reads a gate that always fires.
+    #
+    # So the analysis distinguishes three cases:
+    #   * both placed      -> real distance, real verdict
+    #   * one unplaced     -> cannot judge; reported separately as unverified
+    #   * both unplaced    -> cannot judge; reported separately as unverified
+    # The report carries `unverified_pairs_count` so a caller can tell "no
+    # collisions" from "not enough data to look", which are different claims.
     collision_pairs: list[CollisionPair] = []
+    unverified_pairs: list[tuple[str, str]] = []
     risks = 0
     for i in range(len(components)):
         for j in range(i + 1, len(components)):
             c1, c2 = components[i], components[j]
             h_diff = abs(c1[1] - c2[1])
-            if h_diff >= (min_tall_component_height_mm - 1.0):
-                dist = math.hypot(c1[2] - c2[2], c1[3] - c2[3])
-                low_c = c1 if c1[1] < c2[1] else c2
-                high_c = c2 if c1[1] < c2[1] else c1
-                is_risk = dist < min_clearance_envelope_mm
-                if is_risk:
-                    risks += 1
-                collision_pairs.append(
-                    CollisionPair(
-                        low_ref=low_c[0],
-                        high_ref=high_c[0],
-                        low_height_mm=round(low_c[1], 2),
-                        high_height_mm=round(high_c[1], 2),
-                        height_delta_mm=round(h_diff, 2),
-                        center_dist_mm=round(dist, 2),
-                        is_collision_risk=is_risk,
-                    )
+            if h_diff < (min_tall_component_height_mm - 1.0):
+                continue
+            low_c = c1 if c1[1] < c2[1] else c2
+            high_c = c2 if c1[1] < c2[1] else c1
+
+            if not (c1[4] and c2[4]):
+                # At least one part has no coordinates: distance is unknown.
+                unverified_pairs.append((low_c[0], high_c[0]))
+                continue
+
+            dist = math.hypot(c1[2] - c2[2], c1[3] - c2[3])
+            is_risk = dist < min_clearance_envelope_mm
+            if is_risk:
+                risks += 1
+            collision_pairs.append(
+                CollisionPair(
+                    low_ref=low_c[0],
+                    high_ref=high_c[0],
+                    low_height_mm=round(low_c[1], 2),
+                    high_height_mm=round(high_c[1], 2),
+                    height_delta_mm=round(h_diff, 2),
+                    center_dist_mm=round(dist, 2),
+                    is_collision_risk=is_risk,
                 )
+            )
 
     return SMTPlacementClearanceReport(
         total_components=len(components),
@@ -144,4 +179,6 @@ def calculate_smt_placement_clearance(
         collision_risks_count=risks,
         placement_priority_layers=layers,
         collision_pairs=collision_pairs,
+        unverified_pairs_count=len(unverified_pairs),
+        unverified_pairs=[list(pair) for pair in unverified_pairs],
     )

@@ -78,7 +78,18 @@ logger = logging.getLogger("circuit_agent_erc")
 SEVERITY_ORDER = {"info": 0, "warning": 1, "error": 2, "blocking": 3}
 
 GND_RE = re.compile(r"(^|/)(GND|AGND|DGND|PGND)$", re.IGNORECASE)
-POWER_RE = re.compile(r"(VBUS|VCC|VDD|VIN|VOUT|VBAT|\+?3V3|\+?5V|\+12V|\+?1V8|\+?2V8)", re.IGNORECASE)
+POWER_RE = re.compile(
+    # Rails appear in the wild as `+3.3V`, `3V3`, `+3V3`, `+5V`, `5V0`, `VCC_3V3`
+    # and `VDDA`. The pattern must cover the decimal form: a netlist that names
+    # its rail `/+3.3V` — which is what every KiCad design does — previously
+    # matched nothing, so `POWER_RAIL_WITHOUT_SOURCE` never fired on it and
+    # `MISSING_POWER_NET` reported "no power nets" on a board full of them.
+    r"(VBUS|VCC|VDD|VDDA|VIN|VOUT|VBAT|"
+    r"\+?\d+(\.\d+)?V\d*|"  # +3.3V, 3V3, +5V, 5V0, 12V
+    r"\+?\d+V\d+)"  # 1V8, 2V8
+    ,
+    re.IGNORECASE,
+)
 DECOUP_RE = re.compile(r"^(100n|0\.1u)", re.IGNORECASE)
 
 #: Suffix → multiplier for a capacitance string. Order matters: the bare-letter
@@ -229,6 +240,59 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 "防护（IEC 61000-4-2）与自恢复保险丝；可用 ESD_TVS_USB / 防反接积木。",
                 "warning",
                 SRC,
+            )
+        )
+
+    # 5b. POWER_RAIL_WITHOUT_SOURCE (error)：电源轨上有负载却没有任何源器件
+    #
+    # MISSING_POWER_NET above asks "is there a net named like a supply?" — which
+    # is satisfied by a rail that nothing drives. That gap is not theoretical: a
+    # prompt mentioning CAN and RS485 but not "供电" synthesised a board where
+    # `/+3.3V` carried both transceivers and no regulator, no LDO, no connector
+    # fed it. Every IC was unpowered and the gate passed the design, because a
+    # net with the right name existed.
+    #
+    # So this rule asks the question that matters: does each powered rail have a
+    # component whose job is to produce it? Sources are regulators, LDOs,
+    # chargers, power modules, connectors (an external supply arrives through
+    # one) and batteries.
+    source_kinds = {"REGULATOR", "LDO", "CHARGER", "POWER", "CONNECTOR", "MODULE", "BATTERY", "DC_DC"}
+    source_refs = {ref for ref, m in modules.items() if str(m.get("kind", "")).upper() in source_kinds}
+    # A passive filter element also feeds the rail downstream of it: a ferrite
+    # bead or series inductor between two supply nets is a conducting path, not
+    # a load. Treating it as a load made `/VCC_CLEAN` — the output of the π
+    # filter — look unsourced, which is a false positive on a correctly built
+    # power chain.
+    pass_through_refs = {
+        ref
+        for ref, m in modules.items()
+        if str(m.get("kind", "")).upper()
+        in {"INDUCTOR", "FERRITE", "FERRITE_BEAD", "RESISTOR", "DIODE", "MOSFET", "FUSE"}
+    }
+    feeding_refs = source_refs | pass_through_refs
+    gnd_nets = {str(n) for n in net_names if GND_RE.search(str(n))}
+
+    for conn in connections or []:
+        net_name = str(conn.get("net", ""))
+        if net_name in gnd_nets or not POWER_RE.search(net_name):
+            continue
+        points = [str(p) for p in (conn.get("points") or [])]
+        if len(points) < 2:
+            # A single-endpoint rail is FLOATING_NET's business, not this rule's.
+            continue
+        if any(p.split(".")[0] in feeding_refs for p in points):
+            continue
+        loads = sorted({p.split(".")[0] for p in points})
+        issues.append(
+            _issue(
+                "POWER_RAIL_WITHOUT_SOURCE",
+                "电源轨无供电源器件",
+                f"电源网络 {net_name} 挂了 {len(points)} 个端点（{', '.join(loads[:6])}"
+                f"{'…' if len(loads) > 6 else ''}）但没有任何稳压器/LDO/连接器为它供电——"
+                "这些器件实际处于未供电状态，上电即不工作。需补电源块（LDO 或 USB 供电）。",
+                "error",
+                "IEEE 315 Graphic Symbols / 器件数据手册供电前提",
+                object_id=f"net:{net_name}",
             )
         )
 
@@ -867,6 +931,23 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         object_id=f"pair:{cp.low_ref}/{cp.high_ref}",
                     )
                 )
+        # Collision distance needs coordinates. Without them the pair is neither
+        # safe nor unsafe — it is unexamined, and saying so is the whole point of
+        # a gate. One issue, not one per pair: 144 identical warnings is
+        # indistinguishable from silence, so the count carries the information.
+        if rep_clr.unverified_pairs_count:
+            issues.append(
+                _issue(
+                    "SMT_CLEARANCE_UNVERIFIED_NO_PLACEMENT",
+                    "SMT 吸嘴碰撞未校验（缺少器件坐标）",
+                    f"{rep_clr.unverified_pairs_count} 组高差元件对因缺少 position 坐标无法计算间距，"
+                    "碰撞风险既未证实也未排除。补齐布局坐标后重跑本规则，或直接运行 "
+                    "calculate_smt_placement_clearance 获取分层贴装序列（IPC-SM-782 / OpenPnP）。",
+                    "info",
+                    "IPC-SM-782 Component Height Envelope & SMT Nozzle Z-Clearance Guidelines",
+                    object_id="smt_clearance:unplaced",
+                )
+            )
 
     # 35. CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT (warning)：高压爬电间隙不足且未开防爬电铣槽
     for conn in connections or []:

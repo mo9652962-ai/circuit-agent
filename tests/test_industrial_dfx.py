@@ -103,8 +103,12 @@ class TestIndustrialCircuitBlocks:
         assert comp.value == "SM712"
         assert comp.package == "SOT-23"
         assert comp.lcsc == "C19001"
-        assert "/RS485_A" in blk.nets
-        assert "/RS485_B" in blk.nets
+        assert "/485_A" in blk.nets
+        assert "/485_B" in blk.nets
+        # The TVS must sit on the same bus nets the transceiver drives. It used
+        # to default to /RS485_A and /RS485_B, which put the protection diode on
+        # two nets of its own — present in the BOM, absent from the circuit.
+        assert "/RS485_A" not in blk.nets
 
     def test_block_esd_can_tvs(self):
         blk = block_esd_can_tvs()

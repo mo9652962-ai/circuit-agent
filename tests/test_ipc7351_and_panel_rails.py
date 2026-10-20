@@ -142,14 +142,23 @@ def test_erc_thermal_relief_missing_on_high_current():
 
 
 def test_erc_gate_all_clean():
-    """Verify ERC gate passes on compliant netlist."""
+    """Verify ERC gate passes on a compliant netlist.
+
+    The fixture includes a regulator on the 3.3 V rail because a rail with loads
+    and no source is now an error (`POWER_RAIL_WITHOUT_SOURCE`). That rule exists
+    because a synthesized board shipped with both transceivers on an unsourced
+    `/+3.3V` and passed the gate — the fixture was asserting the old, weaker
+    definition of "compliant".
+    """
     modules = {
         "U1": {"kind": "MCU", "value": "ESP32", "position": [20.0, 20.0]},
         "C1": {"kind": "CAPACITOR", "value": "100nF", "position": [30.0, 20.0]},
+        "U_LDO": {"kind": "REGULATOR", "value": "AMS1117-3.3", "position": [40.0, 20.0]},
     }
     connections = [
-        {"net": "/GND", "points": ["U1.GND", "C1.2"]},
-        {"net": "/3V3", "points": ["U1.VCC", "C1.1"]},
+        {"net": "/GND", "points": ["U1.GND", "C1.2", "U_LDO.1"]},
+        {"net": "/3V3", "points": ["U1.VCC", "C1.1", "U_LDO.2"]},
+        {"net": "/VBUS", "points": ["U_LDO.3"]},
     ]
     issues = run_erc(modules, connections)
     gate = erc_gate(issues)
