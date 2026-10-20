@@ -43,6 +43,8 @@ from .chip_rules import (
     register_chip_rule,
 )
 from .circuit_blocks import (
+    CircuitBlock,
+    CircuitComponent,
     block_battery_tp4056,
     block_button,
     block_buzzer,
@@ -171,6 +173,72 @@ def _has_can_bus(prompt_lower: str, prompt: str) -> bool:
 def _detect_unsupported(prompt_lower: str, prompt: str) -> list[str]:
     """Return the features the user asked for that this DSL cannot synthesize yet."""
     return [feature for feature, tokens in _UNSUPPORTED_TOKENS.items() if _has(prompt_lower, prompt, tokens)]
+
+
+def _add_missing_decoupling(blocks: list[CircuitBlock], logic_rail: str = "/+3.3V") -> None:
+    """Ensure the board carries one 100 nF per active part.
+
+    Decoupling is per pin because its job is to supply transient current the
+    trace inductance cannot. A board with three ICs and one capacitor is not
+    decoupled; it is a board where two parts borrow their transient current
+    through a wire.
+
+    Counting is by part, not by net. Matching on the supply net was the bug that
+    let this through in the first place: two transceivers on /+3.3V and one
+    capacitor on /+3.3V looks "covered" to a net-based check, while one of the
+    two parts has nothing next to its pin.
+
+    The MCU is added later by `apply_chip_pinout`, so it is counted here as one
+    more active part that will need a capacitor.
+    """
+    supply_nets = {"/+3.3V", "/+5V", "/VCC_CLEAN", "/VIN", "/VBUS", "/VMOT_24V", "/+12V", "/VCC"}
+
+    active_parts: list[tuple[str, str]] = []  # (ref, supply net)
+    for blk in blocks:
+        for comp in blk.components:
+            if comp.kind not in {"IC", "MCU", "TRANSCEIVER", "SENSOR", "CHARGER"}:
+                continue
+            part_supply = [n for n in comp.pins.values() if n in supply_nets]
+            if part_supply:
+                active_parts.append((comp.ref, part_supply[0]))
+
+    existing_caps = sum(
+        1
+        for blk in blocks
+        for comp in blk.components
+        if comp.kind == "CAPACITOR" and str(comp.value).startswith(("100n", "0.1u"))
+    )
+
+    # The MCU is not in `blocks` yet; count it and give it a named capacitor.
+    active_parts.append(("U_MCU", logic_rail))
+    deficit = len(active_parts) - existing_caps
+    if deficit <= 0:
+        return
+
+    # Designators are derived from the part they serve, so re-running synthesis
+    # produces the same netlist. Parts already covered by a block's own
+    # capacitor are skipped when choosing names, using the block-local count.
+    uncovered = [ref for ref, _ in active_parts if not ref.startswith("U_MCU")][-deficit:]
+    if not uncovered or deficit > len(uncovered):
+        uncovered = ["U_MCU"]
+    filler = CircuitBlock(
+        name="Decoupling_Completion",
+        description="Per-part 100nF decoupling added where a block defined none",
+        components=[],
+        nets={},
+    )
+    for ref in uncovered:
+        supply = next((net for r, net in active_parts if r == ref), logic_rail)
+        cap_ref = f"C_DEC_{ref}"
+        # A part may sit on a rail other than the logic rail (24 V motor
+        # supply); the capacitor's rating follows the rail.
+        cap_value = "100nF" if supply in ("/+3.3V", "/+5V", "/VCC_CLEAN", logic_rail) else "100nF/50V"
+        filler.components.append(
+            CircuitComponent(cap_ref, "CAPACITOR", cap_value, "C0603", "C14663", {"1": supply, "2": "/GND"})
+        )
+        filler.nets.setdefault(supply, []).append(f"{cap_ref}.1")
+        filler.nets.setdefault("/GND", []).append(f"{cap_ref}.2")
+    blocks.append(filler)
 
 
 def synthesize_from_prompt(
@@ -422,6 +490,19 @@ def synthesize_from_prompt(
     if has_usb and (is_industrial or has_tvs) and "ESD_TVS_USB" not in {b.name for b in blocks}:
         blocks.append(block_esd_usb_tvs())
 
+
+    # --- decoupling completion --------------------------------------------
+    #
+    # Every active part gets its own 100 nF, placed next to the pin it serves.
+    # Blocks define decoupling for the parts they know about, but a block that
+    # adds an IC without one (W5500, DRV8825, INA219, the watchdog supervisor)
+    # left that part undecoupled — and the board still passed, because the
+    # "is there any 100 nF?" rule is satisfied by a capacitor somewhere else.
+    #
+    # This runs after every block is assembled, so it sees the final part list,
+    # and it skips parts that already have a decoupling capacitor on their own
+    # supply net.
+    _add_missing_decoupling(blocks, logic_rail=logic_rail)
 
     # --- flatten (insertion order is deterministic) ------------------------
     modules: dict[str, Any] = {}

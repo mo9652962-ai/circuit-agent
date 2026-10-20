@@ -112,6 +112,40 @@ _CAP_UNITS: tuple[tuple[str, float], ...] = (
 )
 
 
+def _rail_voltages(connections: list[dict]) -> dict[str, float]:
+    """Infer a voltage for each rail from its name and any declared properties.
+
+    A netlist does not carry voltages, but rail *names* do: ``/+3.3V``, ``/5V0``,
+    ``/VMOT_24V``, ``/VBUS``. This parses the name and lets an explicit
+    ``properties.voltage_v`` override it, which is what hand-authored netlists
+    supply. A rail with no parseable voltage is simply absent from the result —
+    callers must treat "unknown" as "cannot check", never as "safe".
+    """
+    rails: dict[str, float] = {}
+    for conn in connections or []:
+        net = str(conn.get("net", ""))
+        props = conn.get("properties") or {}
+        explicit = props.get("voltage_v")
+        if explicit is not None:
+            try:
+                rails[net] = float(explicit)
+                continue
+            except (TypeError, ValueError):
+                pass
+        # VBUS is 5 V on USB and 5 V on Type-C; treat it as such rather than
+        # leaving the most common rail uncheckable.
+        if re.search(r"VBUS|VCC_?5|5V0|(^|[/+])5V$", net, re.IGNORECASE):
+            rails[net] = 5.0
+            continue
+        m = re.search(r"(\d+(?:\.\d+)?)\s*V", net, re.IGNORECASE)
+        if m:
+            try:
+                rails[net] = float(m.group(1))
+            except ValueError:
+                continue
+    return rails
+
+
 def _parse_capacitance_uf(raw: str) -> float | None:
     """Parse a capacitor value string into µF, or ``None`` if it is not a capacitance.
 
@@ -213,6 +247,14 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
     # 4. MISSING_POWER_NET (warning)
     kinds = {str(v.get("kind", "")).upper() for v in modules.values()}
     has_ic = any(k in ("IC", "MCU", "REGULATOR", "TRANSCEIVER", "CHARGER") for k in kinds)
+    # Active parts that draw switching current and therefore need their own
+    # local decoupling. Regulators are excluded: they *supply* the transient,
+    # and their bulk capacitors are counted by the power-chain rules.
+    active_ic_refs = {
+        ref
+        for ref, v in modules.items()
+        if str(v.get("kind", "")).upper() in {"IC", "MCU", "TRANSCEIVER", "SENSOR", "CHARGER"}
+    }
     has_power = any(POWER_RE.search(str(n)) for n in net_names)
     if modules and has_ic and not has_power:
         issues.append(
@@ -314,6 +356,63 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     SRC,
                 )
             )
+        elif len(decouplers) < len(active_ic_refs):
+            # One 100nF somewhere does not decouple three ICs. The rule above
+            # only asked "does any decoupling capacitor exist?", which a single
+            # part satisfies for the whole board — three transceivers sharing one
+            # capacitor passed the gate. Decoupling is per power pin because its
+            # job is to supply the transient current the trace inductance cannot.
+            issues.append(
+                _issue(
+                    "DECOUPLING_PER_IC_DEFICIT",
+                    "去耦电容数量少于 IC 数量",
+                    f"{len(active_ic_refs)} 个有源器件（{', '.join(sorted(active_ic_refs)[:6])}）"
+                    f"但只有 {len(decouplers)} 颗 100nF 去耦电容。每个 IC 的电源引脚需要独立的"
+                    "就近去耦——共用一颗意味着远端器件的瞬态电流要穿过走线电感，"
+                    "在高速开关时表现为电源跌落与误触发（IPC-2221 / Murata 去耦指南）。",
+                    "warning",
+                    "IPC-2221 §6.3 Power Distribution / Murata MLCC Decoupling Guide",
+                    object_id="decoupling:count",
+                )
+            )
+
+    # 6a. COMPONENT_RATING_INSUFFICIENT (error)：器件额定值低于它所在电源轨电压
+    #
+    # A 6.3 V capacitor on a 12 V rail is not a margin question — it is a part
+    # that fails. The netlist carries rail names, and rail names carry voltage,
+    # so this is checkable without a datasheet: parse the rail, compare against
+    # the part's declared rating. Parts that declare no rating are skipped
+    # rather than assumed, because inventing a rating is worse than silence.
+    rail_voltages = _rail_voltages(connections or [])
+    for ref, v in modules.items():
+        kind = str(v.get("kind", "")).upper()
+        if kind not in {"CAPACITOR", "DIODE", "TVS", "ZENER", "MOSFET"}:
+            continue
+        rated = v.get("rated_v", v.get("voltage_rating_v"))
+        pins = v.get("pins") or {}
+        if rated is None or not isinstance(pins, dict):
+            continue
+        try:
+            rated_v = float(rated)
+        except (TypeError, ValueError):
+            continue
+        for pin_net in pins.values():
+            rail_v = rail_voltages.get(str(pin_net))
+            if rail_v is None or rated_v >= rail_v:
+                continue
+            issues.append(
+                _issue(
+                    "COMPONENT_RATING_INSUFFICIENT",
+                    "器件额定电压低于所在电源轨",
+                    f"{ref}（{v.get('value', '')}）额定 {rated_v} V，却接在 {pin_net} 上，"
+                    f"该轨为 {rail_v} V——器件工作在额定值以上，击穿、漏电流上升与寿命衰减"
+                    "都会发生。换用额定电压 ≥ 轨压 1.5~2 倍的器件（陶瓷电容常用 2 倍降额）。",
+                    "error",
+                    "IPC-9592B §3.4 Derating / 器件数据手册绝对最大额定值",
+                    object_id=f"ref:{ref}",
+                )
+            )
+            break
 
     # 6b. MLCC_EFFECTIVE_CAPACITANCE_DEFICIT (warning)：去耦/储能电容在真实工作
     #     偏置下有效容值不足。标签值不是电路里的值：直流偏置、温度系数、老化与
