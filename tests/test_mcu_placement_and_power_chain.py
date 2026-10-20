@@ -219,3 +219,70 @@ def test_synthesized_design_passes_erc(prompt):
     issues = run_erc(spec["modules"], spec["netlist"]["connections"])
     blocking = [i for i in issues if i["severity"] in ("error", "blocking")]
     assert not blocking, [(i["code"], i["detail"][:120]) for i in blocking]
+
+
+# --------------------------------------------------------------------------- #
+# High-voltage and mixed-supply boards
+# --------------------------------------------------------------------------- #
+
+
+def test_motor_driver_gets_its_own_high_voltage_terminal():
+    """A stepper driver cannot be powered from the Type-C logic input.
+
+    The DRV8825's VMOT is 24 V at up to 2.5 A. Without a terminal the driver's
+    power pins connect to nothing, which the ERC reports as an unsourced rail —
+    correctly, on a board that was never going to turn a motor.
+    """
+    spec = synthesize_from_prompt("STM32F103 带电机驱动的控制器")
+    assert "Screw_Terminal_VMOT" in spec["block_names"]
+    vm_net = next(c for c in spec["netlist"]["connections"] if c["net"] == "/VMOT_24V")
+    refs = {p.split(".")[0] for p in vm_net["points"]}
+    assert "J_VMOT1" in refs, "no terminal feeding the motor rail"
+    assert "U_DRV1" in refs, "the driver is not on its own supply rail"
+
+
+def test_five_volt_board_still_gets_a_three_three_rail_when_needed():
+    """A 5 V MCU does not remove the need for 3.3 V when a peripheral wants it.
+
+    The RS485 transceiver on an 8051 board sits on /+3.3V. Deciding the
+    regulator's existence from the MCU's own supply voltage left that rail
+    unsourced.
+    """
+    spec = synthesize_from_prompt("51单片机带 RS485 的工业板")
+    kinds = {m["kind"] for m in spec["modules"].values()}
+    assert kinds & {"LDO", "REGULATOR"}, "no 3.3 V regulator on a board with a 3.3 V transceiver"
+    issues = run_erc(spec["modules"], spec["netlist"]["connections"])
+    assert not [i for i in issues if i["code"] == "POWER_RAIL_WITHOUT_SOURCE"]
+
+
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "STM32F103 带电机驱动的控制器",
+        "51单片机带 RS485 的工业板",
+        "ESP32-C3 带光耦隔离输入的 PLC 模块",
+        "RP2040 带电流采样和看门狗的开发板",
+        "STM32F103 带 TP4056 锂电池充电的手持设备",
+        "ESP32-S3 带 INA219 的电源监测板",
+        "ESP32-S3 带蜂鸣器和 MPU6050 的姿态传感器",
+        "RP2040 带 CAN 总线的机器人控制板",
+    ],
+    ids=lambda p: p[:22],
+)
+def test_every_block_combination_passes_the_gate(prompt):
+    """Block interactions are where the power-chain bugs lived.
+
+    Each of these prompts pulls in a different set of blocks; every combination
+    must produce a board whose rails are sourced and whose BOM has parts.
+    """
+    from client.mcp_server import handle_tool_call
+
+    spec = synthesize_from_prompt(prompt)
+    issues = run_erc(spec["modules"], spec["netlist"]["connections"])
+    blocking = [i for i in issues if i["severity"] in ("error", "blocking")]
+    assert not blocking, [(i["code"], i["detail"][:100]) for i in blocking]
+
+    bom = handle_tool_call("export_manufacturing_bom", spec)
+    assert not bom.get("isError"), bom["content"][0]["text"][:150]
+    rows = len([ln for ln in bom["content"][0]["text"].splitlines() if ln.strip()]) - 1
+    assert rows > 0, "BOM has no component rows"

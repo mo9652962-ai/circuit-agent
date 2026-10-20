@@ -1011,3 +1011,45 @@ def block_optocoupler_isolated_io(
         },
         properties={"isolation_voltage_vrms": 5000, "input_voltage_v": 24.0},
     )
+
+
+def block_screw_terminal_vmot(
+    vmot_net: str = "/VMOT_24V",
+    gnd_net: str = "/GND",
+    term_ref: str = "J_VMOT1",
+) -> CircuitBlock:
+    """Two-pin screw terminal for the motor supply, with bulk storage.
+
+    A stepper driver's VMOT is a separate high-current rail: 24 V at up to 2.5 A
+    on a DRV8825. It cannot come from the Type-C logic input, so a board with a
+    motor driver needs a terminal of its own. The 220 µF electrolytic covers the
+    current steps a chopper driver presents to the supply — the driver's own
+    100 µF is local decoupling, not bulk storage.
+    """
+    return CircuitBlock(
+        name="Screw_Terminal_VMOT",
+        description="KF128-2P 5.08mm screw terminal for 24V motor supply with 220uF/50V bulk capacitor",
+        components=[
+            CircuitComponent(
+                term_ref,
+                "CONNECTOR",
+                "KF128-2P-5.08",
+                "TERMINAL-2P-5.08",
+                "C474882",
+                {"1": vmot_net, "2": gnd_net},
+            ),
+            CircuitComponent(
+                "C_VMOT_BULK",
+                "CAPACITOR",
+                "220uF/50V",
+                "CAP-ELEC-8x12",
+                "C43838",
+                {"1": vmot_net, "2": gnd_net},
+            ),
+        ],
+        nets={
+            vmot_net: [f"{term_ref}.1", "C_VMOT_BULK.1"],
+            gnd_net: [f"{term_ref}.2", "C_VMOT_BULK.2"],
+        },
+        properties={"rated_voltage_v": 50.0, "rated_current_a": 10.0},
+    )

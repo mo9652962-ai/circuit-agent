@@ -62,6 +62,7 @@ from .circuit_blocks import (
     block_power_pi_filter,
     block_reverse_polarity_protection,
     block_rs485_transceiver,
+    block_screw_terminal_vmot,
     block_sensor_aht20,
     block_sensor_mpu6050,
     block_testpoint_matrix,
@@ -300,6 +301,12 @@ def synthesize_from_prompt(
 
     # --- power chain ------------------------------------------------------
     #
+    # A motor driver runs from its own high-voltage input, not from the logic
+    # rail. Without a terminal feeding /VMOT_24V the driver is a chip whose power
+    # pins go nowhere, which is what the ERC now reports as
+    # POWER_RAIL_WITHOUT_SOURCE — correctly, on a board that was never going to
+    # turn a motor.
+    #
     # The chain is built here, once, as a series rather than as independent
     # blocks that happen to share net names. Doing it in the order the prompt
     # mentioned things produced parallel branches — `/VBUS` fed both the LDO and
@@ -332,7 +339,11 @@ def synthesize_from_prompt(
     if getattr(rule, "supply_voltage", 3.3) <= 3.6 and chip_id != "STC89C52RC":
         needs_3v3 = True
     is_5v_part = chip_id == "STC89C52RC" or getattr(rule, "supply_voltage", 3.3) > 3.6
-    needs_ldo = needs_3v3 and not is_5v_part
+    # A 5 V MCU still needs 3.3 V when a peripheral block asks for it: the RS485
+    # transceiver on a 51 board sits on /+3.3V, and without a regulator the board
+    # shipped with that rail unsourced. The rail's need is decided by what is on
+    # it, not by the MCU's own supply voltage.
+    needs_ldo = needs_3v3
     needs_protection = (
         _has(prompt_lower, prompt, _REV_TOKENS) or is_industrial or wants_power_input
     )
@@ -389,6 +400,15 @@ def synthesize_from_prompt(
     if needs_ldo and "LDO_3V3" not in block_names:
         blocks.append(block_power_ldo_3v3(vin_net=ldo_vin))
         power_chain_added.append("LDO_3V3")
+
+    # A high-voltage load needs its own supply terminal. The motor driver's
+    # /VMOT_24V is fed by a screw terminal, not by the 5 V USB input — a board
+    # that drives a stepper from a Type-C port would draw 2.5 A through a
+    # connector rated for far less.
+    has_hv_load = any(b.name == "Motor_Driver_DRV8825" for b in blocks)
+    if has_hv_load and "Screw_Terminal_VMOT" not in {b.name for b in blocks}:
+        blocks.append(block_screw_terminal_vmot())
+        power_chain_added.append("Screw_Terminal_VMOT")
 
     # --- USB ESD protection, after the power chain -------------------------
     #
