@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **58 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **61 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -287,6 +287,9 @@ python -m client.mcp_server
 56. `optimize_smt_feeder_setup`: SMT pick-and-place feeder trolley allocation optimizer — applies Group Technology (GT) to pin common passive reels (100nF, 10k) on standard 80-slot feeder carts (Panasonic NPM / Fuji NXT / ASM SIPLACE), clusters high-density reels near the gantry centroid to minimize travel time, and forecasts reel run-out exhaustion points per batch size per IPC-9851.
 57. `calculate_copper_pour_current_drop`: Polygon copper pour and power busbar DC IR-drop & thermal density analyzer — models sheet resistance, total resistance, voltage drop, and Joule power dissipation per IPC-2152 Section 5.0 and IEC 60092-352, checking bottleneck constriction current density (<=35.0 A/mm²) to prevent trace blistering or delamination.
 58. `audit_component_msl_floor_life`: SMD moisture sensitivity level (MSL) shop floor life and baking auditor — tracks plastic package (BGA/QFN/CSP/TQFP) open-bag ambient exposure time against JEDEC J-STD-033D and IPC-M-109 limits, flagging expired devices and prescribing standardized dehumidification bake schedules (125°C or 40°C desiccant bake) to prevent 260°C reflow popcorning delamination.
+59. `calculate_effective_capacitance`: Real MLCC capacitance at operating conditions — **the marked value is not the value in circuit**. Multiplies the four compounding loss mechanisms: DC bias (dominant, typically 35–65% loss at rated voltage and worse in small cases), AC signal level, temperature coefficient, and logarithmic dielectric ageing, then applies part tolerance. Returns the full factor stack so the dominant killer is identifiable. Class I (C0G/NP0) correctly short-circuits to tolerance-only. Pass a measured retention from a datasheet curve (Murata SimSurfing / TDK SEAT) to replace the band estimate and get `confidence="measured"`.
+60. `size_hold_up_capacitor`: Brown-out ride-through reservoir sizing — solves C = I·t/ΔV in **effective** farads, then divides by the retention at the worst-case bias in the window to report the marked value you must actually buy. Reports achieved hold time, shortfall, and required marked capacitance. Sizing from the marked value is exactly how a design "passes" and then delivers 0.85 ms of hold-up against a 20 ms spec.
+61. `analyze_rc_filter_effective`: RC filter cutoff computed from the capacitance the part actually has, not the marked value. A nominal 1 kHz filter built with an X5R part retaining only 40% under bias cuts at 2.5 kHz. Returns nominal vs actual cutoff, drift percentage and cause, and keeps operating-condition derating explicitly separate from part tolerance — two independent error sources.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

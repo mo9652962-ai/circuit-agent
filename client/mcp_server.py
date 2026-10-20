@@ -1319,6 +1319,68 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_msl.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        # --- Real MLCC behaviour (marked value ≠ in-circuit value) ---------- #
+        if name == "calculate_effective_capacitance":
+            from .mlcc_model import effective_capacitance
+
+            rep_eff = effective_capacitance(
+                marked_capacitance_uf=float(arguments.get("marked_capacitance_uf", 10.0)),
+                rated_v=float(arguments.get("rated_v", 6.3)),
+                applied_v=float(arguments.get("applied_v", 0.0)),
+                case_size=str(arguments.get("case_size", "0805")),
+                dielectric=str(arguments.get("dielectric", "X5R")),
+                ambient_c=float(arguments.get("ambient_c", 25.0)),
+                hours_in_service=float(arguments.get("hours_in_service", 1000.0)),
+                ac_level=str(arguments.get("ac_level", "small_signal")),
+                tolerance_pct=(
+                    float(arguments["tolerance_pct"]) if arguments.get("tolerance_pct") is not None else None
+                ),
+                measured_retention_at_bias=(
+                    float(arguments["measured_retention_at_bias"])
+                    if arguments.get("measured_retention_at_bias") is not None
+                    else None
+                ),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_eff.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "size_hold_up_capacitor":
+            from .mlcc_model import hold_up_capacitance
+
+            rep_hold = hold_up_capacitance(
+                load_current_ma=float(arguments.get("load_current_ma", 10.0)),
+                v_start=float(arguments.get("v_start", 5.0)),
+                v_floor=float(arguments.get("v_floor", 3.0)),
+                required_hold_time_ms=float(arguments.get("required_hold_time_ms", 20.0)),
+                rated_v=(float(arguments["rated_v"]) if arguments.get("rated_v") is not None else None),
+                case_size=str(arguments.get("case_size", "0805")),
+                dielectric=str(arguments.get("dielectric", "X5R")),
+                ambient_c=float(arguments.get("ambient_c", 25.0)),
+                hours_in_service=float(arguments.get("hours_in_service", 1000.0)),
+                tolerance_pct=float(arguments.get("tolerance_pct", 10.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_hold.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "analyze_rc_filter_effective":
+            from .mlcc_model import rc_cutoff_with_effective_c
+
+            rep_rc = rc_cutoff_with_effective_c(
+                r_ohm=float(arguments.get("r_ohm", 1000.0)),
+                marked_c_uf=float(arguments.get("marked_c_uf", 10.0)),
+                rated_v=float(arguments.get("rated_v", 6.3)),
+                applied_v=float(arguments.get("applied_v", 0.0)),
+                case_size=str(arguments.get("case_size", "0805")),
+                dielectric=str(arguments.get("dielectric", "X5R")),
+                ambient_c=float(arguments.get("ambient_c", 25.0)),
+                hours_in_service=float(arguments.get("hours_in_service", 1000.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_rc, ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

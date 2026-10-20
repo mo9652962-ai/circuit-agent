@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **58 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **61 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -287,6 +287,9 @@ python -m client.mcp_server
 56. `optimize_smt_feeder_setup`: 工业 SMT 贴片机飞达供料器料车排产优化器——基于松下 NPM / 富士 NXT / 西门子 ASM 标准 80 槽料车，应用成组技术 (GT) 规划常驻通用料块 (100nF、10k 免换线固定料槽)、按贴装频次将高密度物料聚合于悬臂中心以最小化龙门行进时间，并预测各料卷接料耗尽瓶颈 (IPC-9851)。
 57. `calculate_copper_pour_current_drop`: 大面积多边形覆铜与电源铜排直流压降与电流密度分析器——依据 IPC-2152 Section 5.0 与 IEC 60092-352 计算复杂几何多边形覆铜的方块电阻、直流内阻、IR 压降与焦耳热耗，校核过孔阵列/开槽颈缩区的电流密度上限 (≤35.0 A/mm²)，防止高载流大功率电源板铜箔碳化起泡分层。
 58. `audit_component_msl_floor_life`: 贴片器件潮湿敏感度等级 (MSL) 开袋车间暴露寿命与除湿烘烤方案审计器——依据 JEDEC J-STD-033D 与 IPC-M-109 规范跟踪高密度塑封芯片 (BGA/QFN/CSP/TQFP) 在产线环境温湿度下的暴露时间，精准识别超期芯片并生成标准化烘烤工单 (125°C 高温或 40°C 低湿干燥)，从源头杜绝 260°C 回流焊“爆米花”开裂分层。
+59. `calculate_effective_capacitance`: MLCC 真实工作容值求解器——**标签值不是电路里的值**。按直流偏置 (主导项，额定电压下普遍损失 35~65%，小封装更差)、交流信号幅度、温度系数、对数老化四大机制连乘降额，再叠加器件容差，输出完整因子栈便于定位最大杀手。Class I (C0G/NP0) 正确短路为仅容差。可传入数据手册实测保留率 (Murata SimSurfing / TDK SEAT) 替换区间估计并标记 `confidence="measured"`。
+60. `size_hold_up_capacitor`: 掉电保持 (Brown-out Ride-through) 储能电容求解器——以**有效容值**而非标签值解 C = I·t/ΔV，再除以窗口内最差偏置点的保留率，给出实际必须采购的标签容值。同时报告达成保持时间、缺口与所需标签值。按标签值选型就是「设计通过、实测 0.85ms 掉电」的根因。
+61. `analyze_rc_filter_effective`: RC 滤波器有效截止频率分析器——用器件实际容值而非标签值计算截止频率。标称 1kHz 的滤波器若用偏置下只剩 40% 容值的 X5R，实际截止在 2.5kHz。输出标称/实际截止、漂移百分比与成因，并显式区分工况降额与器件容差两个独立误差源。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

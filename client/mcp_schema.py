@@ -2203,6 +2203,169 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "calculate_effective_capacitance",
+        "description": (
+            "Effective capacitance of a Class II MLCC at real operating conditions — the marked value is not the "
+            "value in circuit. Multiplies the four loss mechanisms that compound: DC bias (the dominant one, "
+            "typically 35-65% loss at rated voltage and worse in small cases), AC signal level, temperature "
+            "coefficient, and logarithmic dielectric ageing, then applies the part tolerance. Returns the full "
+            "factor stack so you can see which mechanism hurt most. Class I (C0G/NP0) parts correctly short-circuit "
+            "to tolerance-only. Pass measured_retention_at_bias from a datasheet curve (Murata SimSurfing, TDK SEAT) "
+            "to replace the band estimate and get confidence='measured'."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["marked_capacitance_uf", "rated_v", "applied_v"],
+            "properties": {
+                "marked_capacitance_uf": {
+                    "type": "number",
+                    "description": "The capacitance printed on the reel, in µF.",
+                },
+                "rated_v": {"type": "number", "description": "The part's rated DC voltage."},
+                "applied_v": {
+                    "type": "number",
+                    "description": "DC bias actually across the part in this circuit, in volts.",
+                },
+                "case_size": {
+                    "type": "string",
+                    "description": "EIA case code: 0402, 0603, 0805, 1206 or 1210. Larger cases retain more capacitance under bias.",
+                    "default": "0805",
+                },
+                "dielectric": {
+                    "type": "string",
+                    "description": "EIA Class II dielectric: X5R, X7R, X8R, Y5V, Z5U, or Class I C0G/NP0.",
+                    "default": "X5R",
+                },
+                "ambient_c": {
+                    "type": "number",
+                    "description": "Operating ambient temperature in °C.",
+                    "default": 25.0,
+                },
+                "hours_in_service": {
+                    "type": "number",
+                    "description": "Expected service life in hours, used for the log-time ageing term.",
+                    "default": 1000.0,
+                },
+                "ac_level": {
+                    "type": "string",
+                    "description": "Signal magnitude class: small_signal (<50 mVrms), moderate (50-500 mVrms), or large (>500 mVrms). Small signals see less capacitance.",
+                    "enum": ["small_signal", "moderate", "large"],
+                    "default": "small_signal",
+                },
+                "tolerance_pct": {
+                    "type": "number",
+                    "description": "The part's capacitance tolerance in percent (e.g. 10 for ±10%). Applied at the pessimistic end.",
+                },
+                "measured_retention_at_bias": {
+                    "type": "number",
+                    "description": "Retention fraction (0-1] read from the real datasheet DC-bias curve at applied_v. Replaces the band estimate.",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "size_hold_up_capacitor",
+        "description": (
+            "Size an MLCC reservoir bank for a brown-out ride-through window in EFFECTIVE farads, then report the "
+            "marked value you must actually buy. Solves C = I·t/ΔV for the required effective capacitance and "
+            "divides by the retention at the worst-case bias in the window, because sizing from the marked value is "
+            "how a design that 'passes' delivers 0.85 ms of hold-up when the spec asked for 20 ms. Reports the "
+            "achieved hold time, the shortfall, and the required marked capacitance."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["load_current_ma", "v_start", "v_floor", "required_hold_time_ms"],
+            "properties": {
+                "load_current_ma": {
+                    "type": "number",
+                    "description": "Load current drawn from the reservoir during the outage, in mA.",
+                },
+                "v_start": {
+                    "type": "number",
+                    "description": "Rail voltage at the moment the source collapses, AFTER any ORing diode drop — not the nominal input.",
+                },
+                "v_floor": {
+                    "type": "number",
+                    "description": "Minimum voltage the load tolerates (brown-out floor), in volts.",
+                },
+                "required_hold_time_ms": {
+                    "type": "number",
+                    "description": "Required ride-through duration in milliseconds.",
+                },
+                "rated_v": {
+                    "type": "number",
+                    "description": "Capacitor rated voltage. Defaults to 2x v_start to keep bias derating near 50%.",
+                },
+                "case_size": {
+                    "type": "string",
+                    "description": "EIA case code (0402/0603/0805/1206/1210).",
+                    "default": "0805",
+                },
+                "dielectric": {
+                    "type": "string",
+                    "description": "EIA dielectric: X5R, X7R, X8R, C0G/NP0.",
+                    "default": "X5R",
+                },
+                "ambient_c": {"type": "number", "description": "Operating ambient in °C.", "default": 25.0},
+                "hours_in_service": {
+                    "type": "number",
+                    "description": "Expected service life in hours.",
+                    "default": 1000.0,
+                },
+                "tolerance_pct": {
+                    "type": "number",
+                    "description": "Capacitance tolerance in percent.",
+                    "default": 10.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "analyze_rc_filter_effective",
+        "description": (
+            "RC filter cutoff computed from the capacitance the part actually has, not the marked value. A 1 kHz "
+            "filter built with a 10 µF X5R part that delivers 4 µF under bias cuts at 2.5 kHz — the nominal "
+            "calculation is not wrong, it answers a different question. Returns nominal vs actual cutoff, the drift "
+            "percentage, and the retention that caused it."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["r_ohm", "marked_c_uf", "rated_v", "applied_v"],
+            "properties": {
+                "r_ohm": {"type": "number", "description": "Series resistance in ohms."},
+                "marked_c_uf": {"type": "number", "description": "Marked capacitance in µF."},
+                "rated_v": {"type": "number", "description": "Capacitor rated DC voltage."},
+                "applied_v": {"type": "number", "description": "DC bias across the capacitor, in volts."},
+                "case_size": {"type": "string", "description": "EIA case code.", "default": "0805"},
+                "dielectric": {"type": "string", "description": "EIA dielectric.", "default": "X5R"},
+                "ambient_c": {"type": "number", "description": "Operating ambient in °C.", "default": 25.0},
+                "hours_in_service": {
+                    "type": "number",
+                    "description": "Expected service life in hours.",
+                    "default": 1000.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
