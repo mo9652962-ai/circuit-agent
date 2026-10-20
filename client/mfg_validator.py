@@ -16,7 +16,10 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -49,6 +52,13 @@ class ManufacturingValidationReport:
         d = asdict(self)
         d["checks"] = [asdict(c) for c in self.checks]
         return d
+
+
+#: A designator is a letter prefix plus a number — ``R12``, ``C_DEC_U_MCU`` is
+#: not one, and neither is the footprint ``C0603`` nor the LCSC part ``C14663``.
+#: The previous parser accepted anything starting with R/C/U/D/L/J/S/Q/Y, which
+#: collected both of those as part references.
+REF_TOKEN_RE = re.compile(r"^[A-Z]{1,3}[_A-Z0-9]*\d+[A-Z]?$")
 
 
 REQUIRED_FAB_ARTIFACTS = [
@@ -119,19 +129,33 @@ def validate_manufacturing_package(
     if "bom.csv" in artifacts_dict:
         bom_raw = artifacts_dict["bom.csv"]
         bom_text = bom_raw.decode("utf-8", errors="ignore") if isinstance(bom_raw, bytes) else bom_raw
-        bom_refs = set()
-        for line in bom_text.splitlines():
-            line = line.strip()
-            if not line or line.lower().startswith("comment") or line.lower().startswith("designator"):
+        # The designator field is quoted and holds several references separated
+        # by commas ("C_SW1,C_SW2"). Splitting on commas by hand tore those
+        # apart, so the references were read as fragments and reported missing.
+        #
+        # Which column is the designator column is decided by the header, and
+        # *what counts as a reference* is decided by the design itself — the
+        # module map is the authority. Guessing with a pattern collected
+        # footprints (C0603) and LCSC numbers (C14663) as parts, and then missed
+        # legitimate references that carry no number (U_MCU).
+        reader = csv.reader(io.StringIO(bom_text))
+        header: list[str] = []
+        bom_tokens: set[str] = set()
+        for row in reader:
+            cells = [c.strip() for c in row]
+            if not any(cells):
                 continue
-            # 常见 BOM 格式第一列或第二列为位号
-            parts = [p.strip().strip('"') for p in line.split(",")]
-            if len(parts) >= 2:
-                # 尝试聚合位号 (如 C1 C2 或 C1,C2)
-                for p in parts:
-                    for token in p.replace(";", " ").replace(",", " ").split():
-                        if any(token.startswith(k) for k in ("R", "C", "U", "D", "L", "J", "S", "Q", "Y")):
-                            bom_refs.add(token)
+            lowered = [c.lower() for c in cells]
+            if "designator" in lowered:
+                header = lowered
+                continue
+            if header and "designator" in header:
+                idx = header.index("designator")
+                raw_des = cells[idx] if idx < len(cells) else ""
+            else:
+                raw_des = ",".join(cells[:2])
+            bom_tokens.update(t for t in re.split(r"[,;\s]+", raw_des) if t)
+        bom_refs = bom_tokens & real_mod_refs if real_mod_refs else bom_tokens
 
         bom_count = len(bom_refs)
         if real_mod_refs and bom_refs:
@@ -139,6 +163,43 @@ def validate_manufacturing_package(
             if diff:
                 bom_consistent = False
                 errors.append(f"BOM 表格缺少设计中的元件位号: {sorted(diff)[:5]}")
+
+    # 3b. 校验 BOM 与 CPL 位号一致性（真实量产缺陷：贴片漏件）
+    #
+    # `bom_cpl_consistent` used to report the BOM-vs-modules comparison, which is
+    # a different question. The one that stops a board from being built is
+    # whether every part in the BOM has a placement entry: a part in the BOM but
+    # not the CPL is ordered, paid for, and never soldered — the board ships
+    # unpopulated and the fault is found at functional test, not at assembly.
+    cpl_tokens: set[str] = set()
+    cpl_count = 0
+    for cpl_name in ("cpl.csv", "pick_and_place.csv", "positions.csv"):
+        if cpl_name not in artifacts_dict:
+            continue
+        cpl_raw = artifacts_dict[cpl_name]
+        cpl_text = cpl_raw.decode("utf-8", errors="ignore") if isinstance(cpl_raw, bytes) else cpl_raw
+        for line in cpl_text.splitlines():
+            line = line.strip()
+            if not line or line.lower().startswith(("designator", "ref", "comment")):
+                continue
+            first = line.split(",")[0].strip().strip('"')
+            if first:
+                cpl_tokens.add(first)
+        break
+    cpl_refs = cpl_tokens & real_mod_refs if real_mod_refs else cpl_tokens
+
+    if cpl_refs and bom_refs:
+        unplaced = bom_refs - cpl_refs
+        orphaned = cpl_refs - bom_refs
+        if unplaced:
+            bom_consistent = False
+            errors.append(
+                f"BOM 中有 {len(unplaced)} 个位号在 CPL 贴片坐标文件中缺失，这些器件会被采购但不会贴装："
+                f"{sorted(unplaced)[:8]}"
+            )
+        if orphaned:
+            bom_consistent = False
+            errors.append(f"CPL 中有 {len(orphaned)} 个位号不在 BOM 中，贴片机会找不到物料：{sorted(orphaned)[:8]}")
 
     is_complete = missing_cnt == 0 and len(errors) == 0
 

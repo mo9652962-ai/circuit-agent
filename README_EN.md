@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **64 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **65 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -251,6 +251,7 @@ python -m client.mcp_server
 10. `audit_industrial_dfx`: Industrial DFX (DFM/DFA/DFT/DFC) compliance auditor — returns a weighted score, graded verdict, categorised findings and a Markdown report.
 11. `export_kicad_netlist`: Export a standard KiCad S-Expression netlist (`.net`) importable into KiCad 6/7/8/9/10 Pcbnew.
 12. `export_manufacturing_bom`: Generate a production JLCPCB SMT BOM CSV with designator grouping and Basic/Extended classification.
+12b. `export_manufacturing_cpl`: Generate the JLCPCB pick-and-place (CPL/pos) file: designator, centre coordinates, layer, rotation. The BOM and CPL are delivered as a pair — a part in the BOM but absent here is purchased and never soldered, and the fault surfaces at functional test rather than at assembly.
 13. `calculate_parametric_circuit`: Closed-form parametric design solvers — E96 resistor dividers, LDO thermal/junction temperature, I2C pull-ups, RC filters.
 14. `render_circuit_topology`: Render a structured ASCII architecture diagram of power domains, buses and subsystems.
 15. `run_erc`: Netlist-level Electrical Rules Check gate — 40+ rules covering floating nets, missing GND, unknown designators, missing power domain, missing decoupling, differential bus termination and more; every finding carries a severity and a standard reference, and blocking/error issues gate BOM/CPL delivery. The `MLCC_EFFECTIVE_CAPACITANCE_DEFICIT` rule recomputes each capacitor's real capacitance under its rated bias and warns below 60% retention; when a part carries no bias metadata the rule abstains rather than inventing one.

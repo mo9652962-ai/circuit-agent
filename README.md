@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **64 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **65 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -255,6 +255,7 @@ python -m client.mcp_server
 10. `audit_industrial_dfx`: 工业级 DFX (DFM/DFA/DFT/DFC) 与生产合规自动化静态审查器，输出打分评级、问题分类与 Markdown 体检报告。
 11. `export_kicad_netlist`: 导出标准 KiCad S-Expression 网表 (.net)，支持 KiCad 6/7/8/9/10 直接导入 Pcbnew 快速布线。
 12. `export_manufacturing_bom`: 生成量产级嘉立创 SMT BOM CSV 表格（含位号聚合、基础库免换料费分类）。
+12b. `export_manufacturing_cpl`: 生成嘉立创 SMT 贴片坐标文件（CPL/pos，位号 + 中心坐标 + 层 + 旋转角）。BOM 与 CPL 必须成对交付——只在 BOM 里而不在 CPL 里的器件会被采购但不会贴装，故障留到功能测试才暴露。
 13. `calculate_parametric_circuit`: 闭环参数化硬件设计方程（E96 标准分压电阻对求解、LDO 散热结温校核、I2C 上拉阻值及 RC 滤波）。
 14. `render_circuit_topology`: 生成结构化 ASCII 系统架构拓扑图（电源轨、总线、传感器与保护子系统）。
 15. `run_erc`: 网表级电气规则门禁（ERC）——悬空网络、缺 GND、未知位号、缺电源域、缺去耦电容、差分总线缺 120Ω 终端电阻、电容真实有效容值不足等 45+ 条规则，每条带 severity 与出处，blocking/error 阻断 BOM/CPL 交付。其中 `MLCC_EFFECTIVE_CAPACITANCE_DEFICIT` 会用真实降额模型复算每颗电容在额定偏置下的实际容值，跌破标称 60% 即告警；器件未带偏置数据时保持沉默而不编造。`DECOUPLING_PER_IC_DEFICIT` 按**器件数量**而非网络判断去耦是否充足——三颗 IC 共用一颗 100nF 会被拦下，因为共用意味着远端器件的瞬态电流要穿过走线电感。`COMPONENT_RATING_INSUFFICIENT` 从电源轨名解析电压（`/+3.3V`、`/VMOT_24V`、`/VBUS`），与器件声明的额定值比对，6.3V 电容接在 24V 轨上直接判 error；未声明额定值的器件跳过而不猜测。

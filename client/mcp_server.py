@@ -57,6 +57,7 @@ from .circuit_blocks import (
 from .erc import erc_gate, run_erc
 from .export_engine import (
     export_jlcpcb_bom,
+    export_jlcpcb_cpl,
     export_kicad_netlist,
     render_ascii_topology,
 )
@@ -533,6 +534,29 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                     ],
                 }
             return {"content": [{"type": "text", "text": bom_csv}]}
+
+        if name == "export_manufacturing_cpl":
+            netlist = _resolve_export_input(arguments)
+            if netlist is None:
+                return _export_input_error("export_manufacturing_cpl")
+            cpl_csv = export_jlcpcb_cpl(netlist, default_layer=arguments.get("default_layer", "Top"))
+            # Same reasoning as the BOM: an empty placement file is not an
+            # export, it is an assembly order with nothing to place.
+            if _bom_row_count(cpl_csv) == 0:
+                return {
+                    "isError": True,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "CPL export produced zero placement rows. Pass the full "
+                                "`synthesize_circuit` output, or an object with a non-empty "
+                                "`modules` map."
+                            ),
+                        }
+                    ],
+                }
+            return {"content": [{"type": "text", "text": cpl_csv}]}
 
         if name == "calculate_parametric_circuit":
             p_type = arguments.get("type")

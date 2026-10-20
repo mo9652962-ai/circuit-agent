@@ -379,6 +379,28 @@ AVAILABLE_TOOLS = [
         },
     },
     {
+        "name": "export_manufacturing_cpl",
+        "description": "Generate the JLCPCB SMT pick-and-place (CPL/pos) file with designator, centre X/Y in mm, layer and rotation. Required alongside the BOM for assembly: a part in the BOM but absent here is purchased and never soldered.",
+        "inputSchema": {
+            "type": "object",
+            "required": ["netlist"],
+            "properties": {
+                "netlist": {"type": "object", "description": "Hardware netlist dictionary or synthesis result."},
+                "default_layer": {
+                    "type": "string",
+                    "description": "Layer to assign when the netlist does not specify one (default 'Top').",
+                    "default": "Top",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
         "name": "calculate_parametric_circuit",
         "description": "Solve discrete parametric circuit equations: optimal E96 resistor dividers, LDO thermal dissipation, I2C bus pullups, or RC filters.",
         "inputSchema": {

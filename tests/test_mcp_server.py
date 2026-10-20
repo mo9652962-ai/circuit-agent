@@ -64,6 +64,7 @@ def test_mcp_tools_list():
     assert "audit_industrial_dfx" in tool_names
     assert "export_kicad_netlist" in tool_names
     assert "export_manufacturing_bom" in tool_names
+    assert "export_manufacturing_cpl" in tool_names
     assert "calculate_parametric_circuit" in tool_names
     assert "render_circuit_topology" in tool_names
     assert "run_erc" in tool_names
@@ -110,7 +111,7 @@ def test_mcp_tools_list():
     assert "optimize_smt_feeder_setup" in tool_names
     assert "calculate_copper_pour_current_drop" in tool_names
     assert "audit_component_msl_floor_life" in tool_names
-    assert len(tools) == 64
+    assert len(tools) == 65
 
 
 def test_mcp_tool_call_synthesize():
