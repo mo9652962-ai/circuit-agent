@@ -367,8 +367,26 @@ CI 在 `ubuntu-latest` + `windows-latest` × Python 3.10/3.11/3.12 上跑全量�
 - [x] 工业 DFX 审查引擎（DFM/DFA/DFT/DFC）+ IPC-2152 / IPC-2221 规则库
 - [x] EDA 与制造导出（KiCad 网表、嘉立创 BOM/CPL）
 - [x] 参数化设计方程求解（E96 分压、LDO 热设计、I2C 上拉、RC 滤波）
+- [x] 五颗主流 MCU 引脚规则（ESP32-S3 / ESP32-C3 / STM32F103 / RP2040 / STC89C52RC）
+- [x] 串行电源链自动装配（Type-C → 防反接 → π 滤波 → LDO），MCU 电源/地引脚自动绑定
+- [x] 无源网络容差分析（最坏情况 + 统计 RSS、MLCC 直流偏置降额、保持电容选型）
+- [x] MCP 结构化输出双通道（`content` + `structuredContent`，6 个工具声明 `outputSchema`）
 - [ ] 多层板布局与布线求解器
 - [ ] 参数化 3D 壳体生成
+
+### 支持的主控
+
+| 芯片 | 封装 | 供电 | 立创料号 | 备注 |
+|:---|:---|:---|:---|:---|
+| ESP32-S3 | ESP32-S3-WROOM-1 | 3.3 V | C2913202 | I2C=IO8/IO9，UART0=IO43/IO44，TWAI=IO4/IO5，strapping IO0/3/45/46 保留 |
+| ESP32-C3 | ESP32-C3-WROOM-02 | 3.3 V | C2934560 | 11 个可用 GPIO，无 SWD（JTAG/USB-JTAG），引脚不足时明确报 `unrouted_signals` |
+| STM32F103C8T6 | LQFP-48 | 3.3 V | C8734 | CAN 走重映射 PB8/PB9，把 PA11/PA12 留给 USB |
+| RP2040 | QFN-56 | 3.3 V | C2040 | I2C0=GPIO4/5，UART0=GPIO0/1 |
+| STC89C52RC | LQFP-44 | 5.0 V | C8769 | 无硬件 I2C（P1.0/P1.1 软件模拟），无 CAN |
+
+引脚数据全部来自厂商数据手册与官方设计指南，每条规则里都标注了出处。
+合成器能识别的芯片必须都能放置——两者脱节曾导致 MCU 从未被放上板子，
+而管线静默通过；`tests/test_mcu_placement_and_power_chain.py` 锁死这一点。
 
 ---
 

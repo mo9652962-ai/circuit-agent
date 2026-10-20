@@ -367,7 +367,27 @@ geometry, Senior EE physical rule DRC gate.
 - [x] Industrial DFX audit (DFM/DFA/DFT/DFC) + IPC-2152 / IPC-2221 rule engine
 - [x] EDA & manufacturing exporters (KiCad netlist, JLCPCB BOM/CPL)
 - [x] Parametric design solvers (E96 dividers, LDO thermals, I2C pull-ups, RC)
+- [x] Pinout rules for five mainstream MCUs (ESP32-S3 / ESP32-C3 / STM32F103 / RP2040 / STC89C52RC)
+- [x] Automatic series power-chain assembly (Type-C → protection → π filter → LDO) with MCU supply/ground binding
+- [x] Passive-network tolerance analysis (worst-case + statistical RSS, MLCC DC-bias derating, hold-up sizing)
+- [x] MCP dual-channel structured output (`content` + `structuredContent`, 6 tools declaring `outputSchema`)
 - [ ] Multi-layer placement & routing solver
+
+### Supported MCUs
+
+| Chip | Package | Supply | LCSC | Notes |
+|:---|:---|:---|:---|:---|
+| ESP32-S3 | ESP32-S3-WROOM-1 | 3.3 V | C2913202 | I2C=IO8/IO9, UART0=IO43/IO44, TWAI=IO4/IO5, strapping IO0/3/45/46 reserved |
+| ESP32-C3 | ESP32-C3-WROOM-02 | 3.3 V | C2934560 | 11 usable GPIOs, no SWD (JTAG/USB-JTAG); reports `unrouted_signals` when short |
+| STM32F103C8T6 | LQFP-48 | 3.3 V | C8734 | CAN on remapped PB8/PB9, keeping PA11/PA12 free for USB |
+| RP2040 | QFN-56 | 3.3 V | C2040 | I2C0=GPIO4/5, UART0=GPIO0/1 |
+| STC89C52RC | LQFP-44 | 5.0 V | C8769 | No hardware I2C (bit-banged on P1.0/P1.1), no CAN |
+
+Pin data comes from vendor datasheets and official design guidelines, cited in each rule.
+Every chip the synthesizer can detect must also be one it can place — those two lists
+drifting apart is what once left the MCU off the board entirely while the pipeline
+reported success. `tests/test_mcu_placement_and_power_chain.py` pins that.
+
 - [ ] Parametric 3D enclosure generation
 
 ---

@@ -389,6 +389,25 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             return {"content": [{"type": "text", "text": json.dumps(chips, ensure_ascii=False, indent=2)}]}
 
         if name == "register_custom_chip":
+            # `register_chip_rule` indexes data["chip_id"] directly, so a missing
+            # field surfaced as "Tool execution error: 'chip_id'" — a KeyError
+            # rendered as a message with no hint about what to fix. A tool whose
+            # contract is an inputSchema should answer in terms of that schema.
+            if not arguments.get("chip_id"):
+                return {
+                    "isError": True,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "Parameter 'chip_id' is required — a unique identifier such as "
+                                "'CH32V003F4P6'. Fields are passed flat (not nested under 'rule'): "
+                                "chip_id, package, supply_voltage, pins, pin_numbers, "
+                                "reserved_pins, peripheral_routes, default_gpio_assignments."
+                            ),
+                        }
+                    ],
+                }
             rule = register_chip_rule(arguments)
             return {"content": [{"type": "text", "text": json.dumps(rule.to_dict(), ensure_ascii=False, indent=2)}]}
 
