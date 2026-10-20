@@ -243,7 +243,7 @@ python -m client.mcp_server
 12. `export_manufacturing_bom`: 生成量产级嘉立创 SMT BOM CSV 表格（含位号聚合、基础库免换料费分类）。
 13. `calculate_parametric_circuit`: 闭环参数化硬件设计方程（E96 标准分压电阻对求解、LDO 散热结温校核、I2C 上拉阻值及 RC 滤波）。
 14. `render_circuit_topology`: 生成结构化 ASCII 系统架构拓扑图（电源轨、总线、传感器与保护子系统）。
-15. `run_erc`: 网表级电气规则门禁（ERC）——悬空网络、缺 GND、未知位号、缺电源域、缺去耦电容、差分总线缺 120Ω 终端电阻，每条带 severity 与出处，blocking/error 阻断 BOM/CPL 交付。
+15. `run_erc`: 网表级电气规则门禁（ERC）——悬空网络、缺 GND、未知位号、缺电源域、缺去耦电容、差分总线缺 120Ω 终端电阻、电容真实有效容值不足等 40+ 条规则，每条带 severity 与出处，blocking/error 阻断 BOM/CPL 交付。其中 `MLCC_EFFECTIVE_CAPACITANCE_DEFICIT` 会用真实降额模型复算每颗电容在额定偏置下的实际容值，跌破标称 60% 即告警；器件未带偏置数据时保持沉默而不编造。
 16. `analyze_power_tree`: 系统级电源树与热功耗分析器，追踪电源域负载电流、LDO 压差裕量、热耗散与结温估算 ($T_j$)。
 17. `calculate_ipc2221_clearance`: 基于 IPC-2221B Table 6-1 标准根据工作电压与导体类别 (B1内层/B2外层裸露/B4涂覆/A6引脚) 精确计算最小电气间隙。
 18. `export_specctra_dsn`: 生成通用 Specctra DSN (v15.0) 自动布线交互文件与启发式器件自动布局，支持直接送入 Freerouting / KiCad 执行 100% 自动化走线。

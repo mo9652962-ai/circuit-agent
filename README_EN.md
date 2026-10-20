@@ -243,7 +243,7 @@ python -m client.mcp_server
 12. `export_manufacturing_bom`: Generate a production JLCPCB SMT BOM CSV with designator grouping and Basic/Extended classification.
 13. `calculate_parametric_circuit`: Closed-form parametric design solvers — E96 resistor dividers, LDO thermal/junction temperature, I2C pull-ups, RC filters.
 14. `render_circuit_topology`: Render a structured ASCII architecture diagram of power domains, buses and subsystems.
-15. `run_erc`: Netlist-level Electrical Rules Check gate — floating nets, missing GND, unknown designators, missing power domain, missing decoupling, differential bus termination; blocking/error issues gate BOM/CPL delivery.
+15. `run_erc`: Netlist-level Electrical Rules Check gate — 40+ rules covering floating nets, missing GND, unknown designators, missing power domain, missing decoupling, differential bus termination and more; every finding carries a severity and a standard reference, and blocking/error issues gate BOM/CPL delivery. The `MLCC_EFFECTIVE_CAPACITANCE_DEFICIT` rule recomputes each capacitor's real capacitance under its rated bias and warns below 60% retention; when a part carries no bias metadata the rule abstains rather than inventing one.
 16. `analyze_power_tree`: System-level power distribution architecture and thermal analyzer — load currents, regulator dropout headroom, and LDO junction temperature estimates ($T_j$).
 17. `calculate_ipc2221_clearance`: Calculate minimum conductor clearance based on IPC-2221B Table 6-1 voltage and classification (B1 internal, B2 external uncoated, B4 coated, A6 leads).
 18. `export_specctra_dsn`: Generate universal Specctra DSN (v15.0) auto-router interchange file with heuristic auto-placement for automated track routing in Freerouting or KiCad.

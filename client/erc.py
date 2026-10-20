@@ -17,6 +17,10 @@
 - MISSING_DECOUPLING (warning)：存在 IC 但无 100nF/0.1u 去耦电容——行业惯例
   每个 IC 电源引脚配 100nF 陶瓷去耦（Murata/Generic layout guide; IPC-2221
   电源完整性推荐实践）。
+- MLCC_EFFECTIVE_CAPACITANCE_DEFICIT (warning)：电容在真实工作偏置下的有效容值
+  跌破标称 60%——标签值不是电路里的值。直流偏置、温度系数、对数老化与容差连乘，
+  10µF 的 X5R 在 5V 下常只剩 3~6µF。规则只在器件带有 rated_v/applied_v 时才复算，
+  没有偏置数据就保持沉默（编造偏置比沉默更糟）。
 - MISSING_BUS_TERMINATION (warning)：CAN / RS-485 差分总线引脚间未见 120Ω 终端
   匹配电阻（ISO 11898-2 CAN / TIA/EIA-485-A 规范）。
 - HIGH_SPEED_PAIR_UNBALANCED (warning)：高速差分对正负信号线连接点数量不一致，
@@ -64,15 +68,67 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from dataclasses import asdict, dataclass
+
+logger = logging.getLogger("circuit_agent_erc")
 
 SEVERITY_ORDER = {"info": 0, "warning": 1, "error": 2, "blocking": 3}
 
 GND_RE = re.compile(r"(^|/)(GND|AGND|DGND|PGND)$", re.IGNORECASE)
 POWER_RE = re.compile(r"(VBUS|VCC|VDD|VIN|VOUT|VBAT|\+?3V3|\+?5V|\+12V|\+?1V8|\+?2V8)", re.IGNORECASE)
 DECOUP_RE = re.compile(r"^(100n|0\.1u)", re.IGNORECASE)
+
+#: Suffix → multiplier for a capacitance string. Order matters: the bare-letter
+#: shorthands that BOMs actually use (``100n``, ``0.1u``) come first, then the
+#: explicit two-letter forms, then a lone ``F``. A single ``n`` means nanofarads
+#: by universal BOM convention, and refusing to read it would skip the very
+#: parts most likely to be derated (decoupling caps).
+_CAP_UNITS: tuple[tuple[str, float], ...] = (
+    ("µF", 1.0),
+    ("uF", 1.0),
+    ("μF", 1.0),  # U+03BC GREEK SMALL LETTER MU, which some datasheets use
+    ("µ", 1.0),
+    ("u", 1.0),
+    ("μ", 1.0),
+    ("nF", 1e-3),
+    ("n", 1e-3),
+    ("pF", 1e-6),
+    ("p", 1e-6),
+    ("F", 1e3),
+)
+
+
+def _parse_capacitance_uf(raw: str) -> float | None:
+    """Parse a capacitor value string into µF, or ``None`` if it is not a capacitance.
+
+    Handles the notations that actually appear in BOMs and block definitions:
+    ``100n``, ``0.1u``, ``10uF``, ``4.7µF``, ``22pF``, ``100nF``. Returns
+    ``None`` rather than raising, because ERC runs over arbitrary user netlists
+    and one unparseable value must not abort the whole check.
+    """
+    if not raw:
+        return None
+    text = raw.strip().replace(" ", "")
+    match = re.match(r"^([0-9]*\.?[0-9]+)\s*(.*)$", text)
+    if not match:
+        return None
+    try:
+        magnitude = float(match.group(1))
+    except ValueError:
+        return None
+    suffix = match.group(2)
+    if suffix == "":
+        # A bare number carries no unit. Treating it as µF is the convention in
+        # every BOM this project emits, but it is a guess — and a wrong guess
+        # here would fabricate a derating warning, so return None instead.
+        return None
+    for token, multiplier in _CAP_UNITS:
+        if suffix.upper() == token.upper():
+            return magnitude * multiplier
+    return None
 
 
 @dataclass
@@ -194,6 +250,54 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     SRC,
                 )
             )
+
+    # 6b. MLCC_EFFECTIVE_CAPACITANCE_DEFICIT (warning)：去耦/储能电容在真实工作
+    #     偏置下有效容值不足。标签值不是电路里的值：直流偏置、温度系数、老化与
+    #     容差连乘后，10µF 的 X5R 在 5V 下常只剩 4~6µF。这里用 client.mlcc_model
+    #     复算每颗电容的实际容值，跌破标称 60% 即告警——因为去耦失效与储能不足
+    #     不会在标称计算里暴露，只在现场暴露。
+    try:
+        from .mlcc_model import effective_capacitance
+
+        for ref, v in modules.items():
+            if str(v.get("kind", "")).upper() != "CAPACITOR":
+                continue
+            raw_value = str(v.get("value", "")).strip()
+            cap_uf = _parse_capacitance_uf(raw_value)
+            if cap_uf is None or cap_uf <= 0:
+                continue
+            rated_v = float(v.get("rated_v", 0.0) or 0.0)
+            applied_v = float(v.get("applied_v", 0.0) or 0.0)
+            if rated_v <= 0 or applied_v <= 0:
+                # No bias data on the part: nothing to recompute honestly. Skipping
+                # is correct here — inventing a bias would be worse than silence.
+                continue
+            eff = effective_capacitance(
+                marked_capacitance_uf=cap_uf,
+                rated_v=rated_v,
+                applied_v=applied_v,
+                case_size=str(v.get("case_size", "0805")),
+                dielectric=str(v.get("dielectric", "X5R")),
+                ambient_c=float(v.get("ambient_c", 25.0) or 25.0),
+            )
+            if eff.retention_fraction < 0.60:
+                issues.append(
+                    _issue(
+                        "MLCC_EFFECTIVE_CAPACITANCE_DEFICIT",
+                        "贴片陶瓷电容有效容值不足",
+                        f"器件 {ref} 标称 {cap_uf}µF ({eff.case_size} {eff.dielectric}, "
+                        f"额定 {rated_v}V) 在 {applied_v}V 直流偏置下实际仅 "
+                        f"{eff.effective_capacitance_uf:.2f}µF（保留 {eff.retention_fraction:.0%}）。"
+                        f"去耦/储能按标签值设计会在现场失效：偏置 {eff.dc_bias_factor:.2f} × "
+                        f"温度 {eff.temperature_factor:.2f} × 老化 {eff.ageing_factor:.2f} × "
+                        f"容差 {eff.tolerance_factor:.2f}。建议换大封装或提高额定电压。",
+                        "warning",
+                        "Passive Components Europe DC-bias survey; EIA-198; Kyocera-AVX ageing note",
+                        object_id=f"comp:{ref}",
+                    )
+                )
+    except Exception as e:
+        logger.debug("MLCC effective-capacitance check skipped: %s", e)
 
     # 7. MISSING_BUS_TERMINATION (warning)：差分总线引脚间未连接 120Ω 终端电阻
     #    （ISO 11898-2 CAN / TIA/EIA-485-A 规范）
