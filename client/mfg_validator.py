@@ -172,7 +172,6 @@ def validate_manufacturing_package(
     # not the CPL is ordered, paid for, and never soldered — the board ships
     # unpopulated and the fault is found at functional test, not at assembly.
     cpl_tokens: set[str] = set()
-    cpl_count = 0
     for cpl_name in ("cpl.csv", "pick_and_place.csv", "positions.csv"):
         if cpl_name not in artifacts_dict:
             continue
