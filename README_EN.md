@@ -204,6 +204,16 @@ The server implements the **2026-07-28 stateless core** and stays backward compa
 | Deterministic ordering | ✅ Tool catalogue order is stable so client and upstream prompt caches hit |
 | Error-code allocation | ✅ Uses the spec-reserved `-32020`–`-32099` range; resource-not-found moved to `-32602` |
 | Legacy handshake | ✅ `initialize` retained with version negotiation, so pre-2026 clients keep working |
+| **Structured output** | ✅ Dual channel: `content` for the model, `structuredContent` for programs, strictly semantically equivalent; 6 electrical tools declare `outputSchema` |
+
+### Dual-channel output
+
+MCP 2026-07-28 defines two output channels for `tools/call`, and requires them to be **semantically equivalent** when both are present:
+
+- `content` — model-oriented. A language model only reads this one; token cost and readability win here.
+- `structuredContent` — machine-oriented. For code generation, typed orchestration and strict `outputSchema` validation.
+
+This server **derives one from the other**: tools already return JSON, so the structured channel is produced by parsing that same document, which makes disagreement impossible (a test asserts it across the whole catalogue). File-export tools (KiCad netlist, Gerber, IPC-2581, BOM CSV) and the ASCII topology renderer declare no `outputSchema` — they produce documents, not data objects, and a schema for them would only describe a string container. Error results carry no structured payload either: a failed call has no schema-conforming document, and inventing an error object shape would be a contract nobody asked for.
 
 The `instructions` field of `server/discover` is written for an LLM to read: call `synthesize_circuit` for a netlist,
 gate it with `run_erc`, then `audit_industrial_dfx` and `validate_manufacturing_package`, and only then export.

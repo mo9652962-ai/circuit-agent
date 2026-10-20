@@ -88,6 +88,7 @@ from .parametric_equations import (
     calculate_rc_filter,
     solve_resistor_divider,
 )
+from .structured_output import with_structured_content
 from .synthesizer import synthesize_from_prompt
 
 logger = logging.getLogger("circuit_agent_mcp")
@@ -1701,10 +1702,13 @@ def process_message(msg: dict[str, Any]) -> dict[str, Any] | None:
         tool_name = params.get("name", "")
         tool_args = params.get("arguments", {})
         res = handle_tool_call(tool_name, tool_args)
+        # Two output channels per 2026-07-28: `content` for the model,
+        # `structuredContent` for programmatic callers. Derived from the same
+        # document so the two cannot disagree (see client.structured_output).
         return {
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": complete(res),
+            "result": complete(with_structured_content(res)),
         }
 
     # --- Resources ---

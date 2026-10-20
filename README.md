@@ -205,6 +205,20 @@ CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标�
 | 确定性顺序 | ✅ 工具目录顺序稳定，客户端与上游 prompt 缓存可命中 |
 | 错误码分配 | ✅ 使用规范保留区 `-32020`~`-32099`；资源未找到改为 `-32602` |
 | 旧版握手 | ✅ `initialize` 保留并协商版本，不断掉 2026 年前的客户端 |
+| **结构化输出** | ✅ 双通道：`content` 给模型读、`structuredContent` 给程序读，两者语义严格等价；6 个电气工具声明 `outputSchema` |
+
+### 双通道输出
+
+MCP 2026-07-28 规定 `tools/call` 有两个输出通道，且**同时存在时语义必须等价**：
+
+- `content` — 面向模型。语言模型只读得到这一段，token 成本与可读性优先。
+- `structuredContent` — 面向程序。给代码生成、类型化编排与 `outputSchema` 严格校验用。
+
+本服务器的做法是**从同一份文档派生**：工具已经返回 JSON，结构化通道由解析该文档得到，
+因此两个通道不可能不一致（有测试对全部工具断言这一点）。返回文件内容的导出工具
+（KiCad 网表、Gerber、IPC-2581、BOM CSV）与返回 ASCII 图的工具不声明 `outputSchema` ——
+它们产出的是文档不是数据对象，给它写 schema 只会描述一个字符串容器。错误结果同样不带
+结构化负载：失败的调用没有符合 schema 的文档，编造一个错误对象形状是没人要求的契约。
 
 `server/discover` 的 `instructions` 字段直接写给 LLM 看：先 `synthesize_circuit` 出网表，再 `run_erc` 门禁，
 然后 `audit_industrial_dfx` 与 `validate_manufacturing_package`，最后才导出。`calculate_*` / `analyze_*`

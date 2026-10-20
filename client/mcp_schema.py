@@ -2603,3 +2603,25 @@ AVAILABLE_PROMPTS = [
         ],
     },
 ]
+
+
+# --------------------------------------------------------------------------- #
+# Output schemas
+# --------------------------------------------------------------------------- #
+# Declared in a separate module because an output schema is a promise: the server
+# MUST return conforming `structuredContent`, so only tools whose response shape
+# is genuinely a contract get one. Applied here rather than inline so the
+# declaration stays reviewable in one place.
+
+from .output_schemas import OUTPUT_SCHEMAS as _OUTPUT_SCHEMAS
+
+
+def _apply_output_schemas(tools: list[dict]) -> None:
+    """Attach ``outputSchema`` to the tools that declare one."""
+    for tool in tools:
+        schema = _OUTPUT_SCHEMAS.get(tool.get("name", ""))
+        if schema is not None:
+            tool["outputSchema"] = schema
+
+
+_apply_output_schemas(AVAILABLE_TOOLS)
