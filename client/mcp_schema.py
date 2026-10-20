@@ -2366,6 +2366,126 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "analyze_divider_tolerance",
+        "description": (
+            "Tolerance band of a resistor divider — nominal is not a specification. Reports BOTH the exact "
+            "worst case (corner enumeration, valid because the transfer function is monotonic in each resistor) "
+            "and the realistic statistical band (first-order sensitivity propagation, NOT naive RSS of "
+            "percentage tolerances — the output is a quotient of random variables, so RSS-ing the percentages "
+            "directly is invalid; TI SNVA112 states this explicitly). Includes TCR, sqrt-of-time life drift, "
+            "supply tolerance, and matched-pair ratio tolerance, and names which resistor dominates the error "
+            "budget so you fix the right part."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["v_in", "r1_ohm", "r2_ohm"],
+            "properties": {
+                "v_in": {"type": "number", "description": "Input voltage to the divider, in volts."},
+                "r1_ohm": {"type": "number", "description": "High-side resistor (input to midpoint), in ohms."},
+                "r2_ohm": {"type": "number", "description": "Low-side resistor (midpoint to ground), in ohms."},
+                "tolerance_pct": {
+                    "type": "number",
+                    "description": "Resistor value tolerance in percent at 25 °C.",
+                    "default": 1.0,
+                },
+                "tcr_ppm_per_c": {
+                    "type": "number",
+                    "description": "Temperature coefficient in ppm/°C. Thick film is ~200, thin film ~25, metal foil ~2.",
+                    "default": 0.0,
+                },
+                "delta_temp_c": {
+                    "type": "number",
+                    "description": "Temperature excursion from 25 °C that the design must hold accuracy over.",
+                    "default": 0.0,
+                },
+                "life_drift_pct": {
+                    "type": "number",
+                    "description": "Life drift percent over the datasheet's stated hours. Scales with sqrt of the time ratio.",
+                    "default": 0.0,
+                },
+                "ratio_tolerance_pct": {
+                    "type": "number",
+                    "description": "Ratio tolerance for a matched pair in one package. Replaces both absolute tolerances — the biggest free accuracy win.",
+                },
+                "v_in_tolerance_pct": {
+                    "type": "number",
+                    "description": "Supply tolerance in percent, treated as an independent contribution.",
+                    "default": 0.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "analyze_resistor_error_budget",
+        "description": (
+            "End-of-life resistance band for one resistor from the four-term error model: value tolerance, "
+            "temperature coefficient, life drift, and (for matched networks) ratio tolerance. Reports both the "
+            "RSS band and the linear worst-case band, and names the dominant term — because buying a ±0.1% "
+            "thick-film part to fix an accuracy problem does nothing when its 200 ppm/°C TCR already contributes "
+            "1.2% over a 60 °C excursion. Life drift scales with sqrt of the time ratio (random walk, not a ramp)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["nominal_ohm"],
+            "properties": {
+                "nominal_ohm": {"type": "number", "description": "Marked resistance in ohms."},
+                "tolerance_pct": {"type": "number", "description": "Value tolerance in percent.", "default": 1.0},
+                "tcr_ppm_per_c": {"type": "number", "description": "Temperature coefficient in ppm/°C.", "default": 0.0},
+                "delta_temp_c": {"type": "number", "description": "Temperature excursion from 25 °C.", "default": 0.0},
+                "life_drift_pct": {"type": "number", "description": "Life drift percent over life_hours_specified.", "default": 0.0},
+                "life_hours_specified": {
+                    "type": "number",
+                    "description": "The hours the datasheet's life figure refers to.",
+                    "default": 1000.0,
+                },
+                "life_hours_required": {
+                    "type": "number",
+                    "description": "The service life the design must meet.",
+                    "default": 1000.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "solve_feedback_divider",
+        "description": (
+            "Exact R1/R2 feedback divider pair for a regulator or comparator target, plus the static error the "
+            "E96 snap adds. The ideal pair almost never exists in E96, and that snap error is a wrongness, not a "
+            "tolerance: it is identical on every board and must be budgeted separately from the tolerance band."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["v_out", "v_ref"],
+            "properties": {
+                "v_out": {"type": "number", "description": "Target output voltage."},
+                "v_ref": {"type": "number", "description": "Reference voltage at the feedback midpoint."},
+                "r_total_ohm": {
+                    "type": "number",
+                    "description": "Total divider resistance R1+R2, which sets the quiescent current.",
+                    "default": 100000.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

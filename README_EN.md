@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **61 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **64 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -290,6 +290,9 @@ python -m client.mcp_server
 59. `calculate_effective_capacitance`: Real MLCC capacitance at operating conditions — **the marked value is not the value in circuit**. Multiplies the four compounding loss mechanisms: DC bias (dominant, typically 35–65% loss at rated voltage and worse in small cases), AC signal level, temperature coefficient, and logarithmic dielectric ageing, then applies part tolerance. Returns the full factor stack so the dominant killer is identifiable. Class I (C0G/NP0) correctly short-circuits to tolerance-only. Pass a measured retention from a datasheet curve (Murata SimSurfing / TDK SEAT) to replace the band estimate and get `confidence="measured"`.
 60. `size_hold_up_capacitor`: Brown-out ride-through reservoir sizing — solves C = I·t/ΔV in **effective** farads, then divides by the retention at the worst-case bias in the window to report the marked value you must actually buy. Reports achieved hold time, shortfall, and required marked capacitance. Sizing from the marked value is exactly how a design "passes" and then delivers 0.85 ms of hold-up against a 20 ms spec.
 61. `analyze_rc_filter_effective`: RC filter cutoff computed from the capacitance the part actually has, not the marked value. A nominal 1 kHz filter built with an X5R part retaining only 40% under bias cuts at 2.5 kHz. Returns nominal vs actual cutoff, drift percentage and cause, and keeps operating-condition derating explicitly separate from part tolerance — two independent error sources.
+62. `analyze_divider_tolerance`: Divider tolerance band — **nominal is not a specification**. Reports both the exact worst case (four-corner enumeration, exact because the transfer function is monotonic in each resistor) and the realistic statistical band (first-order sensitivity propagation). The methodological point: the output is a quotient of random variables, so naive RSS of percentage tolerances is invalid (TI SNVA112 states this explicitly) — the partial derivatives must convert each uncertainty to a voltage contribution first. Includes TCR, sqrt-of-time life drift, supply tolerance and matched-pair ratio tolerance, and names the resistor that dominates the error budget.
+63. `analyze_resistor_error_budget`: End-of-life resistance band from the four-term error model (value tolerance + TCR + life drift + matched-network ratio tolerance). Reports both the RSS band and the linear worst-case band and names the dominant term — buying a ±0.1% thick-film part to fix an accuracy problem usually does nothing, because its 200 ppm/°C TCR already contributes 1.2% over a 60 °C excursion. Life drift scales with the square root of the time ratio (random walk, not a ramp).
+64. `solve_feedback_divider`: Exact R1/R2 feedback pair for a regulator or comparator target, plus the static error the E96 snap adds. The ideal pair almost never exists in E96, and that snap error is a **systematic offset, not a tolerance**: it is identical on every board and must be budgeted separately from the tolerance band.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:

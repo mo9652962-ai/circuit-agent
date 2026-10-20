@@ -1381,6 +1381,63 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_rc, ensure_ascii=False, indent=2)}]
             }
 
+        # --- Tolerance corners (nominal is not a specification) ------------ #
+        if name == "analyze_divider_tolerance":
+            from .tolerance_analysis import divider_tolerance
+
+            rep_div = divider_tolerance(
+                v_in=float(arguments.get("v_in", 3.3)),
+                r1_ohm=float(arguments.get("r1_ohm", 10000.0)),
+                r2_ohm=float(arguments.get("r2_ohm", 10000.0)),
+                tolerance_pct=float(arguments.get("tolerance_pct", 1.0)),
+                tcr_ppm_per_c=float(arguments.get("tcr_ppm_per_c", 0.0)),
+                delta_temp_c=float(arguments.get("delta_temp_c", 0.0)),
+                life_drift_pct=float(arguments.get("life_drift_pct", 0.0)),
+                ratio_tolerance_pct=(
+                    float(arguments["ratio_tolerance_pct"])
+                    if arguments.get("ratio_tolerance_pct") is not None
+                    else None
+                ),
+                v_in_tolerance_pct=float(arguments.get("v_in_tolerance_pct", 0.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_div.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "analyze_resistor_error_budget":
+            from .tolerance_analysis import resistor_value_band, tcr_penalty_over_temperature
+
+            band = resistor_value_band(
+                nominal_ohm=float(arguments.get("nominal_ohm", 10000.0)),
+                tolerance_pct=float(arguments.get("tolerance_pct", 1.0)),
+                tcr_ppm_per_c=float(arguments.get("tcr_ppm_per_c", 0.0)),
+                delta_temp_c=float(arguments.get("delta_temp_c", 0.0)),
+                life_drift_pct=float(arguments.get("life_drift_pct", 0.0)),
+                life_hours_specified=float(arguments.get("life_hours_specified", 1000.0)),
+                life_hours_required=float(arguments.get("life_hours_required", 1000.0)),
+            )
+            dominance = tcr_penalty_over_temperature(
+                tolerance_pct=float(arguments.get("tolerance_pct", 1.0)),
+                tcr_ppm_per_c=float(arguments.get("tcr_ppm_per_c", 0.0)),
+                delta_temp_c=float(arguments.get("delta_temp_c", 0.0)),
+            )
+            payload = {"value_band": band, "dominance": dominance}
+            return {
+                "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "solve_feedback_divider":
+            from .tolerance_analysis import divider_ratio_for_target
+
+            rep_fb = divider_ratio_for_target(
+                v_out=float(arguments.get("v_out", 5.0)),
+                v_ref=float(arguments.get("v_ref", 0.8)),
+                r_total_ohm=float(arguments.get("r_total_ohm", 100000.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_fb, ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
