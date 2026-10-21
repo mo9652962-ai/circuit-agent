@@ -254,7 +254,7 @@ def heuristic_place_components(
         for k, dims in pkg_dims.items():
             if k in pkg:
                 return dims
-        if ref.startswith("U_") or ref.startswith("IC"):
+        if ref.startswith(("U_", "IC")):
             return (2.5, 2.5)
         return (1.2, 0.8)
 
@@ -517,7 +517,7 @@ def heuristic_place_components(
     def _priority(ref: str) -> int:
         if "MCU" in ref:
             return 0
-        if ref.startswith("U_") or ref.startswith("J_"):
+        if ref.startswith(("U_", "J_")):
             return 1
         if "XTAL" in ref or "Y1" in ref:
             return 2
