@@ -5,6 +5,59 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **SES coordinate units**: `freeroute`'s writer emits routing coordinates as
+  integers while the session declares `(resolution mm 1000)`, i.e. 1/1000 mm. A
+  pad at (10.25, 27.5) mm was written as `10 28` — up to half a millimetre of
+  error, larger than a 0603 pad. `autoroute_circuit` now builds the routing result
+  itself, scales coordinates and widths into resolution units, and hands the
+  scaled result to the writer. `parse_ses_routing` reads the divisor from the file
+  instead of assuming millimetres, so reported trace lengths are true again
+  (previously inflated 1000x by the same mismatch).
+
+- **Gerber pads**: pads are flashed at each component's real *pin* position
+  (placement origin + footprint pin offset) with a land size derived from the
+  package. The previous exporter flashed one uniform 1.6x1.0 mm pad at every
+  component *centroid*, so no pad coincided with anything a part could solder to.
+
+- **Gerber tracks**: copper layers carry the autorouter's actual SES geometry.
+  The previous exporter drew one straight segment between each net's two
+  component centroids — copper that shorts whatever lies between them. A net the
+  router could not complete now draws nothing, which is the truthful state.
+
+- **Excellon drill**: holes come only from through-hole component pins,
+  router-placed vias, and declared mounting holes. The previous exporter drilled a
+  0.3 mm hole at `centroid + (0.8, 0.8)` for every SMD part and a second hole
+  2.54 mm beside every connector — 23 of 27 holes on the ESP32-C3 reference board
+  traced to no design feature. Alias pin names that share one physical pad (a
+  USB-C shell pin is both `GND` and `1`) are de-duplicated.
+
+- **Solder mask**: openings track real pad positions, expanded by a per-side
+  mask allowance (`MASK_EXPANSION_MM`). The bottom mask opens only for
+  through-hole pads instead of opening nothing at all.
+
+- **Silkscreen**: outlines use each package's body dimensions instead of one
+  uniform 3.6x2.4 mm box for every part.
+
+### Added
+
+- `PACKAGE_HALF_EXTENTS` and `BODY_DIMS_MM` as module-level tables in
+  `placement_engine`, shared by the placement collision maths and the silkscreen
+  generator, so a part's outline matches the space it reserves.
+
+- `export_gerber_bundle` accepts `placements` and `ses_text`; the MCP tool
+  `export_gerber_bundle` gains `autoroute` (default true) and `ses_text` so a fab
+  bundle carries routed geometry by default.
+
+- `tests/test_fab_output_fidelity.py`: 9 tests asserting the bundle describes the
+  design rather than a plausible approximation. Each was verified to fail against
+  the previous implementation; two first-draft assertions passed against the old
+  code and were rewritten to check absolute positions instead of internal
+  consistency.
+
 ## [0.15.0] — 2026-10-21
 
 ### Added

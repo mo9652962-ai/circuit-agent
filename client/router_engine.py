@@ -28,11 +28,25 @@ log = logging.getLogger("circuit-router")
 
 
 def parse_ses_routing(ses_text: str, total_expected_nets: int | None = None) -> dict[str, Any]:
-    """Parse Specctra SES routing session text and extract structured metrics."""
+    """Parse Specctra SES routing session text and extract structured metrics.
+
+    Coordinates inside a SES ``routes`` scope are integers in the session's
+    declared resolution units — ``(resolution mm 1000)`` means 1/1000 mm — not
+    millimetres. The divisor is read from the file rather than assumed, so a
+    session written in a coarser unit still reports true lengths.
+    """
     routed_nets: list[str] = []
     total_wire_length_mm: float = 0.0
     layers_used: set[str] = set()
     wire_segments_count: int = 0
+
+    # Resolution divisor: mm-per-unit. Default 1000 (1 um) if the file omits it.
+    unit_div = 1000.0
+    rm = re.search(r"\(resolution\s+(\w+)\s+([0-9.]+)\s*\)", ses_text)
+    if rm:
+        unit_div = float(rm.group(2)) or 1000.0
+        if rm.group(1).lower() in ("inch", "in"):
+            unit_div *= 25.4
 
     # Extract all vias
     via_matches = re.findall(r'\(via\s+"?([^"\s]+)"?\s+([0-9.-]+)\s+([0-9.-]+)', ses_text)
@@ -64,8 +78,8 @@ def parse_ses_routing(ses_text: str, total_expected_nets: int | None = None) -> 
             if len(pts) >= 2:
                 for i in range(len(pts) - 1):
                     wire_segments_count += 1
-                    dx = pts[i + 1][0] - pts[i][0]
-                    dy = pts[i + 1][1] - pts[i][1]
+                    dx = (pts[i + 1][0] - pts[i][0]) / unit_div
+                    dy = (pts[i + 1][1] - pts[i][1]) / unit_div
                     dist = math.hypot(dx, dy)
                     total_wire_length_mm += dist
 
@@ -104,7 +118,7 @@ def autoroute_specctra_dsn(
         Dict containing SES output text, metrics, and routing status.
     """
     try:
-        from freeroute.route import route
+        import freeroute.route  # noqa: F401  (availability probe; routing goes through _route_with_correct_units)
     except ImportError:
         err_msg = (
             "Native PCB autorouter module 'freeroute' is not installed. "
@@ -122,7 +136,7 @@ def autoroute_specctra_dsn(
     expected_nets = len(re.findall(r'\(net\s+"?[\w"+\-.]+"?', dsn_text))
 
     try:
-        ses_text = route(dsn_text, engine=engine, shove=shove)
+        ses_text = _route_with_correct_units(dsn_text, engine=engine, shove=shove)
         metrics = parse_ses_routing(ses_text, total_expected_nets=expected_nets)
         return {
             "success": metrics["success"],
@@ -137,6 +151,52 @@ def autoroute_specctra_dsn(
             "ses_text": "",
             "metrics": {},
         }
+
+
+def _route_with_correct_units(dsn_text: str, *, engine: str = "grid", shove: bool = False) -> str:
+    """Run the autorouter and re-emit SES with Specctra-correct coordinate units.
+
+    ``freeroute``'s ``write_ses`` emits routing coordinates as *integers*, but the
+    router works in millimetres and the SES header declares ``(resolution mm 1000)``.
+    The two only agree when a coordinate happens to be a whole millimetre: a pad at
+    (10.25, 27.5) mm was written as ``10 28``, i.e. up to half a millimetre of error,
+    which is larger than a 0603 pad. Every downstream consumer — KiCad's
+    ``ImportSpecctraSES``, and our own Gerber exporter — inherits that error.
+
+    We do not patch the third-party writer. Instead we build the ``RoutingResult``
+    ourselves, scale coordinates and widths into DSN resolution units, and hand the
+    already-scaled result to the same writer, which then rounds to the correct
+    integer grid (0.001 mm).
+    """
+    from freeroute.dsn import parse_dsn
+    from freeroute.route import pipeline
+    from freeroute.ses import write_ses
+    from freeroute.ses.model import RoutedVia, RoutedWire, RoutingResult
+
+    dsn = parse_dsn(dsn_text)
+    scale = max(dsn.resolution.value, 1)
+
+    routed = pipeline.build_routing_result(dsn)
+
+    scaled = RoutingResult()
+    for net in routed.nets:
+        for wire in net.wires:
+            scaled.add_wire(
+                net.name,
+                RoutedWire(
+                    layer=wire.layer,
+                    width=wire.width * scale,
+                    coords=[c * scale for c in wire.coords],
+                    fixed=wire.fixed,
+                ),
+            )
+        for via in net.vias:
+            scaled.add_via(
+                net.name,
+                RoutedVia(padstack=via.padstack, x=via.x * scale, y=via.y * scale, fixed=via.fixed),
+            )
+
+    return write_ses(dsn, scaled)
 
 
 def autoroute_circuit(

@@ -2,10 +2,24 @@
 
 Industrial benchmark & standard:
 - IPC-NC-349: Computer Numerical Control Formatting for Drilling and Routing Equipment.
-- Universal Excellon Format 2 format consumed by automated CNC drilling machines
+- Universal Excellon Format 2 consumed by automated CNC drilling machines
   (Hitachi, Posalux, Schmoll) across global PCB fabrication facilities.
-- Groups drill hits by aperture diameter (T01C..., T02C...), outputs metric coordinates,
-  and completes the 5th missing file of a full PCB production bundle alongside RS-274X Gerber.
+- Groups drill hits by aperture diameter (T01C..., T02C...), outputs metric
+  coordinates, and completes the drill file of a full PCB production bundle
+  alongside RS-274X Gerber.
+
+What gets drilled
+-----------------
+Only holes the design actually requires:
+
+* Through-hole component pins, at their real footprint pin positions.
+* Vias the autorouter placed, at the coordinates it placed them.
+* Mounting holes, when the board carries a mounting-hole component.
+
+The previous implementation drilled a 0.3 mm hole next to *every* SMD part and a
+second hole 2.54 mm beside every connector, regardless of pin count or position.
+Those holes exist nowhere in the design; a fab would drill them straight through
+pads and traces.
 """
 
 from __future__ import annotations
@@ -13,9 +27,31 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .placement_engine import heuristic_place_components
+from .placement_engine import STANDARD_PIN_OFFSETS, heuristic_place_components
 
 log = logging.getLogger("circuit-excellon")
+
+#: Standard drill diameters in mm, keyed by package class.
+DRILL_HEADER_PIN = 1.0  # 2.54mm pitch headers / connectors
+DRILL_TESTPOINT = 1.0
+DRILL_VIA = 0.3  # finished via drill for a 0.6mm via pad
+DRILL_MOUNT = 3.2  # M3 clearance
+
+#: Packages whose pins are plated through-holes.
+_THROUGH_HOLE_HINTS = ("HDR", "TERMINAL", "CONN-TH", "RJ45", "PinHeader", "Screw_Terminal")
+_ROUND_PAD_HINTS = ("TestPoint", "Fiducial", "MountingHole")
+
+
+def _pin_offsets(package: str, ref: str) -> dict[str, tuple[float, float]]:
+    """Pin offset map for a package, falling back to the placement engine's synthesiser."""
+    from .placement_engine import _synthesize_footprint_pins
+
+    offs = STANDARD_PIN_OFFSETS.get(package or "")
+    if offs:
+        return offs
+    if any(k in (package or "") for k in _ROUND_PAD_HINTS) or ref.upper().startswith(("TP_", "FID")):
+        return {"1": (0.0, 0.0)}
+    return _synthesize_footprint_pins(package or "", ["1", "2"])
 
 
 def export_excellon_drill(
@@ -24,53 +60,73 @@ def export_excellon_drill(
     job_name: str = "CIRCUIT_AGENT_PCB",
     board_width_mm: float = 70.0,
     board_height_mm: float = 50.0,
+    *,
+    placements: dict[str, Any] | None = None,
+    vias: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Generate production-ready Excellon CNC drill file (.drl)."""
-    placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+    """Generate a production-ready Excellon CNC drill file (.drl).
 
-    # Group holes by diameter (mm)
-    # 0.3mm: signal vias / testpoints
-    # 0.8mm: small pin headers / passive leads
-    # 1.0mm: standard power connectors / XH / USB shield
-    # 3.2mm: M3 mounting holes
+    Holes come from three real sources and nothing else: through-hole component
+    pins, router-placed vias, and mounting holes declared as components. A design
+    with no through-hole parts and no vias produces a valid file with no hits —
+    which is the truth for a fully-SMD single-sided assembly.
+    """
+    if placements is None:
+        placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+
     drill_groups: dict[float, list[tuple[float, float]]] = {}
+    # A footprint may alias one physical pad under several pin names (a USB-C
+    # shell pin is both "GND" and "1"). Drilling each name would put two hits on
+    # one spot; a fab reads that as a duplicate tool path.
+    _seen_hits: set[tuple[float, float, float]] = set()
 
+    def _add(dia: float, x: float, y: float) -> None:
+        key = (round(dia, 3), round(x, 4), round(y, 4))
+        if key in _seen_hits:
+            return
+        _seen_hits.add(key)
+        drill_groups.setdefault(round(dia, 3), []).append((round(x, 4), round(y, 4)))
+
+    # 1. Through-hole component pins, at real pin positions.
     for ref, comp in sorted(modules.items()):
         p = placements.get(ref)
-        if not p:
+        if p is None:
             continue
-        kind = str(comp.get("kind", "")).upper()
-        pkg = str(comp.get("package", "")).upper()
+        pkg = str(comp.get("package", ""))
         val = str(comp.get("value", "")).upper()
+        upper_ref = ref.upper()
 
-        if "MOUNT" in ref or "HOLE" in ref or "M3" in val:
-            dia = 3.2
-            drill_groups.setdefault(dia, []).append((p.x_mm, p.y_mm))
-        elif "CONN" in kind or "HDR" in ref or "USB" in ref or "XH" in pkg:
-            # Through-hole connectors
-            dia = 1.0
-            drill_groups.setdefault(dia, []).append((p.x_mm, p.y_mm))
-            # If multi-pin, add a second hole offset
-            drill_groups[dia].append((p.x_mm + 2.54, p.y_mm))
-        elif "TESTPOINT" in kind or "TP" in ref:
-            dia = 0.5
-            drill_groups.setdefault(dia, []).append((p.x_mm, p.y_mm))
-        else:
-            # Standard SMD parts get a local thermal / ground via near pad
-            dia = 0.3
-            drill_groups.setdefault(dia, []).append((p.x_mm + 0.8, p.y_mm + 0.8))
+        if "MOUNT" in upper_ref or "HOLE" in upper_ref or "M3" in val:
+            _add(DRILL_MOUNT, p.x_mm, p.y_mm)
+            continue
 
-    # Add 4 M3 mounting holes in board corners if board is reasonably sized
-    if board_width_mm >= 30.0 and board_height_mm >= 30.0:
-        dia_mount = 3.2
-        drill_groups.setdefault(dia_mount, [])
+        is_th = any(k in pkg for k in _THROUGH_HOLE_HINTS) or upper_ref.startswith("J_")
+        if not is_th:
+            continue
+
+        dia = DRILL_TESTPOINT if upper_ref.startswith("TP_") else DRILL_HEADER_PIN
+        offs = _pin_offsets(pkg, ref)
+        # Drill every pin the footprint declares, not a guessed count.
+        for off in offs.values():
+            _add(dia, p.x_mm + off[0], p.y_mm + off[1])
+
+    # 2. Vias the router actually placed.
+    for via in vias or []:
+        _add(DRILL_VIA, float(via["x"]), float(via["y"]))
+
+    # 3. Board mounting holes, only when the board is large enough to carry them
+    #    and the design did not already declare mounting-hole components.
+    declared_mounts = any(
+        "MOUNT" in ref.upper() or "HOLE" in ref.upper() for ref in modules
+    )
+    if not declared_mounts and board_width_mm >= 30.0 and board_height_mm >= 30.0:
         for mx, my in (
             (3.5, 3.5),
             (board_width_mm - 3.5, 3.5),
             (3.5, board_height_mm - 3.5),
             (board_width_mm - 3.5, board_height_mm - 3.5),
         ):
-            drill_groups[dia_mount].append((round(mx, 3), round(my, 3)))
+            _add(DRILL_MOUNT, mx, my)
 
     L = [
         "M48",
@@ -80,31 +136,26 @@ def export_excellon_drill(
     ]
 
     tool_map: dict[float, str] = {}
-    tool_idx = 1
-    for dia in sorted(drill_groups.keys()):
-        t_code = f"T{tool_idx:02d}"
+    for idx, dia in enumerate(sorted(drill_groups), start=1):
+        t_code = f"T{idx:02d}"
         tool_map[dia] = t_code
         L.append(f"{t_code}C{dia:.3f}")
-        tool_idx += 1
 
-    L.extend([
-        "%",
-        "G90",
-        "G05",
-    ])
+    L.extend(["%", "G90", "G05"])
 
     total_hits = 0
-    for dia in sorted(drill_groups.keys()):
-        t_code = tool_map[dia]
-        L.append(t_code)
+    for dia in sorted(drill_groups):
+        L.append(tool_map[dia])
         for x_mm, y_mm in drill_groups[dia]:
-            # Format: METRIC 3:3 (e.g. 10.5mm -> X010500)
-            x_int = round(x_mm * 1000.0)
-            y_int = round(y_mm * 1000.0)
-            L.append(f"X{x_int:06d}Y{y_int:06d}")
+            # METRIC 3:3 — e.g. 10.5mm -> X010500
+            L.append(f"X{round(x_mm * 1000.0):06d}Y{round(y_mm * 1000.0):06d}")
             total_hits += 1
 
     L.append("M30")
 
-    log.info(f"✅ 生成 Excellon CNC 钻孔文件: {len(tool_map)} 组钻头, 共 {total_hits} 个钻孔点")
+    log.info(
+        "✅ 生成 Excellon CNC 钻孔文件: %d 组钻头, 共 %d 个钻孔点",
+        len(tool_map),
+        total_hits,
+    )
     return "\n".join(L) + "\n"

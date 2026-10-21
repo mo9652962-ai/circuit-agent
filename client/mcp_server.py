@@ -750,11 +750,31 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             bh = float(arguments.get("board_height_mm", 50.0))
             from .gerber_exporter import export_gerber_bundle
 
+            connections = netlist.get("connections") or []
+
+            # The fab bundle needs the router's actual geometry. Without it the
+            # copper layers carry pads only — an unrouted board, honestly described.
+            # `autoroute` defaults to True because a caller asking for a fab bundle
+            # almost always wants a routed board; set it False to export pads only.
+            ses_text = arguments.get("ses_text")
+            if ses_text is None and arguments.get("autoroute", True):
+                from .router_engine import autoroute_circuit
+
+                routed = autoroute_circuit(
+                    modules,
+                    connections,
+                    board_width_mm=bw,
+                    board_height_mm=bh,
+                )
+                if routed.get("success"):
+                    ses_text = routed.get("ses_text")
+
             bundle = export_gerber_bundle(
                 modules,
-                netlist.get("connections") or [],
+                connections,
                 board_width_mm=bw,
                 board_height_mm=bh,
+                ses_text=ses_text,
             )
             return {"content": [{"type": "text", "text": json.dumps(bundle, ensure_ascii=False, indent=2)}]}
 

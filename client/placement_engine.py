@@ -38,6 +38,88 @@ class ComponentPlacement:
         return asdict(self)
 
 
+#: Half-extents (hw, hh) in mm of each package's occupied footprint area.
+#: Used both by the placement engine's collision maths and by the silkscreen
+#: generator, so a part's outline matches the space it actually reserves.
+PACKAGE_HALF_EXTENTS: dict[str, tuple[float, float]] = {
+    "ESP32-S3-WROOM-1": (9.5, 13.5),
+    "ESP32-C3-WROOM-02": (9.5, 10.5),
+    "LQFP-48": (5.0, 5.0),
+    "QFN-56": (4.5, 4.5),
+    "LQFP-44": (6.5, 6.5),
+    "R2512": (3.5, 1.8),
+    "HTSSOP-28": (5.0, 3.5),
+    "SOIC-8": (3.0, 2.5),
+    "SOT-223": (3.5, 2.0),
+    # Passive half-extents (body + pad land)
+    "C0402": (0.6, 0.3),
+    "C0603": (0.8, 0.45),
+    "C0805": (1.0, 0.6),
+    "C1206": (1.6, 0.8),
+    "R0402": (0.6, 0.3),
+    "R0603": (0.8, 0.45),
+    "R0805": (1.0, 0.6),
+    # Discrete / connector packages whose pads reach further than their body
+    "SMA": (2.3, 1.4),
+    "SMB": (2.6, 1.7),
+    "L0805": (1.1, 0.7),
+    "L1206": (1.7, 0.9),
+    "LED0603": (0.9, 0.45),
+    "LED0805": (1.1, 0.6),
+    "SOT-23-6": (1.7, 1.6),
+    "SOT-23-5": (1.6, 1.5),
+    "SOT-23": (1.6, 1.5),
+    "TestPoint_Pad": (1.2, 1.2),
+    "Fiducial": (1.2, 1.2),
+    "HDR-1X3": (1.6, 4.1),
+    "HDR-1X4": (1.6, 5.4),
+    "HDR-1X2": (1.6, 2.8),
+    "PinHeader": (1.6, 5.4),
+    "RJ45": (8.5, 8.0),
+    "USB-C-16P": (4.6, 3.8),
+    "SW-SMD_4P": (3.1, 2.0),
+    "Screw_Terminal": (5.2, 4.2),
+    "TERMINAL": (5.2, 4.2),
+    "Buzzer": (4.2, 4.2),
+}
+
+#: Body dimensions (width, height) in mm, for silkscreen outlines. Distinct from
+#: the half-extents above: the courtyard reserves pad land, the silk draws the part.
+BODY_DIMS_MM: dict[str, tuple[float, float]] = {
+    "ESP32-S3-WROOM-1": (18.0, 25.5),
+    "ESP32-C3-WROOM-02": (18.0, 20.0),
+    "LQFP-48": (7.0, 7.0),
+    "LQFP-44": (10.0, 10.0),
+    "QFN-56": (7.0, 7.0),
+    "R2512": (6.3, 3.2),
+    "HTSSOP-28": (9.7, 4.4),
+    "SOIC-8": (4.9, 3.9),
+    "SOT-223": (6.5, 3.5),
+    "C0402": (1.0, 0.5),
+    "C0603": (1.6, 0.8),
+    "C0805": (2.0, 1.25),
+    "C1206": (3.2, 1.6),
+    "R0402": (1.0, 0.5),
+    "R0603": (1.6, 0.8),
+    "R0805": (2.0, 1.25),
+    "SMA": (4.3, 2.6),
+    "SMB": (5.3, 3.6),
+    "L0805": (2.0, 1.25),
+    "LED0603": (1.6, 0.8),
+    "LED0805": (2.0, 1.25),
+    "SOT-23": (2.9, 1.3),
+    "SOT-23-6": (2.9, 1.6),
+    "TestPoint_Pad": (2.0, 2.0),
+    "Fiducial": (2.0, 2.0),
+    "HDR-1X3": (2.5, 7.6),
+    "HDR-1X4": (2.5, 10.2),
+    "RJ45": (16.0, 15.0),
+    "USB-C-16P": (9.0, 7.5),
+    "SW-SMD_4P": (6.0, 3.5),
+    "Screw_Terminal": (10.0, 8.0),
+}
+
+
 #: Standard component pin offsets (relative to component centroid, in mm)
 STANDARD_PIN_OFFSETS: dict[str, dict[str, tuple[float, float]]] = {
     "C0603": {"1": (-0.75, 0.0), "2": (0.75, 0.0)},
@@ -205,46 +287,7 @@ def heuristic_place_components(
     cx = board_width_mm / 2.0
     cy = board_height_mm / 2.0
 
-    pkg_dims: dict[str, tuple[float, float]] = {
-        "ESP32-S3-WROOM-1": (9.5, 13.5),
-        "ESP32-C3-WROOM-02": (9.5, 10.5),
-        "LQFP-48": (5.0, 5.0),
-        "LQFP-48_7x7mm_P0.5mm": (5.0, 5.0),
-        "QFN-56": (4.5, 4.5),
-        "LQFP-44": (6.5, 6.5),
-        "R2512": (3.5, 1.8),
-        "HTSSOP-28": (5.0, 3.5),
-        "SOIC-8": (3.0, 2.5),
-        "SOT-223": (3.5, 2.0),
-        # Passive half-extents (body + pad land), used by the decoupling/clearance math
-        "C0402": (0.6, 0.3),
-        "C0603": (0.8, 0.45),
-        "C0805": (1.0, 0.6),
-        "C1206": (1.6, 0.8),
-        "R0402": (0.6, 0.3),
-        "R0603": (0.8, 0.45),
-        "R0805": (1.0, 0.6),
-        # Discrete / connector packages whose pads reach further than their body
-        "SMA": (2.3, 1.4),
-        "SMB": (2.6, 1.7),
-        "L0805": (1.1, 0.7),
-        "L1206": (1.7, 0.9),
-        "LED0603": (0.9, 0.45),
-        "LED0805": (1.1, 0.6),
-        "SOT-23": (1.6, 1.5),
-        "SOT-23-6": (1.7, 1.6),
-        "TestPoint_Pad": (1.2, 1.2),
-        "Fiducial": (1.2, 1.2),
-        "HDR-1X3": (1.6, 4.1),
-        "HDR-1X4": (1.6, 5.4),
-        "HDR-1X2": (1.6, 2.8),
-        "PinHeader": (1.6, 5.4),
-        "RJ45": (8.5, 8.0),
-        "USB-C-16P": (4.6, 3.8),
-        "SW-SMD_4P": (3.1, 2.0),
-        "Screw_Terminal": (5.2, 4.2),
-        "Buzzer": (4.2, 4.2),
-    }
+    pkg_dims: dict[str, tuple[float, float]] = dict(PACKAGE_HALF_EXTENTS)
 
     # Minimum courtyard gap enforced between neighbouring parts (mm)
     _GAP = 0.5

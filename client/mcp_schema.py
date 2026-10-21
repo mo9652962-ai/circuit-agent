@@ -750,8 +750,10 @@ AVAILABLE_TOOLS = [
     {
         "name": "export_gerber_bundle",
         "description": (
-            "Generate native fabrication-ready Gerber RS-274X layer bundle (Edge_Cuts .gm1, Top Copper .gtl, "
-            "Top Mask .gts, Top Silkscreen .gto) directly from placed modules and netlist, eliminating GUI EDA dependency."
+            "Generate native fabrication-ready Gerber RS-274X + Excellon bundle (Edge_Cuts .gm1, Top/Bottom "
+            "Copper .gtl/.gbl, Top/Bottom Mask .gts/.gbs, Top Silkscreen .gto, drill .drl) directly from placed "
+            "modules and netlist, eliminating GUI EDA dependency. Copper layers carry real footprint pads and the "
+            "autorouter's actual track geometry."
         ),
         "inputSchema": {
             "type": "object",
@@ -774,6 +776,21 @@ AVAILABLE_TOOLS = [
                     "type": "number",
                     "description": "PCB height in mm (default: 50.0).",
                     "default": 50.0,
+                },
+                "autoroute": {
+                    "type": "boolean",
+                    "description": (
+                        "Run the autorouter first so the copper layers carry real tracks (default: true). "
+                        "Set false to export pads only, i.e. an unrouted board."
+                    ),
+                    "default": True,
+                },
+                "ses_text": {
+                    "type": "string",
+                    "description": (
+                        "Optional Specctra SES session text from a previous autoroute_pcb call. "
+                        "Overrides 'autoroute' and avoids routing twice."
+                    ),
                 },
             },
         },
