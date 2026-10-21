@@ -24,7 +24,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "ruff>=0.6", "jsonschema>=4"]
+dev = ["pytest>=7", "ruff>=0.6", "jsonschema>=4", "freeroute>=2026.7.14"]
 routing = ["freeroute>=2026.7.14"]
 
 [project.scripts]

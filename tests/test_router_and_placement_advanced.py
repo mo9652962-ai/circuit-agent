@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import math
 
+import pytest
+
 from client.mcp_server import handle_tool_call
 from client.placement_engine import (
     export_specctra_dsn,
@@ -90,6 +92,7 @@ def test_specctra_dsn_library_and_pins_format():
 
 def test_native_autoroute_esp32c3_node():
     """Verify native Python autorouter completes routing for ESP32-C3 node with 100% completion rate."""
+    pytest.importorskip("freeroute", reason="freeroute is an optional routing dependency (pip install freeroute)")
     spec = synthesize_from_prompt("ESP32-C3 环境监测节点")
     res = autoroute_circuit(spec["modules"], spec["netlist"]["connections"])
 
@@ -106,6 +109,7 @@ def test_native_autoroute_esp32c3_node():
 
 def test_native_autoroute_industrial_gateway():
     """Verify multi-layer routing on dense industrial gateway with vias and multi-layer tracks."""
+    pytest.importorskip("freeroute", reason="freeroute is an optional routing dependency (pip install freeroute)")
     spec = synthesize_from_prompt("ESP32-S3 工业 CAN 与 RS485 网关")
     res = autoroute_circuit(spec["modules"], spec["netlist"]["connections"])
 
@@ -121,6 +125,7 @@ def test_native_autoroute_industrial_gateway():
 def test_mcp_tool_autoroute_pcb():
     """Verify MCP tool autoroute_pcb executes cleanly and returns structured payload."""
     import json
+    pytest.importorskip("freeroute", reason="freeroute is an optional routing dependency (pip install freeroute)")
 
     spec = synthesize_from_prompt("STM32F103 带电机驱动的控制器")
     out = handle_tool_call(
