@@ -25,6 +25,10 @@ class ChipPinoutRule:
     pins: list[str] = field(default_factory=list)
     pin_numbers: dict[str, str] = field(default_factory=dict)
     reserved_pins: dict[str, str] = field(default_factory=dict)
+    #: Pins that are held back from the default allocation but may be used when a
+    #: design asks for the signal they carry (an MCU's native USB pair). A pin
+    #: here is not an error to allocate; a pin in ``reserved_pins`` is.
+    conditional_pins: dict[str, str] = field(default_factory=dict)
     peripheral_routes: dict[str, dict[str, str]] = field(default_factory=dict)
     default_gpio_assignments: dict[str, str] = field(default_factory=dict)
     #: Supply pins, keyed by the rail they belong to (``"+3.3V"``, ``"VBUS"``).
@@ -52,6 +56,7 @@ class ChipPinoutRule:
             "pins": self.pins,
             "pin_numbers": self.pin_numbers,
             "reserved_pins": self.reserved_pins,
+            "conditional_pins": self.conditional_pins,
             "peripheral_routes": self.peripheral_routes,
             "default_gpio_assignments": self.default_gpio_assignments,
             "supply_pins": self.supply_pins,
@@ -72,6 +77,7 @@ class ChipPinoutRule:
             pins=list(data.get("pins", [])),
             pin_numbers=dict(data.get("pin_numbers", {})),
             reserved_pins=dict(data.get("reserved_pins", {})),
+            conditional_pins=dict(data.get("conditional_pins", {})),
             peripheral_routes=dict(data.get("peripheral_routes", {})),
             default_gpio_assignments=dict(data.get("default_gpio_assignments", {})),
             supply_pins=dict(data.get("supply_pins", {})),
@@ -236,6 +242,10 @@ _BUILTIN_CHIPS: list[ChipPinoutRule] = [
             "IO3": "strapping (JTAG source)",
             "IO45": "strapping (VDD_SPI voltage)",
             "IO46": "strapping / input-only",
+        },
+        #: Native USB pair (IO19 = D-, IO20 = D+). Held out of the default
+        #: allocation, usable by the USB signals that need them.
+        conditional_pins={
             "IO19": "native USB D-",
             "IO20": "native USB D+",
         },
@@ -262,6 +272,8 @@ _BUILTIN_CHIPS: list[ChipPinoutRule] = [
             "/SWDIO": "IO39",
             "/SWCLK": "IO42",
             "/NRST": "EN",
+            "/USB_DP": "IO20",
+            "/USB_DM": "IO19",
             "/MOSI": "IO11", "/MISO": "IO13", "/SCLK": "IO12", "/CS_ETH": "IO10",
             "/INT_ETH": "IO14", "/RST_ETH": "IO21",
         },
@@ -290,8 +302,18 @@ _BUILTIN_CHIPS: list[ChipPinoutRule] = [
         # (IO8/IO9). IO8/IO9 are strapping too, but their I2C pull-ups satisfy
         # the reset requirement, so reserving them would break the documented
         # default bus for no benefit.
+        #
+        # IO18/IO19 are the native USB pair. They stay out of
+        # `default_gpio_assignments` so a design that does not use USB never
+        # spends them, but a design that *does* route D+/D- must land there —
+        # the signal is the reason the pins exist. Listing them as hard
+        # `reserved_pins` rejected exactly that binding, which is why the
+        # receptacle and the ESD array ended up on nets of their own.
         reserved_pins={
             "IO2": "strapping (boot mode)",
+        },
+        #: Pins usable only when a matching signal asks for them.
+        conditional_pins={
             "IO18": "native USB D-",
             "IO19": "native USB D+",
         },
@@ -320,6 +342,11 @@ _BUILTIN_CHIPS: list[ChipPinoutRule] = [
             "/BTN1": "IO3",
             "/LED_DRV": "IO1",
             "/NRST": "EN",
+            # Native USB lands on the pair the part reserves for it. These only
+            # bind when the design already carries the nets (see apply_chip_pinout's
+            # "bind only what exists" gate), so a board without USB spends nothing.
+            "/USB_DP": "IO19",
+            "/USB_DM": "IO18",
             # Ethernet shares the SPI bus the part does not have enough pins
             # for; a design that requests both CAN/RS485 and Ethernet on this
             # package is over-subscribed and the allocator says so.
@@ -420,28 +447,34 @@ _BUILTIN_CHIPS: list[ChipPinoutRule] = [
             "GPIO28": "ADC2",
             "GPIO29": "ADC3",
         },
+        # RP2040's USB pair is hard-wired to GPIO4/GPIO5 in silicon — it cannot be
+        # remapped. I2C0 therefore moves to GPIO6/GPIO7 (a legal I2C0 mapping on
+        # this part) so a board with a Type-C receptacle does not end up with its
+        # data lines and its sensor bus fighting over the same two pads.
         peripheral_routes={
-            "I2C0": {"I2C_SCL": "GPIO5", "I2C_SDA": "GPIO4"},
+            "I2C0": {"I2C_SCL": "GPIO7", "I2C_SDA": "GPIO6"},
             "UART0": {"UART_TX": "GPIO0", "UART_RX": "GPIO1"},
         },
         default_gpio_assignments={
-            "/SCL": "GPIO5",
-            "/SDA": "GPIO4",
+            "/SCL": "GPIO7",
+            "/SDA": "GPIO6",
             "/TX": "GPIO0",
             "/RX": "GPIO1",
             "/CAN_TX": "GPIO16",
             "/CAN_RX": "GPIO17",
-            "/485_DI": "GPIO6",
-            "/485_RO": "GPIO7",
-            "/485_RE_DE": "GPIO8",
+            "/485_DI": "GPIO8",
+            "/485_RO": "GPIO9",
+            "/485_RE_DE": "GPIO10",
             "/BTN1": "GPIO2",
             "/BTN2": "GPIO3",
             "/LED_DRV": "GPIO25",
             "/SWDIO": "SWDIO",
             "/SWCLK": "SWCLK",
             "/NRST": "RUN",
-            "/MOSI": "GPIO11", "/MISO": "GPIO12", "/SCLK": "GPIO10", "/CS_ETH": "GPIO13",
-            "/INT_ETH": "GPIO14", "/RST_ETH": "GPIO15",
+            "/USB_DP": "GPIO4",
+            "/USB_DM": "GPIO5",
+            "/MOSI": "GPIO11", "/MISO": "GPIO12", "/SCLK": "GPIO13", "/CS_ETH": "GPIO14",
+            "/INT_ETH": "GPIO15", "/RST_ETH": "GPIO18",
         },
                 supply_pins={"+3.3V": ["IOVDD", "DVDD"]},
         ground_pins=["GND"],
@@ -572,6 +605,16 @@ def validate_pin_allocation(
             errors.append(
                 f"Signal '{signal}' assigned to reserved pin '{pin}' ({reason}) on {chip_rule.chip_id}"
             )
+        # A conditional pin is usable by the signal it names, and by nothing else:
+        # allocating IO18 to a button would take the D- line away from the USB
+        # pair the part provides it for.
+        elif pin in chip_rule.conditional_pins:
+            allowed = chip_rule.conditional_pins[pin]
+            if signal.upper() not in allowed.upper():
+                errors.append(
+                    f"Signal '{signal}' assigned to pin '{pin}' which is held for {allowed} "
+                    f"on {chip_rule.chip_id}"
+                )
         if pin in used_pins and used_pins[pin] != signal:
             errors.append(
                 f"Pin collision on '{pin}': requested by both '{used_pins[pin]}' and '{signal}'"

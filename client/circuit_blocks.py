@@ -65,8 +65,36 @@ class CircuitBlock:
 # --------------------------------------------------------------------------- #
 # Power
 # --------------------------------------------------------------------------- #
-def block_usb_c_power(vbus_net: str = "/VBUS", gnd_net: str = "/GND") -> CircuitBlock:
-    """Type-C receptacle with dual 5.1k CC pull-downs (sink, 5V @ 3A default)."""
+def block_usb_c_power(
+    vbus_net: str = "/VBUS",
+    gnd_net: str = "/GND",
+    with_data: bool = True,
+) -> CircuitBlock:
+    """Type-C receptacle with dual 5.1k CC pull-downs (sink, 5V @ 3A default).
+
+    ``with_data`` controls whether D+/D- are brought out. A board whose controller
+    has no USB peripheral uses the receptacle purely as a 5 V inlet: wiring its
+    data pads to nets nothing else touches would leave a differential pair with a
+    single endpoint, which the ERC reports (correctly) as a broken link. The pads
+    still exist on the part, they are simply not connected — which is what a
+    power-only inlet looks like on a real schematic.
+    """
+    connector_pins = {"A5": "/CC1", "B5": "/CC2", "VBUS": vbus_net, "GND": gnd_net}
+    nets = {
+        vbus_net: ["J_USB1.VBUS"],
+        gnd_net: ["J_USB1.GND", "R_CC1.2", "R_CC2.2"],
+        "/CC1": ["J_USB1.A5", "R_CC1.1"],
+        "/CC2": ["J_USB1.B5", "R_CC2.1"],
+    }
+    if with_data:
+        connector_pins.update(
+            {"A6": "/USB_DP", "B6": "/USB_DP", "A7": "/USB_DM", "B7": "/USB_DM"}
+        )
+        # A/B pads of a 2.0 receptacle are internally shorted, so both are
+        # listed: leaving one out makes the DSN describe a single-ended line.
+        nets["/USB_DP"] = ["J_USB1.A6", "J_USB1.B6"]
+        nets["/USB_DM"] = ["J_USB1.A7", "J_USB1.B7"]
+
     return CircuitBlock(
         name="USB_C_Power",
         description="USB Type-C power input with dual 5.1k CC pull-downs",
@@ -77,17 +105,12 @@ def block_usb_c_power(vbus_net: str = "/VBUS", gnd_net: str = "/GND") -> Circuit
                 "USB-C-16P",
                 "USB-C-16P-SMD",
                 "C7204555",
-                {"A5": "/CC1", "B5": "/CC2", "VBUS": vbus_net, "GND": gnd_net},
+                connector_pins,
             ),
             CircuitComponent("R_CC1", "RESISTOR", "5.1k", "R0603", "C23186", {"1": "/CC1", "2": gnd_net}),
             CircuitComponent("R_CC2", "RESISTOR", "5.1k", "R0603", "C23186", {"1": "/CC2", "2": gnd_net}),
         ],
-        nets={
-            vbus_net: ["J_USB1.VBUS"],
-            gnd_net: ["J_USB1.GND", "R_CC1.2", "R_CC2.2"],
-            "/CC1": ["J_USB1.A5", "R_CC1.1"],
-            "/CC2": ["J_USB1.B5", "R_CC2.1"],
-        },
+        nets=nets,
     )
 
 

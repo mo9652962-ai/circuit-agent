@@ -9,6 +9,59 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **USB data path was never connected.** The Type-C receptacle exposed only
+  VBUS/GND/CC, so the USBLC6 ESD array sat on two nets of its own: `/USB_DP` and
+  `/USB_DM` each had exactly two endpoints, both on the protector. The ERC's
+  per-net point count saw 2 points and passed. The receptacle now carries A6/B6
+  (D+) and A7/B7 (D-), the controller binds to them, and a new
+  `DIFF_PAIR_PROTECTION_ONLY` rule fails any differential pair that reaches fewer
+  than two distinct signal parts.
+
+- **MCU native-USB pins were unusable.** ESP32-C3 IO18/IO19 and ESP32-S3
+  IO19/IO20 were listed as hard `reserved_pins`, so the allocator rejected the
+  one binding those pins exist for. They moved to a new `conditional_pins` field:
+  held out of the default allocation, usable by the signal they name. RP2040's
+  hard-wired GPIO4/GPIO5 pair is now allocated too, with I2C0 relocated to
+  GPIO6/GPIO7 so the data lines and the sensor bus stop competing for two pads.
+
+- **Power-only receptacles produced dangling pairs.** A controller with no USB
+  peripheral (STC89C52) still got D+/D- on the connector plus an ESD array. The
+  receptacle now takes `with_data`, chosen from the detected chip rule, and a
+  5 V inlet has no data nets at all.
+
+- **0.5 mm-pitch pads were 0.5 mm wide.** USB-C used `Pad_SMD` (0.50 x 0.60 mm)
+  on a 0.5 mm pitch, so adjacent pads touched and formed a solid copper wall at
+  the connector. The grid router steps by (width + clearance) and found no
+  channel, leaving CC1/CC2 unrouted — the ESP32-C3 node sat at 83.3% forever.
+  Added `Pad_SMD_0p5mm` (0.30 mm wide, 0.20 mm gap) and matched it by package
+  family. The first attempt matched a bare `"0.5mm"` substring, which also caught
+  `LQFP-48_7x7mm_P0.5mm` and gave an IC connector land, stranding every SPI net
+  on the Ethernet gateway; the rule now matches `USB-C`/`FPC`/`TYPE-C` only.
+
+- **`autoroute_pcb` used coarser rules than the function it wraps.** The MCP tool
+  defaulted to 0.254 mm width / 0.200 mm clearance while `autoroute_circuit`
+  defaults to 0.150/0.100. A 0.454 mm grid cannot pass a 0.5 mm pitch, so the
+  tool returned 66.7% on a board the library routed at 100%. Both the DSN and
+  autoroute branches of the tool now share the library defaults.
+
+- **CC pull-downs were placed 19 mm from the receptacle.** They fell through to
+  the generic passive stage at a default coordinate. Type-C sink resistors now
+  anchor to the receptacle's own edges: they set the charger's 5 V offer and a
+  long CC trace is an antenna on the negotiation line.
+
+### Added
+
+- `tests/test_routing_quality.py`: 11 tests. Four reference boards must route
+  100%; the rest pin fine-pitch land width, package-family matching, CC
+  placement, mounting keep-out geometry, MCP/library parity, the USB data path,
+  and the power-only case. Each was verified to fail against the reintroduced
+  defect — the USB test initially passed because it matched `U_TVS_USB1` on the
+  substring "USB", and was tightened to require `J_USB1` by reference.
+
+## [0.15.0] — 2026-10-21
+
+### Fixed
+
 - **SES coordinate units**: `freeroute`'s writer emits routing coordinates as
   integers while the session declares `(resolution mm 1000)`, i.e. 1/1000 mm. A
   pad at (10.25, 27.5) mm was written as `10 28` — up to half a millimetre of

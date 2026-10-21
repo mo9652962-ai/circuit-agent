@@ -150,10 +150,16 @@ STANDARD_PIN_OFFSETS: dict[str, dict[str, tuple[float, float]]] = {
     "TERMINAL-2P-5.08": {"1": (-2.54, 0.0), "2": (2.54, 0.0)},
     "TestPoint_Pad_D1.0mm": {"1": (0.0, 0.0)},
     "Fiducial_1mm_Mask2mm": {"1": (0.0, 0.0)},
+    # USB-C 2.0 receptacle: 16 pads, but only the ones this project's blocks use
+    # are modelled. D+/D- sit between the CC pair on the real part (A6/B6 = D+,
+    # A7/B7 = D-); they were missing entirely, so a USB data line had nowhere to
+    # land and the ESD array ended up protecting two nets of its own.
     "USB-C-16P-SMD": {
         "A5": (-0.75, 2.5), "B5": (0.75, 2.5),
         "GND": (-2.8, 2.5), "VBUS": (2.8, 2.5),
         "1": (-2.8, 2.5), "2": (2.8, 2.5),
+        "A6": (-0.25, 2.5), "B6": (0.25, 2.5),
+        "A7": (-1.25, 2.5), "B7": (1.25, 2.5),
     },
     "ESP32-C3-WROOM-02": {
         "3V3": (-8.5, 6.0), "EN": (-8.5, 4.5), "IO4": (-8.5, 3.0), "IO5": (-8.5, 1.5),
@@ -368,6 +374,49 @@ def heuristic_place_components(
                 ref=ref, package=m.get("package", "SOT-223"), x_mm=21.0, y_mm=round(power_y, 2)
             )
             break
+
+    # 2b. Parts that are electrically required to sit beside their anchor.
+    #
+    # A Type-C sink's 5.1k CC pull-downs belong at the receptacle: they are what
+    # tells a charger to supply 5 V, and a long CC trace is an antenna on the
+    # line the connector uses to negotiate power. They are also the shortest nets
+    # on the board, and a router that has to cross the whole board to reach them
+    # will leave them unrouted — which is exactly what happened: CC1/CC2 were the
+    # two nets the autorouter could not complete on the ESP32-C3 node.
+    #
+    # Same reasoning for a USB ESD array (already anchored above) and for a
+    # crystal's load capacitors. Anything whose net has no other purpose than to
+    # join two adjacent parts goes next to its partner, not wherever the generic
+    # passive stage happens to drop it.
+    usb_ref = next((r for r in placements if "USB" in r.upper()), None)
+    if usb_ref is not None:
+        usb_p = placements[usb_ref]
+        usb_hw, usb_hh = _half_dims(usb_ref, usb_p.package or "")
+        companion_slots = [
+            (usb_p.x_mm, usb_p.y_mm + usb_hh + 2.2),
+            (usb_p.x_mm, usb_p.y_mm - usb_hh - 2.2),
+            (usb_p.x_mm + usb_hw + 2.6, usb_p.y_mm),
+            (usb_p.x_mm - usb_hw - 2.6, usb_p.y_mm),
+        ]
+        companion_refs = [
+            r
+            for r, m in modules.items()
+            if r not in placements
+            and (
+                "CC" in r.upper()
+                or (
+                    str(m.get("kind", "")).upper() == "RESISTOR"
+                    and "5.1K" in str(m.get("value", "")).upper().replace(" ", "")
+                )
+            )
+        ]
+        for ref, (sx, sy) in zip(companion_refs, companion_slots):
+            placements[ref] = ComponentPlacement(
+                ref=ref,
+                package=modules[ref].get("package", "R0603"),
+                x_mm=round(sx, 2),
+                y_mm=round(sy, 2),
+            )
 
     # 3. Peripheral Transceiver & Motor Driver ICs (strictly ICs)
     right_x = board_width_mm - 14.0
@@ -631,6 +680,12 @@ def heuristic_place_components(
     return placements
 
 
+#: Mounting-hole keep-out: centre inset from each board corner, and the diameter
+#: of the cleared circle around it. M3 hardware needs ~3 mm of clear copper.
+_MOUNT_INSET = 4.0
+_MOUNT_DIAMETER = 6.0
+
+
 def export_specctra_dsn(
     modules: dict[str, Any],
     connections: list[dict[str, Any]],
@@ -684,10 +739,16 @@ def export_specctra_dsn(
         f'    (keepout "edge_right" (rect pcb {bw-0.8:.3f} 0 {bw:.3f} {bh:.3f}))',
         f'    (keepout "edge_bottom" (rect pcb 0 0 {bw:.3f} 0.8))',
         f'    (keepout "edge_top" (rect pcb 0 {bh-0.8:.3f} {bw:.3f} {bh:.3f}))',
-        '    (keepout "mount_BL" (circle pcb 6.0 4.0 4.0))',
-        f'    (keepout "mount_BR" (circle pcb 6.0 {bw-4.0:.3f} 4.0))',
-        f'    (keepout "mount_TL" (circle pcb 6.0 4.0 {bh-4.0:.3f}))',
-        f'    (keepout "mount_TR" (circle pcb 6.0 {bw-4.0:.3f} {bh-4.0:.3f}))',
+        # Mounting holes. Specctra circle syntax is
+        # ``(circle <layer> <diameter> [cx cy])`` — diameter first, centre last.
+        # Writing ``(circle pcb 6.0 4.0 46.0)`` for the top-left corner is correct:
+        # a 6 mm keep-out centred at (4, 46). Reading those numbers as
+        # (cx, cy, radius) makes them look like a 46 mm circle covering the board,
+        # which is how they were first misdiagnosed here.
+        f'    (keepout "mount_BL" (circle pcb {_MOUNT_DIAMETER:.1f} {_MOUNT_INSET:.1f} {_MOUNT_INSET:.1f}))',
+        f'    (keepout "mount_BR" (circle pcb {_MOUNT_DIAMETER:.1f} {bw-_MOUNT_INSET:.1f} {_MOUNT_INSET:.1f}))',
+        f'    (keepout "mount_TL" (circle pcb {_MOUNT_DIAMETER:.1f} {_MOUNT_INSET:.1f} {bh-_MOUNT_INSET:.1f}))',
+        f'    (keepout "mount_TR" (circle pcb {_MOUNT_DIAMETER:.1f} {bw-_MOUNT_INSET:.1f} {bh-_MOUNT_INSET:.1f}))',
     ]
     # RF antenna keepout: only the strip immediately OUTSIDE the module's antenna end,
     # clipped to the board. The previous version started inside the module body and
@@ -714,6 +775,15 @@ def export_specctra_dsn(
     L.append('    (padstack "Pad_SMD_Fine"')
     L.append("      (shape (rect Top -0.20 -0.08 0.20 0.08))")
     L.append("      (shape (rect Bottom -0.20 -0.08 0.20 0.08))")
+    L.append("    )")
+    # 0.5 mm-pitch land: 0.30 mm wide leaves 0.20 mm between neighbours, which is
+    # the clearance the board rules ask for. Reusing Pad_SMD (0.50 mm wide) on a
+    # 0.5 mm-pitch part makes adjacent pads touch, so the router sees a solid
+    # copper wall at the connector and cannot escape it — CC1/CC2 were unroutable
+    # for exactly this reason, not because of placement.
+    L.append('    (padstack "Pad_SMD_0p5mm"')
+    L.append("      (shape (rect Top -0.15 -0.30 0.15 0.30))")
+    L.append("      (shape (rect Bottom -0.15 -0.30 0.15 0.30))")
     L.append("    )")
     L.append('    (padstack "Pad_TH"')
     L.append("      (shape (circle Top 0.8))")
@@ -751,7 +821,19 @@ def export_specctra_dsn(
 
         is_fine = any(k in clean_pkg for k in ("HTSSOP", "LQFP", "QFN"))
         is_th = any(k in clean_pkg for k in ("CONN_TH", "HDR", "TERMINAL", "PinHeader"))
-        pad_name = "Pad_TH" if is_th else ("Pad_SMD_Fine" if is_fine else "Pad_SMD")
+        # 0.5 mm-pitch connectors (USB-C) need their own land: at this pitch a
+        # 0.5 mm-wide pad touches its neighbour, so the router sees a solid wall.
+        # Matched by package family, not by a bare "0.5mm" substring — the latter
+        # also caught `LQFP-48_7x7mm_P0.5mm` and gave an IC connector land.
+        is_half_pitch = any(k in clean_pkg.upper() for k in ("USB-C", "USB_C", "FPC", "TYPE-C"))
+        if is_th:
+            pad_name = "Pad_TH"
+        elif is_half_pitch:
+            pad_name = "Pad_SMD_0p5mm"
+        elif is_fine:
+            pad_name = "Pad_SMD_Fine"
+        else:
+            pad_name = "Pad_SMD"
 
         L.append(f'    (image "{clean_pkg}"')
         for pin_name in sorted(needed_pins):

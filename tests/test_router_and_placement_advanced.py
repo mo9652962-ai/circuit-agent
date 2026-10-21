@@ -121,7 +121,11 @@ def test_native_autoroute_ethernet_gateway_full_completion():
     assert res["success"] is True
     metrics = res["metrics"]
     assert metrics["completion_rate_pct"] == 100.0
-    assert metrics["routed_nets_count"] == 17
+    # Counted from the design rather than hard-coded: the netlist gains or loses
+    # nets as blocks change (a USB pair appears only when the board has a
+    # receptacle *and* a controller that can use it), and a frozen total turns a
+    # correct change into a failing test.
+    assert metrics["routed_nets_count"] == len(spec["netlist"]["connections"])
     assert metrics["unrouted_nets_count"] == 0
     assert metrics["wire_segments_count"] > 300
     assert "(session" in res["ses_text"]

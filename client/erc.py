@@ -493,6 +493,45 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
         ("/ETH_TXP", "/ETH_TXN", "以太网发送差分对"),
         ("/ETH_RXP", "/ETH_RXN", "以太网接收差分对"),
     ]
+    # 8b. DIFF_PAIR_PROTECTION_ONLY (error)：差分对没有形成「连接器 → 主控」通路
+    #
+    # A TVS array is a shunt: it appears on D+ and D- but does not *carry* the pair
+    # anywhere. When the connector and the controller were never wired to those
+    # nets, the protection part is the only thing on them — each net still has 2
+    # points, so the imbalance rule below is satisfied while nothing is connected.
+    # The USBLC6 on the ESP32-C3 board sat on two nets of its own: the receptacle
+    # had no data pins and the ESD part protected two stubs.
+    #
+    # A differential pair needs two distinct non-passive devices on it — a driver
+    # and a receiver. One device (connector alone, or protector alone) is not a link.
+    for p_net, n_net, pair_name in high_speed_pairs:
+        if p_net not in nets or n_net not in nets:
+            continue
+
+        def _signal_parts(net: str) -> set[str]:
+            parts = {pt.split(".", 1)[0] for pt in nets[net]}
+            return {
+                r
+                for r in parts
+                if str(modules.get(r, {}).get("kind", "")).upper()
+                not in ("TVS", "ESD", "FERRITE", "RESISTOR", "CAPACITOR")
+            }
+
+        signal_parts = _signal_parts(p_net) | _signal_parts(n_net)
+        if len(signal_parts) < 2:
+            issues.append(
+                _issue(
+                    "DIFF_PAIR_PROTECTION_ONLY",
+                    f"{pair_name}未形成收发通路",
+                    f"{p_net} 与 {n_net} 上只有 {sorted(signal_parts) or '无'} 一个信号器件，"
+                    "差分对缺少发送端或接收端：连接器的数据引脚与主控的差分引脚至少有一侧没接上。"
+                    "保护器件是并联旁路，不能承担信号通路。",
+                    "error",
+                    SRC,
+                    object_id=f"pair:{p_net}/{n_net}",
+                )
+            )
+
     for p_net, n_net, pair_name in high_speed_pairs:
         if p_net in nets and n_net in nets:
             p_cnt = len(nets[p_net])

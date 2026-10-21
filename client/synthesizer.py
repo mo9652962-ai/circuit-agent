@@ -498,7 +498,22 @@ def synthesize_from_prompt(
     # `is_industrial or has_tvs` condition left every hobby-grade board with a
     # USB port unprotected.
     has_usb = any(b.name == "USB_C_Power" for b in blocks)
-    if has_usb and "ESD_TVS_USB" not in {b.name for b in blocks}:
+    # A receptacle is a 5 V inlet unless the controller can actually talk over it.
+    # Without this gate every board got D+/D- on the connector, an ESD array to
+    # protect them, and — on a part with no USB peripheral — two nets whose only
+    # endpoints were the connector and the protector.
+    #
+    # The MCU is not a block: `apply_chip_pinout` adds it later, so the capability
+    # has to come from the detected chip rule, not from scanning block components.
+    _chip_rule = get_chip_rule(chip_id) if chip_id else None
+    mcu_supports_usb = bool(_chip_rule and "/USB_DP" in _chip_rule.default_gpio_assignments)
+    if has_usb and not mcu_supports_usb:
+        for b in blocks:
+            if b.name == "USB_C_Power":
+                power_only = block_usb_c_power(with_data=False)
+                b.components = power_only.components
+                b.nets = power_only.nets
+    if has_usb and mcu_supports_usb and "ESD_TVS_USB" not in {b.name for b in blocks}:
         blocks.append(block_esd_usb_tvs())
 
 

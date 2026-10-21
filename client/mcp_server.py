@@ -644,8 +644,12 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 }
             bw = float(arguments.get("board_width_mm", 70.0))
             bh = float(arguments.get("board_height_mm", 50.0))
-            tw = float(arguments.get("trace_width_mm", 0.254))
-            cl = float(arguments.get("clearance_mm", 0.200))
+            # Defaults must match `export_specctra_dsn`'s own. The grid router
+            # steps by (width + clearance), so a 0.254/0.200 default means a
+            # 0.454 mm grid — wider than the 0.5 mm pitch of a USB-C or LQFP-48
+            # land, leaving no channel between pads.
+            tw = float(arguments.get("trace_width_mm", 0.150))
+            cl = float(arguments.get("clearance_mm", 0.100))
             from .placement_engine import export_specctra_dsn
 
             dsn_txt = export_specctra_dsn(
@@ -668,8 +672,14 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 }
             bw = float(arguments.get("board_width_mm", 70.0))
             bh = float(arguments.get("board_height_mm", 50.0))
-            tw = float(arguments.get("trace_width_mm", 0.254))
-            cl = float(arguments.get("clearance_mm", 0.200))
+            # Defaults must match `autoroute_circuit`'s own: the grid router steps
+            # by (width + clearance), so a 0.254/0.200 default means a 0.454 mm
+            # grid — wider than the 0.5 mm pitch of a USB-C or LQFP-48 land, which
+            # leaves no channel between pads and strands the nets on that part.
+            # The tool was unreachable for exactly the boards most likely to call
+            # it, while the library function it wraps routed them fine.
+            tw = float(arguments.get("trace_width_mm", 0.150))
+            cl = float(arguments.get("clearance_mm", 0.100))
             eng = str(arguments.get("engine", "grid"))
 
             from .router_engine import autoroute_circuit
