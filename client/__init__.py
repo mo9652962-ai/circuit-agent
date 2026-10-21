@@ -1,5 +1,6 @@
 """CircuitAgent Public Client & Specification Package."""
 
+from .bare_board_test_planner import plan_bare_board_test_parameters
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
@@ -70,10 +71,11 @@ from .parametric_equations import (
     snap_to_e_series,
     solve_resistor_divider,
 )
+from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.14.0"
+__version__ = "0.15.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -118,6 +120,7 @@ __all__ = [
     "block_usb_c_power",
     "block_watchdog_supervisor",
     "calculate_copper_pour_current_drop",
+    "calculate_high_speed_skin_depth_loss",
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",
@@ -130,6 +133,7 @@ __all__ = [
     "get_ipc2221_clearance",
     "list_supported_chips",
     "optimize_smt_feeder_setup",
+    "plan_bare_board_test_parameters",
     "register_chip_rule",
     "render_ascii_topology",
     "search_lcsc_parts",

@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **65 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **67 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -304,6 +304,8 @@ python -m client.mcp_server
 62. `analyze_divider_tolerance`: Divider tolerance band — **nominal is not a specification**. Reports both the exact worst case (four-corner enumeration, exact because the transfer function is monotonic in each resistor) and the realistic statistical band (first-order sensitivity propagation). The methodological point: the output is a quotient of random variables, so naive RSS of percentage tolerances is invalid (TI SNVA112 states this explicitly) — the partial derivatives must convert each uncertainty to a voltage contribution first. Includes TCR, sqrt-of-time life drift, supply tolerance and matched-pair ratio tolerance, and names the resistor that dominates the error budget.
 63. `analyze_resistor_error_budget`: End-of-life resistance band from the four-term error model (value tolerance + TCR + life drift + matched-network ratio tolerance). Reports both the RSS band and the linear worst-case band and names the dominant term — buying a ±0.1% thick-film part to fix an accuracy problem usually does nothing, because its 200 ppm/°C TCR already contributes 1.2% over a 60 °C excursion. Life drift scales with the square root of the time ratio (random walk, not a ramp).
 64. `solve_feedback_divider`: Exact R1/R2 feedback pair for a regulator or comparator target, plus the static error the E96 snap adds. The ideal pair almost never exists in E96, and that snap error is a **systematic offset, not a tolerance**: it is identical on every board and must be budgeted separately from the tolerance band.
+65. `calculate_high_speed_skin_depth_loss`: High-frequency skin effect depth and copper foil surface roughness attenuation analyzer — calculates skin depth, Hammerstad-Jensen roughness correction factor (Ksr), and conductor attenuation (dB/inch) for 1GHz to 50GHz signals (PCIe 5.0/6.0, 112G PAM4) per IPC-4562B and IPC-2141A across standard ED, VLP, and HVLP/RTF foils.
+66. `calculate_bare_board_test_parameters`: Bare-board continuity and isolation test parameter planner & dielectric safety auditor — plans IPC-9252B Class 1/2/3 test voltages (50V, 100V, 250V DC) and continuity thresholds (signal <= 10Ω, power <= 2Ω), automatically derating test voltage to 100V on fine-pitch (<0.100mm) or sensitive RF nets to prevent micro-arc dielectric breakdown.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
