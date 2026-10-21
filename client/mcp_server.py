@@ -1332,6 +1332,38 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             artifacts = arguments.get("artifacts_dict", {})
             if not isinstance(artifacts, dict):
                 return {"isError": True, "content": [{"type": "text", "text": "Parameter 'artifacts_dict' must be an object"}]}
+            # A caller who passes `artifacts` (the natural name) instead of
+            # `artifacts_dict` used to get a clean-looking report saying all
+            # eight deliverables were missing — indistinguishable from a design
+            # that produced nothing. Say what actually happened.
+            if not artifacts:
+                for alias in ("artifacts", "files", "package"):
+                    if isinstance(arguments.get(alias), dict) and arguments[alias]:
+                        return {
+                            "isError": True,
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": (
+                                        f"Parameter name mismatch: received '{alias}' but this tool takes "
+                                        "'artifacts_dict'. An empty artifacts_dict reports every deliverable "
+                                        "as missing, which is indistinguishable from an empty design."
+                                    ),
+                                }
+                            ],
+                        }
+                return {
+                    "isError": True,
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "'artifacts_dict' is empty. Pass a mapping of filename -> content, e.g. "
+                                "{'board-Edge_Cuts.gm1': ..., 'bom.csv': ..., 'cpl.csv': ...}."
+                            ),
+                        }
+                    ],
+                }
             modules = arguments.get("modules")
             j_name = str(arguments.get("job_name", "PCB_PROJECT"))
             from .mfg_validator import validate_manufacturing_package

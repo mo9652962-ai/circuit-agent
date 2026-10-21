@@ -112,17 +112,27 @@ def test_rotation_correction_applies_to_packages_that_need_it():
 
 
 def test_gerber_layers_contain_real_geometry():
-    """Every required layer must have draw commands, not just a header."""
+    """Every required layer must have draw commands, not just a header.
+
+    Exception: the bottom solder mask legitimately opens nothing when all parts
+    are on top. It still has to exist, and it still has to be a valid Gerber.
+    """
     spec = _spec("ESP32-S3 带以太网口的工业网关")
     bundle = json.loads(handle_tool_call("export_gerber_bundle", spec)["content"][0]["text"])
     assert bundle, "empty Gerber bundle"
-    for name, content in bundle.items():
-        if not name.endswith((".gm1", ".gtl", ".gbl", ".gts", ".gbs", ".gto", ".gbo", ".gko")):
-            continue  # the bundle also carries the Excellon drill file
+    # Layers that describe geometry and therefore must contain draw commands.
+    must_draw = ("board-Edge_Cuts.gm1", "board-F_Cu.gtl", "board-B_Cu.gbl", "board-F_SilkS.gto")
+    for name in must_draw:
+        assert name in bundle, f"{name} missing from the bundle"
+        content = bundle[name]
         assert "M02*" in content, f"{name} has no end-of-file marker"
-        # A layer with only a header and M02 draws nothing.
         draws = re.findall(r"D0[123]\*", content)
         assert len(draws) >= 2, f"{name} contains no draw commands"
+    # Mask layers must be present and valid even when they open nothing.
+    for name in ("board-F_Mask.gts", "board-B_Mask.gbs"):
+        assert name in bundle, f"{name} missing from the bundle"
+        assert "%FSLAX45Y45*%" in bundle[name], f"{name} is not a Gerber file"
+        assert "M02*" in bundle[name], f"{name} has no end-of-file marker"
 
 
 def test_drill_file_has_holes_at_distinct_positions():
@@ -182,3 +192,55 @@ def test_bom_quantities_match_designator_counts():
             continue
         des = [d for d in row[1].split(",") if d]
         assert int(row[5]) == len(des), f"{row[0]}: quantity {row[5]} but {len(des)} designators"
+
+
+# --------------------------------------------------------------------------- #
+# The whole package
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("prompt", PROMPTS[:4], ids=lambda p: p[:24])
+def test_a_synthesized_board_can_produce_a_complete_package(prompt):
+    """The end-to-end contract: design in, buildable package out.
+
+    This could not pass before. `export_gerber_bundle` emitted five layers while
+    `validate_manufacturing_package` required eight, so the validator's verdict
+    was `is_package_complete: False` for every design — a gate that no output
+    could ever satisfy is not a gate, it is a wall.
+    """
+    spec = _spec(prompt)
+    bundle = json.loads(handle_tool_call("export_gerber_bundle", spec)["content"][0]["text"])
+    artifacts = dict(bundle)
+    artifacts["bom.csv"] = handle_tool_call("export_manufacturing_bom", spec)["content"][0]["text"]
+    artifacts["cpl.csv"] = handle_tool_call("export_manufacturing_cpl", spec)["content"][0]["text"]
+
+    report = json.loads(
+        handle_tool_call(
+            "validate_manufacturing_package",
+            {"artifacts_dict": artifacts, "modules": spec["modules"]},
+        )["content"][0]["text"]
+    )
+    assert report["is_package_complete"], report["errors"]
+    assert report["missing_artifacts_count"] == 0
+    assert report["bom_cpl_consistent"]
+    assert report["component_count_in_bom"] == report["component_count_in_modules"]
+
+
+def test_wrong_parameter_name_is_reported_not_silently_empty():
+    """Passing `artifacts` instead of `artifacts_dict` used to look like a design that produced nothing.
+
+    An empty dict produced a clean report saying all eight deliverables were
+    missing — indistinguishable from a real failure, and the caller would go
+    debugging the wrong thing.
+    """
+    result = handle_tool_call("validate_manufacturing_package", {"artifacts": {"bom.csv": "x"}})
+    assert result.get("isError"), "a parameter-name mismatch must not look like a valid empty report"
+    text = result["content"][0]["text"]
+    assert "artifacts_dict" in text
+    assert "artifacts" in text
+
+
+def test_empty_artifacts_dict_explains_what_to_pass():
+    result = handle_tool_call("validate_manufacturing_package", {"artifacts_dict": {}})
+    assert result.get("isError")
+    assert "bom.csv" in result["content"][0]["text"]

@@ -30,7 +30,7 @@ def test_export_excellon_drill_syntax():
 
 
 def test_gerber_bundle_includes_drill_file():
-    """Verify export_gerber_bundle now produces complete 5-layer fab bundle including board.drl."""
+    """Verify export_gerber_bundle produces a complete two-layer fab bundle including board.drl."""
     res = synthesize_from_prompt("ESP32-C3 USB-C LDO")
     bundle = export_gerber_bundle(
         res["modules"],
@@ -40,7 +40,12 @@ def test_gerber_bundle_includes_drill_file():
     )
     assert "board.drl" in bundle
     assert bundle["board.drl"].startswith("M48")
-    assert len(bundle) == 5  # .gm1, .gtl, .gts, .gto, .drl
+    # A two-layer board needs both copper layers; the bundle used to emit only
+    # the top, which made validate_manufacturing_package unsatisfiable.
+    assert "board-F_Cu.gtl" in bundle
+    assert "board-B_Cu.gbl" in bundle
+    assert "board-B_Mask.gbs" in bundle
+    assert len(bundle) == 7  # .gm1, .gtl, .gbl, .gts, .gbs, .gto, .drl
 
 
 def test_generate_interactive_bom_html():

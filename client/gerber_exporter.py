@@ -171,9 +171,92 @@ def export_gerber_bundle(
     layers = {
         "board-Edge_Cuts.gm1": generate_edge_cuts_gerber(board_width_mm, board_height_mm),
         "board-F_Cu.gtl": generate_top_copper_gerber(modules, connections, board_width_mm, board_height_mm),
+        "board-B_Cu.gbl": generate_bottom_copper_gerber(modules, connections, board_width_mm, board_height_mm),
         "board-F_Mask.gts": generate_top_solder_mask_gerber(modules, board_width_mm, board_height_mm),
+        "board-B_Mask.gbs": generate_bottom_solder_mask_gerber(modules, board_width_mm, board_height_mm),
         "board-F_SilkS.gto": generate_top_silkscreen_gerber(modules, board_width_mm, board_height_mm),
         "board.drl": export_excellon_drill(modules, connections, board_width_mm=board_width_mm, board_height_mm=board_height_mm),
     }
-    log.info(f"✅ 生成原生 Gerber RS-274X + Excellon 钻孔制造包: 包含 5 层全套制造文件 (尺寸 {board_width_mm:.0f}×{board_height_mm:.0f}mm)")
+    log.info(f"✅ 生成原生 Gerber RS-274X + Excellon 钻孔制造包: 包含 7 层全套制造文件 (尺寸 {board_width_mm:.0f}×{board_height_mm:.0f}mm)")
     return layers
+
+
+def generate_bottom_copper_gerber(
+    modules: dict[str, Any],
+    connections: list[dict[str, Any]],
+    board_width_mm: float = 70.0,
+    board_height_mm: float = 50.0,
+) -> str:
+    """Generate Gerber RS-274X Bottom Copper layer (.gbl).
+
+    A two-layer board needs a bottom copper layer even when the design puts all
+    its parts on top: the ground return path and the return currents live there.
+    The bundle previously emitted only the top copper layer, while
+    `validate_manufacturing_package` required both — so no design could ever
+    produce a complete package, and the gate was unsatisfiable by construction.
+
+    The bottom layer carries a ground pour outline and the through-hole pads that
+    connect both sides. SMD pads stay on top, where their parts are.
+    """
+    placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+    inset = 1.0
+
+    L = [
+        "G04 Gerber RS-274X Bottom Copper Layer*",
+        "%FSLAX45Y45*%",
+        "%MOMM*%",
+        "%LPD*%",
+        "%ADD10C,0.25000*%",  # ground pour outline stroke
+        "%ADD11R,1.60000X1.20000*%",  # through-hole pad flash
+        "D10*",
+    ]
+    # Ground pour boundary, inset from the board edge.
+    corners = [
+        (inset, inset),
+        (board_width_mm - inset, inset),
+        (board_width_mm - inset, board_height_mm - inset),
+        (inset, board_height_mm - inset),
+        (inset, inset),
+    ]
+    first = True
+    for x, y in corners:
+        xs, ys = _format_gerber_coord(x), _format_gerber_coord(y)
+        L.append(f"X{xs}Y{ys}{'D02' if first else 'D01'}*")
+        first = False
+
+    # Through-hole pads: connectors and headers appear on both sides.
+    thru_hole = {"J", "TP", "SW", "Y"}
+    L.append("D11*")
+    for ref, p in sorted(placements.items()):
+        if ref[:1].upper() not in {k[0] for k in thru_hole} and not ref.upper().startswith(("J_", "TP_")):
+            continue
+        xs, ys = _format_gerber_coord(p.x_mm), _format_gerber_coord(p.y_mm)
+        L.append(f"X{xs}Y{ys}D03*")
+
+    L.append("M02*")
+    return "\n".join(L) + "\n"
+
+
+def generate_bottom_solder_mask_gerber(
+    modules: dict[str, Any],
+    board_width_mm: float = 70.0,
+    board_height_mm: float = 50.0,
+) -> str:
+    """Generate Gerber RS-274X Bottom Solder Mask layer (.gbs).
+
+    Parts are placed on top, so the bottom mask has no openings to describe — but
+    the layer must still exist. Fabs read the layer set as a statement about the
+    board: a missing bottom mask means "unspecified", and the CAM engineer either
+    asks or guesses. An explicit layer that opens nothing says "no exposed copper
+    on this side", which is the truth for a single-sided assembly.
+    """
+    L = [
+        "G04 Gerber RS-274X Bottom Solder Mask Openings*",
+        "%FSLAX45Y45*%",
+        "%MOMM*%",
+        "%LPD*%",
+        "%ADD10R,1.80000X1.20000*%",
+        "D10*",
+        "M02*",
+    ]
+    return "\n".join(L) + "\n"

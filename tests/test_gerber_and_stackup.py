@@ -25,7 +25,9 @@ def test_export_gerber_bundle_layers():
     expected_layers = {
         "board-Edge_Cuts.gm1",
         "board-F_Cu.gtl",
+        "board-B_Cu.gbl",
         "board-F_Mask.gts",
+        "board-B_Mask.gbs",
         "board-F_SilkS.gto",
         "board.drl",
     }
