@@ -658,6 +658,33 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {"content": [{"type": "text", "text": dsn_txt}]}
 
+        if name == "autoroute_pcb":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            tw = float(arguments.get("trace_width_mm", 0.254))
+            cl = float(arguments.get("clearance_mm", 0.200))
+            eng = str(arguments.get("engine", "grid"))
+
+            from .router_engine import autoroute_circuit
+
+            route_res = autoroute_circuit(
+                modules=modules,
+                connections=netlist.get("connections") or [],
+                board_width_mm=bw,
+                board_height_mm=bh,
+                trace_width_mm=tw,
+                clearance_mm=cl,
+                engine=eng,
+            )
+            return {"content": [{"type": "text", "text": json.dumps(route_res, ensure_ascii=False, indent=2)}]}
+
         if name == "export_kicad_schematic":
             modules = arguments.get("modules", {})
             if not isinstance(modules, dict):

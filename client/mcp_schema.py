@@ -556,6 +556,60 @@ AVAILABLE_TOOLS = [
         },
     },
     {
+        "name": "autoroute_pcb",
+        "description": (
+            "Execute automated native PCB layout and multi-layer track routing on circuit specifications. "
+            "Generates standard Specctra SES (Session) routing data and comprehensive physical metrics "
+            "(completion rate, total track length, via count, layer utilization) with zero JVM dependencies."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Default routing trace width in mm (default: 0.254 / 10mil).",
+                    "default": 0.254,
+                },
+                "clearance_mm": {
+                    "type": "number",
+                    "description": "Default routing clearance in mm (default: 0.200 / 8mil).",
+                    "default": 0.200,
+                },
+                "engine": {
+                    "type": "string",
+                    "description": "Autorouting engine track ('grid', 'exact', 'room').",
+                    "default": "grid",
+                    "enum": ["grid", "exact", "room"],
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
         "name": "export_kicad_schematic",
         "description": (
             "Export modern KiCad 8/9 S-Expression schematic file (.kicad_sch) directly viewable and editable "

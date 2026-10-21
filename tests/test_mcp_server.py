@@ -111,7 +111,8 @@ def test_mcp_tools_list():
     assert "optimize_smt_feeder_setup" in tool_names
     assert "calculate_copper_pour_current_drop" in tool_names
     assert "audit_component_msl_floor_life" in tool_names
-    assert len(tools) == 65
+    assert "autoroute_pcb" in tool_names
+    assert len(tools) == 66
 
 
 def test_mcp_tool_call_synthesize():

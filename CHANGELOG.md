@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] — 2026-10-21
+
+### Added
+
+- `autoroute_pcb` MCP tool (#66): Native Python multi-layer PCB layout and auto-routing
+  engine (Specctra DSN in, SES out) with zero JVM/external dependencies.
+- `client/router_engine.py`: Structured routing metrics analysis including net completion
+  rates, total trace length (in mm), via counts, and layer utilization.
+- Expanded `STANDARD_PIN_OFFSETS` with exact pin coordinates for `ESP32-S3-WROOM-1`,
+  `LQFP-48`, `LQFP-48_7x7mm_P0.5mm`, and `HTSSOP-28` motor drivers.
+
+### Fixed
+
+- MCU Centering: Strict priority-based MCU classification prevents peripheral ICs
+  (transceivers, regulators) from stealing geometric center coordinates.
+- Decoupling Adsorption: Placement sequence reordering allows peripheral decoupling
+  capacitors (`C_485`, `C_CAN`, `C_ETH`) to cluster tightly (<3.5mm) adjacent to their target ICs.
+- Specctra DSN Compliance: Added complete `(library ...)` image blocks with calibrated
+  padstack definitions and Specctra standard `(pins Comp-Pin ...)` syntax.
+
 ## [0.1.6] — 2026-10-03
 
 ### Fixed
