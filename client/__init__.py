@@ -75,7 +75,7 @@ from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.16.0"
+__version__ = "0.17.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",

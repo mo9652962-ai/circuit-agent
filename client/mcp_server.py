@@ -680,7 +680,7 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             # it, while the library function it wraps routed them fine.
             tw = float(arguments.get("trace_width_mm", 0.150))
             cl = float(arguments.get("clearance_mm", 0.100))
-            eng = str(arguments.get("engine", "grid"))
+            eng = str(arguments.get("engine", "exact"))
 
             from .router_engine import autoroute_circuit
 
@@ -1685,6 +1685,32 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             )
             return {
                 "content": [{"type": "text", "text": json.dumps(plan_test.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "run_pcb_drc":
+            modules = arguments.get("modules", {})
+            netlist = arguments.get("netlist", {})
+            if not isinstance(modules, dict) or not isinstance(netlist, dict):
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Parameters 'modules' and 'netlist' must be objects"}],
+                }
+            from .pcb_drc import run_pcb_physical_drc
+
+            drc_report = run_pcb_physical_drc(
+                modules=modules,
+                connections=netlist.get("connections") or [],
+                ses_text=arguments.get("ses_text") or None,
+                board_width_mm=float(arguments.get("board_width_mm", 70.0)),
+                board_height_mm=float(arguments.get("board_height_mm", 50.0)),
+                min_trace_width_mm=float(arguments.get("min_trace_width_mm", 0.127)),
+                min_clearance_mm=float(arguments.get("min_clearance_mm", 0.100)),
+                edge_clearance_mm=float(arguments.get("edge_clearance_mm", 0.800)),
+                max_diff_skew_mm=float(arguments.get("max_diff_skew_mm", 1.250)),
+                check_acid_traps=bool(arguments.get("check_acid_traps", True)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(drc_report.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}

@@ -9,6 +9,46 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- **The autorouter reported success on shorted boards.** `autoroute_circuit`
+  returned "12/12 nets routed" for a board carrying 36 real crossings: the
+  `grid` engine searches an 8-neighbour lattice, so two 45-degree traces can pass
+  through the same 2x2 cell block while each occupies a different lattice point.
+  The engine was also never actually selectable — `_route_with_correct_units`
+  accepted `engine` and then always called `build_routing_result`, so `exact` and
+  `room` silently ran the grid router. With the parameter wired through, `exact`
+  and `room` route the same board at 0 crossings.
+
+- **A router's "complete" was accepted as a fab-ready board.** Completion only
+  means a path was found; the `exact` engine returned 100% on the ESP32-C3 node
+  while leaving a 0.060 mm gap between GND and P3.3V against a 0.100 mm rule.
+  `autoroute_circuit` now runs the physical DRC on its own output and picks the
+  best engine by (complete, then error-free, then quietest), recording the
+  attempts in `engines_tried`.
+
+- **The DRC counted pads as acid traps.** Corner detection paired any two
+  segments sharing a vertex, so every pad where several branches converge read as
+  a 0-degree fold: 89 "acid traps" on an orthogonal route with no acute corner.
+  Corners are now measured along each ordered polyline, and a bend inside a pad
+  land is not a crevice — the etchant sees the pad outline.
+
+- **The DRC reported 1723 violations for 4 real defects.** Width, clearance and
+  right-angle findings were emitted per segment instead of per net, burying the
+  four acid traps. Findings are now aggregated: one entry per net (width), per
+  net pair and layer (clearance), per net with a count (right-angle corners).
+
+- **The DRC routed at the fab's minimum, not the board's default.** It re-routed
+  with `trace_width_mm=min_trace_width_mm` (0.127 mm), geometry no design would
+  ship, then reported width violations against it.
+
+### Added
+
+- `run_pcb_drc` MCP tool: physical DRC audit of a routed board (true
+  copper-to-copper clearance, acid traps, power-trace width, board-edge and
+  keepout intrusion, differential-pair skew) with severity, location and a
+  concrete fix per finding.
+
+### Fixed (continued)
+
 - **USB data path was never connected.** The Type-C receptacle exposed only
   VBUS/GND/CC, so the USBLC6 ESD array sat on two nets of its own: `/USB_DP` and
   `/USB_DM` each had exactly two endpoints, both on the protector. The ERC's

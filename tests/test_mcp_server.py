@@ -114,7 +114,7 @@ def test_mcp_tools_list():
     assert "autoroute_pcb" in tool_names
     assert "calculate_high_speed_skin_depth_loss" in tool_names
     assert "calculate_bare_board_test_parameters" in tool_names
-    assert len(tools) == 68
+    assert len(tools) == 69
 
 
 def test_mcp_tool_call_synthesize():

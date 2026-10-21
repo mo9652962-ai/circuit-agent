@@ -586,18 +586,22 @@ AVAILABLE_TOOLS = [
                 },
                 "trace_width_mm": {
                     "type": "number",
-                    "description": "Default routing trace width in mm (default: 0.254 / 10mil).",
-                    "default": 0.254,
+                    "description": "Default routing trace width in mm (default: 0.150 / 6mil).",
+                    "default": 0.150,
                 },
                 "clearance_mm": {
                     "type": "number",
-                    "description": "Default routing clearance in mm (default: 0.200 / 8mil).",
-                    "default": 0.200,
+                    "description": "Default routing clearance in mm (default: 0.100 / 4mil).",
+                    "default": 0.100,
                 },
                 "engine": {
                     "type": "string",
-                    "description": "Autorouting engine track ('grid', 'exact', 'room').",
-                    "default": "grid",
+                    "description": (
+                        "Autorouting engine track. 'exact' (default) is orthogonal and DRC-verified; "
+                        "'grid' is 8-connected and can leave diagonal shorts; 'room' uses continuous "
+                        "expansion rooms (may leave nets unrouted on dense boards)."
+                    ),
+                    "default": "exact",
                     "enum": ["grid", "exact", "room"],
                 },
             },
@@ -2667,6 +2671,81 @@ AVAILABLE_TOOLS = [
                     "type": "boolean",
                     "description": "Whether board contains sensitive RF/microwave nets (default: False).",
                     "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "run_pcb_drc",
+        "description": (
+            "Execute rigorous physical Design Rule Check (DRC) on a routed PCB and return a scored "
+            "violation report. Verifies what the router cannot: true copper-to-copper clearance between "
+            "different nets (segment-to-segment geometry, not grid cells), acid traps and sub-90-degree "
+            "etching crevices (IPC-2221B 10.1.2), trace width vs process capability, board-edge and "
+            "mounting-hole keepout intrusion, RF antenna keepout, and high-speed differential pair skew "
+            "(IPC-2141A 3.4). Returns severity-tagged violations with measured vs required values plus a "
+            "0-100 score; `passed` is false when any blocking error remains."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["modules", "netlist"],
+            "properties": {
+                "modules": {
+                    "type": "object",
+                    "description": "Component modules dict (from synthesize_circuit output).",
+                },
+                "netlist": {
+                    "type": "object",
+                    "description": "Netlist dict with 'connections' (from synthesize_circuit output).",
+                },
+                "ses_text": {
+                    "type": "string",
+                    "description": (
+                        "Specctra SES session text to check. When omitted the board is routed first "
+                        "with the default exact engine, so the report describes what would actually be "
+                        "fabricated."
+                    ),
+                },
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 70.0).",
+                    "default": 70.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "min_trace_width_mm": {
+                    "type": "number",
+                    "description": "Minimum manufacturable trace width in mm (default: 0.127 / 5mil).",
+                    "default": 0.127,
+                },
+                "min_clearance_mm": {
+                    "type": "number",
+                    "description": "Minimum copper-to-copper clearance in mm (default: 0.100 / 4mil).",
+                    "default": 0.100,
+                },
+                "edge_clearance_mm": {
+                    "type": "number",
+                    "description": "Minimum copper-to-board-edge setback in mm (default: 0.800).",
+                    "default": 0.800,
+                },
+                "max_diff_skew_mm": {
+                    "type": "number",
+                    "description": "Maximum allowed USB differential pair length mismatch in mm (default: 1.250).",
+                    "default": 1.250,
+                },
+                "check_acid_traps": {
+                    "type": "boolean",
+                    "description": "Whether to check acute-angle etching traps and 90-degree high-speed corners (default: true).",
+                    "default": True,
                 },
             },
         },

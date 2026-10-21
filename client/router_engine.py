@@ -176,7 +176,16 @@ def _route_with_correct_units(dsn_text: str, *, engine: str = "grid", shove: boo
     dsn = parse_dsn(dsn_text)
     scale = max(dsn.resolution.value, 1)
 
-    routed = pipeline.build_routing_result(dsn)
+    # Dispatch on the requested engine. This used to call build_routing_result
+    # unconditionally, so `engine="exact"` and `engine="room"` silently produced
+    # grid output — three "different" engines returned byte-identical SES, and
+    # the exact engine's orthogonal, DRC-verified geometry was never reachable.
+    if engine == "exact":
+        routed = pipeline.build_exact_routing_result(dsn, shove=shove)
+    elif engine == "room":
+        routed = pipeline.build_rooms_routing_result(dsn, shove=shove)
+    else:
+        routed = pipeline.build_routing_result(dsn)
 
     scaled = RoutingResult()
     for net in routed.nets:
@@ -207,7 +216,7 @@ def autoroute_circuit(
     board_height_mm: float = 50.0,
     trace_width_mm: float = 0.150,
     clearance_mm: float = 0.100,
-    engine: str = "grid",
+    engine: str = "exact",
 ) -> dict[str, Any]:
     """Execute end-to-end placement and autorouting for a circuit specification.
 
@@ -215,6 +224,14 @@ def autoroute_circuit(
     2. Compiles standardized Specctra DSN v15.0 format.
     3. Runs native autorouting pipeline to generate Specctra SES tracks.
     4. Analyzes routing metrics and physical parameters.
+
+    ``engine`` defaults to ``"exact"`` rather than ``"grid"``. The grid router is
+    8-connected: it allows 45-degree moves but tracks occupancy per grid cell, so
+    two diagonals travelling in opposite directions can cross inside a 2x2 cell
+    block while occupying disjoint cells. It reported 100% completion on every
+    reference board while leaving 28-36 real shorts — copper crossing copper on
+    the same layer. The exact engine is orthogonal and DRC-verified: same
+    completion, zero crossings.
     """
     if placements is None:
         placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
@@ -232,4 +249,72 @@ def autoroute_circuit(
     result = autoroute_specctra_dsn(dsn_text, engine=engine)
     result["dsn_text"] = dsn_text
     result["placements"] = {ref: p.to_dict() for ref, p in placements.items()}
+
+    # Gate the result on a physical DRC pass. A router reports completion as "a
+    # path was found", which says nothing about whether that path keeps its
+    # distance from its neighbours: the exact engine on this board returned 100%
+    # completion with a 0.060 mm gap between GND and P3.3V against a 0.100 mm
+    # rule. When the chosen engine fails, try the others before handing back a
+    # board that cannot be fabricated.
+    if ses_text_ok := result.get("ses_text"):
+        from .pcb_drc import run_pcb_physical_drc
+
+        engines_tried = [engine]
+        current = result
+        report = run_pcb_physical_drc(
+            modules=modules,
+            connections=connections,
+            ses_text=ses_text_ok,
+            placements=placements,
+            board_width_mm=board_width_mm,
+            board_height_mm=board_height_mm,
+            min_clearance_mm=clearance_mm,
+        )
+
+        def score(cand: dict[str, Any], rep) -> tuple[int, int, int]:
+            """Rank a candidate board: complete first, then clean, then quiet.
+
+            An unrouted net is an open circuit — a board at 11/17 with zero DRC
+            errors is worse than one at 17/17 with two warnings, not better. The
+            first version of this gate compared only violation counts and swapped
+            three fully-routed reference boards for partially-routed ones.
+            """
+            m = cand.get("metrics", {})
+            routed = m.get("routed_nets_count", 0)
+            total = m.get("total_nets", 1) or 1
+            complete = 1 if routed >= total else 0
+            errors = sum(1 for v in rep.violations if v.severity in ("CRITICAL", "ERROR"))
+            return (complete, -errors, -len(rep.violations))
+
+        best_score = score(current, report)
+        for fallback in ("room", "exact", "grid"):
+            if fallback in engines_tried:
+                continue
+            engines_tried.append(fallback)
+            candidate = autoroute_specctra_dsn(dsn_text, engine=fallback)
+            if not candidate.get("ses_text"):
+                continue
+            candidate_report = run_pcb_physical_drc(
+                modules=modules,
+                connections=connections,
+                ses_text=candidate["ses_text"],
+                placements=placements,
+                board_width_mm=board_width_mm,
+                board_height_mm=board_height_mm,
+                min_clearance_mm=clearance_mm,
+            )
+            cand_score = score(candidate, candidate_report)
+            if cand_score > best_score:
+                current, report, best_score = candidate, candidate_report, cand_score
+            # Stop as soon as a board is both complete and error-free.
+            if best_score[0] == 1 and best_score[1] == 0:
+                break
+
+        current["dsn_text"] = dsn_text
+        current["placements"] = {ref: p.to_dict() for ref, p in placements.items()}
+        current["drc"] = report.to_dict()
+        current["drc_passed"] = report.passed
+        current["engines_tried"] = engines_tried
+        result = current
+
     return result
