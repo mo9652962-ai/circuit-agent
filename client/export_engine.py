@@ -17,6 +17,8 @@ import re
 import time
 from typing import Any
 
+from .placement_engine import heuristic_place_components
+
 # Standard rotation correction table for JLCPCB tape-and-reel SMT feeders
 # Reference: specs/cpl_standard.md & JLCKicadTools
 DEFAULT_ROTATION_RULES: list[tuple[str, float]] = [
@@ -42,10 +44,19 @@ DEFAULT_ROTATION_RULES: list[tuple[str, float]] = [
     (r"D_SMA", 180.0),
     (r"D_SMB", 180.0),
     (r"D_SMC", 180.0),
+    # Bare package names are what the BOM actually carries (`SMA`, not `D_SMA`).
+    # The rules above matched only KiCad's library naming, so a diode whose
+    # package field said `SMA` was exported at 0 degrees — reversed on the reel.
+    (r"^(SMA|SMB|SMC)$", 180.0),
+    (r"^(SOD[-_]?123|SOD[-_]?323|SOD[-_]?523)$", 180.0),
     (r"SW_SPST_B3", 90.0),
     (r"SW_PUSH", 90.0),
     (r"USB_C_Receptacle", 180.0),
     (r"Type[-_]?C", 180.0),
+    # `USB-C-16P-SMD` is how the synthesizer's own block names the connector;
+    # the rules above only covered KiCad library names, so the part that most
+    # needs correct orientation was exported at 0 degrees.
+    (r"USB[-_]?C[-_]", 180.0),
     (r"CP_Elec", 180.0),
     (r"CP_EIA", 180.0),
 ]
@@ -169,22 +180,42 @@ def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
 # --------------------------------------------------------------------------- #
 
 def export_jlcpcb_cpl(netlist_data: dict[str, Any], default_layer: str = "Top") -> str:
-    """Generate JLCPCB SMT Component Placement List (CPL) centroid file with tape-and-reel rotation corrections."""
+    """Generate JLCPCB SMT Component Placement List (CPL) centroid file with tape-and-reel rotation corrections.
+
+    Coordinates come from the placement engine, the same one the Gerber and
+    Excellon exporters use. Without it every row was written at (0, 0) — a
+    placement file that tells the machine to stack the whole board on one point.
+    A CPL is only useful if its coordinates describe where the parts actually go.
+    """
     components, _ = _extract_components_and_connections(netlist_data)
+
+    # Placement is only meaningful against a board outline; derive one from the
+    # part count the same way the other exporters do when none is supplied.
+    modules = {c.get("ref", ""): c for c in components if c.get("ref")}
+    if not any("x" in c for c in components):
+        # Match the default outline the Gerber exporter assumes (70 x 50 mm), so
+        # the CPL coordinates land inside the board the fab actually receives.
+        placements = heuristic_place_components(modules, 70.0, 50.0)
+    else:
+        placements = {c["ref"]: c for c in components}
 
     output = io.StringIO()
     writer = csv.writer(output, lineterminator="\n")
     writer.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation", "Val", "Package"])
 
-    for comp in sorted(components, key=lambda c: c.get("ref", "")):
-        ref = comp.get("ref", "")
+    for ref in sorted(placements):
+        comp = modules.get(ref, {})
+        place = placements[ref]
         val = comp.get("value", "")
-        pkg = comp.get("package", "")
-        pos_x = float(comp.get("x", 0.0))
-        pos_y = float(comp.get("y", 0.0))
-        raw_rot = float(comp.get("rotation", 0.0))
+        pkg = comp.get("package", "") or place.package
+        pos_x = float(place.x_mm)
+        pos_y = float(place.y_mm)
+        # The engine's own rotation is the authoritative one when the netlist
+        # carries none: it has already applied package-aware orientation.
+        raw_rot = float(comp.get("rotation", place.rotation_deg))
         corr_angle = (raw_rot + get_cpl_rotation_offset(pkg)) % 360.0
-        writer.writerow([ref, f"{pos_x:.3f}mm", f"{pos_y:.3f}mm", default_layer, f"{corr_angle:.1f}", val, pkg])
+        layer = place.layer or default_layer
+        writer.writerow([ref, f"{pos_x:.3f}mm", f"{pos_y:.3f}mm", layer, f"{corr_angle:.1f}", val, pkg])
 
     return output.getvalue()
 
