@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **66 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **68 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -309,6 +309,8 @@ python -m client.mcp_server
 62. `analyze_divider_tolerance`: 分压器容差带分析器——**标称值不是规格书**。同时给出精确最差情况 (四角枚举，因传输函数对每个电阻单调故为精确解) 与真实统计带 (一阶灵敏度传播)。关键点：分压输出是两个随机变量的商，**不能**直接对百分比容差做 RSS (TI SNVA112 明确指出)，必须先用解析偏导转成电压贡献再 RSS。含 TCR、按 √时间 缩放的老化漂移、电源容差与配对电阻比值容差，并指出哪个电阻主导误差预算。
 63. `analyze_resistor_error_budget`: 单只电阻寿命末期阻值带分析器——四项误差模型 (值容差 + 温度系数 + 寿命漂移 + 配对网络比值容差)。同时给出 RSS 带与线性最差带，并指出主导项：买 ±0.1% 厚膜电阻去修精度问题往往无效，因为其 200ppm/°C 的 TCR 在 60°C 温漂下已贡献 1.2%。寿命漂移按时间比的平方根缩放 (随机游走，不是斜坡)。
 64. `solve_feedback_divider`: 反馈分压电阻对精确求解器——给定稳压器/比较器目标输出与基准电压，求 R1/R2 并报告 E96 取整带来的静态误差。理想电阻对几乎从不存在于 E96 序列中，该取整误差是**系统性偏差而非容差**：每块板都一样的偏，必须与容差带分开预算。
+65. `calculate_high_speed_skin_depth_loss`: 1GHz~50GHz 高速集肤效应深度与铜箔表面粗糙度附加损耗计算器——依据 IPC-4562B 与 IPC-2141A，应用 Hammerstad-Jensen 粗糙度球堆积模型，核算标准 ED/VLP/HVLP 铜箔微观齿深造成的交流电阻倍增与高频插入损耗 (dB/inch)，给出 PCIe 5.0/6.0 与 112G PAM4 铜箔选型建议。
+66. `calculate_bare_board_test_parameters`: 裸板飞针/针床电测试规范配方规划与介质击穿安全审计器——依据 IPC-9252B 建立 Class 1/2/3 导通测试门限 (信号线 ≤10Ω、大电源 ≤2Ω) 与高阻绝缘测试电压 (50V/100V/250V DC)，针对 <0.100mm 细间距走线与敏感射频网络自动降额测试电压至 100V 防电弧微击穿损伤。
 
 ### 暴露的资源 (Resources)
 支持通过 `circuit://` URI 直接将规范加载到大模型上下文，无需执行额外工具：

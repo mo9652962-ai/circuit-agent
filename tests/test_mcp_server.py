@@ -112,7 +112,9 @@ def test_mcp_tools_list():
     assert "calculate_copper_pour_current_drop" in tool_names
     assert "audit_component_msl_floor_life" in tool_names
     assert "autoroute_pcb" in tool_names
-    assert len(tools) == 66
+    assert "calculate_high_speed_skin_depth_loss" in tool_names
+    assert "calculate_bare_board_test_parameters" in tool_names
+    assert len(tools) == 68
 
 
 def test_mcp_tool_call_synthesize():
