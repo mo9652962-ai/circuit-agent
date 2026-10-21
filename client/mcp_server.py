@@ -1615,6 +1615,48 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_fb, ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_high_speed_skin_depth_loss":
+            f_ghz = float(arguments.get("frequency_ghz", 10.0))
+            w_tr = float(arguments.get("trace_width_mm", 0.150))
+            t_tr = float(arguments.get("trace_thickness_mm", 0.035))
+            er = float(arguments.get("dielectric_er", 4.2))
+            f_type = str(arguments.get("foil_type", "vlp"))
+            c_rq = float(arguments["custom_rq_um"]) if "custom_rq_um" in arguments else None
+            max_ksr = float(arguments.get("max_acceptable_ksr", 1.85))
+            from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
+
+            rep_skin = calculate_high_speed_skin_depth_loss(
+                frequency_ghz=f_ghz,
+                trace_width_mm=w_tr,
+                trace_thickness_mm=t_tr,
+                dielectric_er=er,
+                foil_type=f_type,
+                custom_rq_um=c_rq,
+                max_acceptable_ksr=max_ksr,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_skin.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_bare_board_test_parameters":
+            nets_arg = arguments.get("nets")
+            t_cls = str(arguments.get("target_class", "Class 2"))
+            t_type = str(arguments.get("tester_type", "flying_probe"))
+            min_clr = float(arguments.get("min_trace_clearance_mm", 0.127))
+            has_rf = bool(arguments.get("has_sensitive_rf_nets", False))
+            from .bare_board_test_planner import plan_bare_board_test_parameters
+
+            plan_test = plan_bare_board_test_parameters(
+                nets=nets_arg if isinstance(nets_arg, list) else None,
+                target_class=t_cls,
+                tester_type=t_type,
+                min_trace_clearance_mm=min_clr,
+                has_sensitive_rf_nets=has_rf,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(plan_test.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

@@ -1330,6 +1330,54 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     )
                 )
 
+    # 46. HIGH_SPEED_ROUGHNESS_LOSS_EXCESSIVE (warning)：高频走线铜箔粗糙度附加损耗超标
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        freq_ghz = props.get("operating_freq_ghz")
+        foil = str(props.get("copper_foil_type", "standard_ed")).lower()
+        if freq_ghz is not None and float(freq_ghz) >= 5.0 and "standard" in foil:
+            from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
+
+            rep_skin = calculate_high_speed_skin_depth_loss(
+                frequency_ghz=float(freq_ghz),
+                trace_width_mm=float(props.get("trace_width_mm", 0.150)),
+                foil_type=foil,
+            )
+            if not rep_skin.is_roughness_acceptable:
+                issues.append(
+                    _issue(
+                        "HIGH_SPEED_ROUGHNESS_LOSS_EXCESSIVE",
+                        "高频信号铜箔微观粗糙度集肤损耗过高",
+                        f"高速网络 {net_name} 在 {freq_ghz} GHz 频率下使用标称粗糙铜箔 ({foil})，"
+                        f"集肤深度仅 {rep_skin.skin_depth_um:.2f}μm，粗糙度损耗惩罚系数 Ksr={rep_skin.roughness_correction_factor_ksr:.2f} "
+                        f"(衰减增加 {rep_skin.roughness_loss_percentage:.1f}%)；建议升级为 HVLP/RTF 铜箔（IPC-4562B）。",
+                        "warning",
+                        "IPC-4562B §3.2 Table 3-1 & IPC-2141A High-Frequency Conductor Losses",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 47. BARE_BOARD_TEST_VOLTAGE_OVERSTRESS_RISK (warning)：细间距或敏感网络裸板电测试电压过压击穿风险
+    target_class = str(modules.get("__meta__", {}).get("ipc_class", "Class 2")).strip()
+    if "3" in target_class:
+        for conn in connections or []:
+            props = conn.get("properties") or {}
+            net_name = conn.get("net", "")
+            clr = props.get("trace_clearance_mm")
+            if clr is not None and float(clr) < 0.100:
+                issues.append(
+                    _issue(
+                        "BARE_BOARD_TEST_VOLTAGE_OVERSTRESS_RISK",
+                        "高可靠板卡细间距走线裸板高压测试击穿风险",
+                        f"网络 {net_name} 导线间距 {clr}mm < 0.100mm；IPC-9252B Class 3 默认 250V DC 绝缘电阻测试 "
+                        "在微细空气间隙下存在电弧电离微击穿风险，测试程序必须降额至 100V 并延长驻留时间（IPC-9252B §4.4）。",
+                        "warning",
+                        "IPC-9252B Section 4.4 Table 4-1 Dielectric Breakdown Overstress Limits",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
     return issues
 
 

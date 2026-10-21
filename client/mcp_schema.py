@@ -2562,6 +2562,104 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "calculate_high_speed_skin_depth_loss",
+        "description": (
+            "Calculate high-frequency skin effect depth, Hammerstad surface roughness correction factor (Ksr), and conductor "
+            "attenuation per IPC-4562B and IPC-2141A for 1GHz to 50GHz signals (PCIe 5.0/6.0, USB4, 112G PAM4), recommending "
+            "standard ED, VLP, or HVLP/RTF copper foil profiles to recover high-speed signal integrity eye margins."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "frequency_ghz": {
+                    "type": "number",
+                    "description": "Signal frequency in GHz (default: 10.0).",
+                    "default": 10.0,
+                },
+                "trace_width_mm": {
+                    "type": "number",
+                    "description": "Conductor trace width in mm (default: 0.150).",
+                    "default": 0.150,
+                },
+                "trace_thickness_mm": {
+                    "type": "number",
+                    "description": "Copper foil thickness in mm (default: 0.035 for 1oz).",
+                    "default": 0.035,
+                },
+                "dielectric_er": {
+                    "type": "number",
+                    "description": "Substrate relative dielectric constant Er (default: 4.2).",
+                    "default": 4.2,
+                },
+                "foil_type": {
+                    "type": "string",
+                    "description": "Copper profile: 'standard_ed', 'vlp' (default), or 'hvlp'.",
+                    "default": "vlp",
+                },
+                "custom_rq_um": {
+                    "type": "number",
+                    "description": "Optional custom RMS roughness Rq in μm.",
+                },
+                "max_acceptable_ksr": {
+                    "type": "number",
+                    "description": "Maximum allowable roughness penalty factor (default: 1.85).",
+                    "default": 1.85,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_bare_board_test_parameters",
+        "description": (
+            "Plan IPC-9252B bare-board electrical test recipes (flying probe or bed-of-nails universal grid): establishes "
+            "continuity thresholds (signal <= 10Ω, power <= 2Ω) and isolation test voltages (Class 1: 50V, Class 2: 100V, "
+            "Class 3: 250V), automatically derating test voltages to 100V on fine-pitch (<0.100mm) or sensitive RF nets to prevent "
+            "dielectric breakdown arc-over damage."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "nets": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "Optional list of net dicts ({name, min_clearance_mm, is_power, is_sensitive}).",
+                },
+                "target_class": {
+                    "type": "string",
+                    "description": "IPC reliability class: 'Class 1', 'Class 2' (default), or 'Class 3'.",
+                    "default": "Class 2",
+                },
+                "tester_type": {
+                    "type": "string",
+                    "description": "Test equipment: 'flying_probe' (default) or 'universal_grid'.",
+                    "default": "flying_probe",
+                },
+                "min_trace_clearance_mm": {
+                    "type": "number",
+                    "description": "Minimum conductor clearance on board in mm (default: 0.127).",
+                    "default": 0.127,
+                },
+                "has_sensitive_rf_nets": {
+                    "type": "boolean",
+                    "description": "Whether board contains sensitive RF/microwave nets (default: False).",
+                    "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
