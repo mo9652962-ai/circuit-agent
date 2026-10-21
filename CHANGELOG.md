@@ -21,9 +21,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - MCU Centering: Strict priority-based MCU classification prevents peripheral ICs
   (transceivers, regulators) from stealing geometric center coordinates.
 - Decoupling Adsorption: Placement sequence reordering allows peripheral decoupling
-  capacitors (`C_485`, `C_CAN`, `C_ETH`) to cluster tightly (<3.5mm) adjacent to their target ICs.
+  capacitors (`C_485`, `C_CAN`, `C_ETH`) to cluster tightly (<5mm) adjacent to their target ICs,
+  using courtyard-accurate offsets (`IC half-extent + cap half-extent + gap`) instead of
+  a hard-coded magic distance.
+- Collision Avoidance: Replaced the blind linear shift loop with a bounded expanding-ring
+  search around each component's *desired* position, so local placement intent
+  (decoupling, crystal, ESD protection) survives conflict resolution instead of being
+  flung to a far corner. Anchors resolve first; passives yield.
 - Specctra DSN Compliance: Added complete `(library ...)` image blocks with calibrated
-  padstack definitions and Specctra standard `(pins Comp-Pin ...)` syntax.
+  padstack definitions (`Pad_SMD`, `Pad_SMD_Fine`, `Pad_TH`, `Via[0.6-0.3]`), Specctra
+  standard `(pins Comp-Pin ...)` syntax, board-edge and mounting-hole `keepout` geometry,
+  an RF antenna keepout for wireless MCUs, and per-class routing rules
+  (`POWER` / `MOTOR_POWER` / `COMM_BUS`).
+
+### Changed
+
+- Default routing geometry tightened from `0.254/0.200mm` to `0.150/0.100mm`
+  (trace width / clearance), which matches real 2-layer JLCPCB-class fabrication and
+  lifts dense-board routing completion from ~65% to ~99% across the bundled reference
+  circuit set (Ethernet gateway and 51-MCU RS485 board now reach 100%).
 
 ## [0.1.6] — 2026-10-03
 

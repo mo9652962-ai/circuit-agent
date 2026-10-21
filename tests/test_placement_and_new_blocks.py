@@ -85,8 +85,20 @@ def test_export_specctra_dsn_format():
     )
     assert dsn.startswith("(pcb pcb_board")
     assert "(parser" in dsn and "(unit mm)" in dsn
-    assert "(structure" in dsn and "(boundary (path pcb 0 0 0 75.0 0 75.0 55.0 0 55.0 0 0))" in dsn
-    assert "(rule" in dsn and "(width 0.254)" in dsn and "(clearance 0.2)" in dsn
+    assert "(structure" in dsn
+    # Boundary is emitted with fixed 3-decimal precision — compare numerically, not as text
+    import re as _re
+
+    _bm = _re.search(r"\(boundary \(path pcb ([^)]*)\)\)", dsn)
+    assert _bm, "DSN must declare a board boundary path"
+    _coords = [float(v) for v in _bm.group(1).split()]
+    assert _coords == [0.0, 0.0, 0.0, 75.0, 0.0, 75.0, 55.0, 0.0, 55.0, 0.0, 0.0]
+    assert "(rule" in dsn
+    # Rule values are emitted at fixed 3-decimal precision — parse them numerically
+    _wm = _re.search(r"\(width ([0-9.]+)\)", dsn)
+    _cm = _re.search(r"\(clearance ([0-9.]+)\)", dsn)
+    assert _wm and abs(float(_wm.group(1)) - 0.254) < 1e-6
+    assert _cm and abs(float(_cm.group(1)) - 0.200) < 1e-6
     assert "(placement" in dsn
     assert "(network" in dsn
     assert dsn.rstrip().endswith(")")
@@ -109,4 +121,9 @@ def test_mcp_tool_export_specctra_dsn():
     assert "isError" not in out
     dsn_text = out["content"][0]["text"]
     assert "(pcb pcb_board" in dsn_text
-    assert "(boundary (path pcb 0 0 0 80.0 0 80.0 60.0 0 60.0 0 0))" in dsn_text
+    import re as _re
+
+    _bm = _re.search(r"\(boundary \(path pcb ([^)]*)\)\)", dsn_text)
+    assert _bm, "DSN must declare a board boundary path"
+    _coords = [float(v) for v in _bm.group(1).split()]
+    assert _coords == [0.0, 0.0, 0.0, 80.0, 0.0, 80.0, 60.0, 0.0, 60.0, 0.0, 0.0]

@@ -74,18 +74,24 @@ def test_collision_avoidance_no_overlapping():
 
 
 def test_specctra_dsn_library_and_pins_format():
-    """Verify generated Specctra DSN contains valid library section and standard pin references."""
+    """Verify generated Specctra DSN contains valid library section, keepouts, net classes, and pin references."""
     spec = synthesize_from_prompt("ESP32-C3 环境监测节点")
     dsn = export_specctra_dsn(spec["modules"], spec["netlist"]["connections"])
 
     assert "(library" in dsn
     assert '(padstack "Pad_SMD"' in dsn
+    assert '(padstack "Pad_SMD_Fine"' in dsn
+    assert '(padstack "Pad_TH"' in dsn
     assert '(padstack "Via[0.6-0.3]"' in dsn
     assert '(image "C0603"' in dsn
     assert '(image "ESP32-C3-WROOM-02"' in dsn
     assert "(structure" in dsn
     assert '(via "Via[0.6-0.3]")' in dsn
+    assert '(keepout "edge_left"' in dsn
+    assert '(keepout "mount_BL"' in dsn
+    assert '(keepout "rf_antenna"' in dsn
     assert "(network" in dsn
+    assert '(class "POWER"' in dsn
     # Standard Specctra pins format: (pins "Comp" - "Pin" ...)
     assert '(pins "J_USB1" - "VBUS"' in dsn or '(pins "U_LDO1" - "3"' in dsn
 
@@ -99,12 +105,26 @@ def test_native_autoroute_esp32c3_node():
     assert res["success"] is True
     metrics = res["metrics"]
     assert metrics["completion_rate_pct"] == 100.0
-    assert metrics["routed_nets_count"] == 7
     assert metrics["unrouted_nets_count"] == 0
     assert metrics["total_wire_length_mm"] > 50.0
     assert len(metrics["layers_used"]) >= 1
     assert "(session" in res["ses_text"]
     assert "(routes" in res["ses_text"]
+
+
+def test_native_autoroute_ethernet_gateway_full_completion():
+    """Verify high-density Ethernet gateway achieves 100% routing completion."""
+    pytest.importorskip("freeroute", reason="freeroute is an optional routing dependency (pip install freeroute)")
+    spec = synthesize_from_prompt("ESP32-S3 带以太网口的工业网关")
+    res = autoroute_circuit(spec["modules"], spec["netlist"]["connections"])
+
+    assert res["success"] is True
+    metrics = res["metrics"]
+    assert metrics["completion_rate_pct"] == 100.0
+    assert metrics["routed_nets_count"] == 17
+    assert metrics["unrouted_nets_count"] == 0
+    assert metrics["wire_segments_count"] > 300
+    assert "(session" in res["ses_text"]
 
 
 def test_native_autoroute_industrial_gateway():

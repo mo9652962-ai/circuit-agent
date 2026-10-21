@@ -145,8 +145,8 @@ def autoroute_circuit(
     placements: dict[str, ComponentPlacement] | None = None,
     board_width_mm: float = 70.0,
     board_height_mm: float = 50.0,
-    trace_width_mm: float = 0.254,
-    clearance_mm: float = 0.200,
+    trace_width_mm: float = 0.150,
+    clearance_mm: float = 0.100,
     engine: str = "grid",
 ) -> dict[str, Any]:
     """Execute end-to-end placement and autorouting for a circuit specification.
