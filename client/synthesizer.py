@@ -352,6 +352,11 @@ def synthesize_from_prompt(
     if _has(prompt_lower, prompt, _WATCHDOG_TOKENS):
         blocks.append(block_watchdog_supervisor())
 
+    # Fiducials and test points stay opt-in. They add cost and board area, and a
+    # hobby board with five parts is genuinely fine without them — the DFX audit
+    # reports them as findings, which is the right place for that judgement.
+    # Adding them unconditionally would have been the synthesizer overriding the
+    # engineer instead of informing them.
     if _has(prompt_lower, prompt, _DFA_TOKENS) or is_industrial:
         blocks.append(block_fiducial_marks())
 
@@ -486,8 +491,14 @@ def synthesize_from_prompt(
     # missed exactly the boards that have a USB port. The result was a Type-C
     # receptacle with bare D+/D- and a CRITICAL EMC finding in the DFX audit —
     # the audit was right, the synthesizer had simply never looked.
+    #
+    # Gated on the port existing, not on the board calling itself industrial.
+    # A Type-C receptacle exposes D+/D- to whatever the user plugs in, and an ESD
+    # strike does not check whether the product was marketed as rugged. The old
+    # `is_industrial or has_tvs` condition left every hobby-grade board with a
+    # USB port unprotected.
     has_usb = any(b.name == "USB_C_Power" for b in blocks)
-    if has_usb and (is_industrial or has_tvs) and "ESD_TVS_USB" not in {b.name for b in blocks}:
+    if has_usb and "ESD_TVS_USB" not in {b.name for b in blocks}:
         blocks.append(block_esd_usb_tvs())
 
 
