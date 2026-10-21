@@ -884,7 +884,16 @@ def export_specctra_dsn(
                 motor_nets.append(f'"{net_name}"')
             elif any(k in u_net for k in ("GND", "VCC", "3V3", "5V", "VBUS", "VIN", "VBAT", "VDD", "VSS")):
                 power_nets.append(f'"{net_name}"')
-            elif any(k in u_net for k in ("CAN", "485", "DP", "DN", "TX", "RX", "SCLK", "MOSI", "MISO")):
+            # "DN" was matched where the net is called USB_DM, so only one half of
+            # the USB pair landed in the class: the two lines of a differential
+            # pair then got different widths, which is a skew and impedance
+            # problem, not a cosmetic one. CC1/CC2 are part of the same connector
+            # interface and belong here too — they are what the charger reads to
+            # decide how much current to offer.
+            elif any(
+                k in u_net
+                for k in ("CAN", "485", "DP", "DM", "DN", "TX", "RX", "SCLK", "MOSI", "MISO", "CC1", "CC2", "USB")
+            ):
                 comm_nets.append(f'"{net_name}"')
 
     if power_nets:

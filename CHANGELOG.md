@@ -49,6 +49,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   anchor to the receptacle's own edges: they set the charger's 5 V offer and a
   long CC trace is an antenna on the negotiation line.
 
+- **Half of every differential pair was outside its net class.** The class filter
+  matched `"DN"` while the net is named `USB_DM`, so only D+ received the 0.180 mm
+  communication rule and D- stayed on the 0.150 mm default. A pair routed at two
+  widths is a skew and impedance mismatch. CC1/CC2 were not in any class either;
+  all four now share `COMM_BUS`.
+
 ### Added
 
 - `tests/test_routing_quality.py`: 11 tests. Four reference boards must route

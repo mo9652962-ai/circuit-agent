@@ -212,6 +212,26 @@ def test_usb_data_pair_reaches_the_controller():
         assert any("TVS" in r.upper() for r in refs), f"{net} has no ESD protection"
 
 
+def test_differential_pair_shares_one_net_class():
+    """Both halves of a differential pair must get the same width rule.
+
+    The class filter matched ``"DN"`` while the net is called ``USB_DM``, so only
+    D+ landed in ``COMM_BUS``. Two lines of a pair routed at different widths is
+    a skew and impedance mismatch, and CC1/CC2 were left on the default rule too.
+    """
+    spec = synthesize_from_prompt(BOARDS[0])
+    placements = heuristic_place_components(spec["modules"], 70.0, 50.0)
+    dsn = export_specctra_dsn(
+        spec["modules"], spec["netlist"]["connections"], placements, 70.0, 50.0
+    )
+
+    comm = re.search(r'\(class "COMM_BUS"([^)]*)\)', dsn)
+    assert comm, "no COMM_BUS net class emitted"
+    members = set(re.findall(r'"([\w+\-.]+)"', comm.group(1)))
+    for net in ("USB_DP", "USB_DM", "CC1", "CC2"):
+        assert net in members, f"{net} missing from COMM_BUS (class has {sorted(members)})"
+
+
 def test_power_only_receptacle_has_no_data_nets():
     """A controller without USB must not get dangling D+/D- nets.
 
