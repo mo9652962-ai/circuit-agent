@@ -107,6 +107,26 @@ class DRCReport:
 _MIN_CORNER_LEG_MM = 0.150
 
 
+def _as_placement_objects(placements: dict[str, Any]) -> dict[str, Any]:
+    """Normalise a placement map to ``ComponentPlacement`` objects."""
+    from .placement_engine import ComponentPlacement
+
+    objects: dict[str, Any] = {}
+    for ref, p in (placements or {}).items():
+        if isinstance(p, dict):
+            objects[ref] = ComponentPlacement(
+                ref=p.get("ref", ref),
+                package=p.get("package", ""),
+                x_mm=float(p.get("x_mm", 0.0)),
+                y_mm=float(p.get("y_mm", 0.0)),
+                rotation_deg=float(p.get("rotation_deg", 0.0)),
+                layer=p.get("layer", "Top"),
+            )
+        else:
+            objects[ref] = p
+    return objects
+
+
 def _pad_boxes(placements: dict[str, Any], connections: list[dict[str, Any]]) -> list[tuple[float, float, float, float]]:
     """Copper boxes of every pad the netlist touches, as (x0, y0, x1, y1).
 
@@ -114,13 +134,17 @@ def _pad_boxes(placements: dict[str, Any], connections: list[dict[str, Any]]) ->
     own outline, not the trace's turn. On the STM32 board the router entered
     USB_DP's pad, jogged 0.2 mm, then left, producing a 76-degree "acid trap"
     that sat entirely inside the pad land.
+
+    Accepts either ``ComponentPlacement`` objects or their ``to_dict()`` form —
+    ``autoroute_circuit`` hands back the dict form in its result.
     """
     try:
         from .gerber_exporter import _collect_pads
     except Exception:  # pragma: no cover - defensive
         return []
+    objects = _as_placement_objects(placements)
     boxes: list[tuple[float, float, float, float]] = []
-    for pad in _collect_pads({}, connections, placements):
+    for pad in _collect_pads({}, connections, objects):
         hw, hh = pad["w"] / 2.0, pad["h"] / 2.0
         boxes.append((pad["x"] - hw, pad["y"] - hh, pad["x"] + hw, pad["y"] + hh))
     return boxes
@@ -377,6 +401,11 @@ def run_pcb_physical_drc(
     """
     if placements is None:
         placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+    else:
+        # Callers pass either ComponentPlacement objects or the dict form that
+        # autoroute_circuit returns in its result. Normalise once at the entry
+        # point instead of teaching every helper about both shapes.
+        placements = _as_placement_objects(placements)
 
     if ses_text is None:
         from .router_engine import autoroute_circuit
@@ -715,39 +744,60 @@ def run_pcb_physical_drc(
     # ----------------------------------------------------------------------- #
     # Rule 5: Segment-to-Segment Copper Clearance (Different Nets, Same Layer)
     # ----------------------------------------------------------------------- #
-    # Spatial binning or bounding box pruning for O(N log N) clearance check
-    # Check pairwise non-identical nets on the same layer
-    for i in range(len(segments)):
-        s1 = segments[i]
-        b1 = s1.bbox
-        for j in range(i + 1, len(segments)):
-            s2 = segments[j]
-            if s1.net == s2.net or s1.layer != s2.layer:
-                continue
+    # Spatial binning. The comment above claimed O(N log N) while the code below
+    # was a plain O(N^2) sweep: on a 1500-segment board that is 1.1M pairs and
+    # took the suite past 20 minutes. Each segment is bucketed into every cell its
+    # copper bbox touches, and only segments sharing a cell are compared — which
+    # is the same set the bbox rejection would have kept, minus the pairs it was
+    # scanning and throwing away.
+    cell = max(min_clearance_mm * 8.0, 1.0)
+    buckets: dict[tuple[str, int, int], list[int]] = {}
+    for idx, seg in enumerate(segments):
+        x0, y0, x1, y1 = seg.bbox
+        pad = min_clearance_mm
+        for cx in range(int((x0 - pad) // cell), int((x1 + pad) // cell) + 1):
+            for cy in range(int((y0 - pad) // cell), int((y1 + pad) // cell) + 1):
+                buckets.setdefault((seg.layer, cx, cy), []).append(idx)
 
-            b2 = s2.bbox
-            # Bounding box quick rejection
-            if (
-                b1[2] + min_clearance_mm < b2[0]
-                or b2[2] + min_clearance_mm < b1[0]
-                or b1[3] + min_clearance_mm < b2[1]
-                or b2[3] + min_clearance_mm < b1[1]
-            ):
-                continue
+    seen_pairs: set[tuple[int, int]] = set()
+    for (layer, _cx, _cy), members in buckets.items():
+        for a in range(len(members)):
+            i = members[a]
+            for b in range(a + 1, len(members)):
+                j = members[b]
+                pair = (i, j) if i < j else (j, i)
+                if pair in seen_pairs:
+                    continue
+                seen_pairs.add(pair)
 
-            centerline_dist = segment_to_segment_dist(s1.p1, s1.p2, s2.p1, s2.p2)
-            copper_clearance = centerline_dist - (s1.width_mm + s2.width_mm) / 2.0
-            if copper_clearance < min_measured_clearance:
-                min_measured_clearance = copper_clearance
+                s1 = segments[pair[0]]
+                s2 = segments[pair[1]]
+                if s1.net == s2.net or s1.layer != s2.layer:
+                    continue
 
-            if copper_clearance < min_clearance_mm - 0.008:
-                # One finding per (net pair, layer, worst location). Two traces
-                # that run parallel for 5 mm produce a violation for every
-                # segment pair along the way, all reporting the same gap.
-                key = (s1.net, s2.net, s1.layer)
-                prev = worst_clearance_by_pair.get(key)
-                if prev is None or copper_clearance < prev[0]:
-                    worst_clearance_by_pair[key] = (copper_clearance, s1.p1)
+                b1 = s1.bbox
+                b2 = s2.bbox
+                # Exact bbox rejection — the bucket is coarse, this is not.
+                if (
+                    b1[2] + min_clearance_mm < b2[0]
+                    or b2[2] + min_clearance_mm < b1[0]
+                    or b1[3] + min_clearance_mm < b2[1]
+                    or b2[3] + min_clearance_mm < b1[1]
+                ):
+                    continue
+
+                centerline_dist = segment_to_segment_dist(s1.p1, s1.p2, s2.p1, s2.p2)
+                copper_clearance = centerline_dist - (s1.width_mm + s2.width_mm) / 2.0
+                min_measured_clearance = min(min_measured_clearance, copper_clearance)
+
+                if copper_clearance < min_clearance_mm - 0.008:
+                    # One finding per (net pair, layer, worst location). Two traces
+                    # that run parallel for 5 mm produce a violation for every
+                    # segment pair along the way, all reporting the same gap.
+                    key = (s1.net, s2.net, s1.layer)
+                    prev = worst_clearance_by_pair.get(key)
+                    if prev is None or copper_clearance < prev[0]:
+                        worst_clearance_by_pair[key] = (copper_clearance, s1.p1)
 
     for (net1, net2, layer), (gap, loc) in sorted(
         worst_clearance_by_pair.items(), key=lambda kv: kv[1][0]

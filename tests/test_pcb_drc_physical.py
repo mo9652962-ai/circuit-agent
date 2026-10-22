@@ -15,7 +15,6 @@ sys.path.insert(0, ".")
 
 from client.pcb_drc import (
     _clean_path,
-    parse_ses_paths,
     point_to_segment_dist,
     run_pcb_physical_drc,
     segment_to_segment_dist,

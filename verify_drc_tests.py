@@ -4,7 +4,6 @@ A test that passes both before and after a fix proves nothing. This script
 mutates the source in memory, runs the targeted test, and requires it to fail.
 """
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -51,7 +50,7 @@ def run(args: list[str]) -> int:
     # Argument list, no shell: the only variable parts are test node ids that
     # come from this file's own CASES table, but there is no reason to involve a
     # shell at all.
-    return subprocess.run(args, capture_output=True, text=True).returncode
+    return subprocess.run(args, check=False, capture_output=True, text=True).returncode
 
 
 def main() -> int:
