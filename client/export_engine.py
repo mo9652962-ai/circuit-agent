@@ -179,7 +179,13 @@ def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
 # 3. JLCPCB Production CPL / Centroid Exporter (CSV)
 # --------------------------------------------------------------------------- #
 
-def export_jlcpcb_cpl(netlist_data: dict[str, Any], default_layer: str = "Top") -> str:
+def export_jlcpcb_cpl(
+    netlist_data: dict[str, Any],
+    default_layer: str = "Top",
+    *,
+    board_width_mm: float = 70.0,
+    board_height_mm: float = 50.0,
+) -> str:
     """Generate JLCPCB SMT Component Placement List (CPL) centroid file with tape-and-reel rotation corrections.
 
     Coordinates come from the placement engine, the same one the Gerber and
@@ -193,9 +199,10 @@ def export_jlcpcb_cpl(netlist_data: dict[str, Any], default_layer: str = "Top") 
     # part count the same way the other exporters do when none is supplied.
     modules = {c.get("ref", ""): c for c in components if c.get("ref")}
     if not any("x" in c for c in components):
-        # Match the default outline the Gerber exporter assumes (70 x 50 mm), so
-        # the CPL coordinates land inside the board the fab actually receives.
-        placements = heuristic_place_components(modules, 70.0, 50.0)
+        # Match the outline the caller used for the Gerber export, so the CPL
+        # coordinates land inside the board the fab actually receives. A hardcoded
+        # 70 x 50 here put every part outside the outline on any other board size.
+        placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
     else:
         placements = {c["ref"]: c for c in components}
 

@@ -29,6 +29,8 @@ def test_export_gerber_bundle_layers():
         "board-F_Mask.gts",
         "board-B_Mask.gbs",
         "board-F_SilkS.gto",
+        "board-F_Paste.gtp",
+        "board-B_Paste.gbp",
         "board.drl",
     }
     assert set(bundle.keys()) == expected_layers

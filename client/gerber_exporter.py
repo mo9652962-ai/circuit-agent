@@ -32,6 +32,7 @@ guide tracks were not routes.
 from __future__ import annotations
 
 import logging
+import math
 import re
 from typing import Any
 
@@ -46,6 +47,18 @@ log = logging.getLogger("circuit-gerber")
 
 #: Solder-mask expansion over the copper pad, per side (mm). JLCPCB/PCBWay standard.
 MASK_EXPANSION_MM = 0.05
+
+#: Stencil aperture reduction relative to the copper land, per side (mm).
+#: IPC-7525B Section 4.2: paste printed to the full pad area wicks under the part
+#: during reflow and lifts it off its pads. 0.05 mm per side is the common
+#: starting point for 0402..1206 lands and is what most contract assemblers ask
+#: for on a first stencil.
+PASTE_REDUCTION_MM = 0.05
+
+#: Minimum gap between silkscreen legend and an exposed copper land (mm).
+#: IPC-SM-840 / DFM practice: legend printed on a mask opening blocks solder
+#: wetting and leaves a cold joint or a solder ball after reflow.
+SILK_TO_PAD_CLEARANCE_MM = 0.15
 
 #: Copper land dimensions (width, height) in mm, keyed by a package substring.
 #: These are land patterns, not body sizes: the copper the part actually solders to.
@@ -187,10 +200,15 @@ def _ses_unit_divisor(ses_text: str) -> float:
 def _parse_ses_geometry(ses_text: str | None) -> dict[str, list[dict[str, Any]]]:
     """Extract real routed geometry from a Specctra SES session.
 
-    Returns ``{"wires": [{layer, width_mm, pts}], "vias": [{x, y}]}`` in mm.
-    Coordinates inside a SES are integers in the declared resolution units, so the
-    divisor is read from the file — treating them as millimetres would shrink
-    every trace by a factor of 1000.
+    Returns ``{"wires": [...], "vias": [...]}`` in mm. Coordinates inside a SES
+    are integers in the declared resolution units, so the divisor is read from the
+    file — treating them as millimetres would shrink every trace by a factor of
+    1000.
+
+    Each via carries its padstack's ``pad_mm`` and ``drill_mm``, parsed from the
+    name the router writes (``Via[0.6-0.3]``). The copper layer needs that pad
+    diameter to flash an annular ring; a drill hit with no copper ring around it
+    is a hole through the trace, not a connection to the other side.
     """
     wires: list[dict[str, Any]] = []
     vias: list[dict[str, Any]] = []
@@ -208,9 +226,36 @@ def _parse_ses_geometry(ses_text: str | None) -> dict[str, list[dict[str, Any]]]
             wires.append({"layer": layer, "width_mm": width_mm, "pts": pts})
 
     for m in re.finditer(r'\(via\s+"?([^"\s]+)"?\s+([0-9.\-]+)\s+([0-9.\-]+)', ses_text):
-        vias.append({"x": float(m.group(2)) / div, "y": float(m.group(3)) / div})
+        padstack = m.group(1)
+        pad_mm, drill_mm = _via_dimensions(padstack)
+        vias.append(
+            {
+                "x": float(m.group(2)) / div,
+                "y": float(m.group(3)) / div,
+                "padstack": padstack,
+                "pad_mm": pad_mm,
+                "drill_mm": drill_mm,
+            }
+        )
 
     return {"wires": wires, "vias": vias}
+
+
+#: Fallback via geometry when the padstack name carries no dimensions.
+#: 0.6/0.3 is the JLCPCB/PCBWay standard 2-layer via and the one the router emits.
+DEFAULT_VIA_PAD_MM = 0.60
+DEFAULT_VIA_DRILL_MM = 0.30
+
+
+def _via_dimensions(padstack: str) -> tuple[float, float]:
+    """Read (pad, drill) diameters in mm from a padstack name like ``Via[0.6-0.3]``."""
+    m = re.search(r"\[\s*([0-9.]+)\s*-\s*([0-9.]+)\s*\]", padstack or "")
+    if m:
+        pad = float(m.group(1))
+        drill = float(m.group(2))
+        if pad > 0 and drill > 0:
+            return pad, drill
+    return DEFAULT_VIA_PAD_MM, DEFAULT_VIA_DRILL_MM
 
 
 def _is_top_layer(layer: str) -> bool:
@@ -241,14 +286,91 @@ def generate_edge_cuts_gerber(board_width_mm: float, board_height_mm: float) -> 
     ]) + "\n"
 
 
+def _via_teardrop_polygons(
+    geo: dict[str, list[dict[str, Any]]],
+    *,
+    extension_ratio: float = 0.65,
+) -> list[list[tuple[float, float]]]:
+    """Build a filled teardrop polygon at every via that a trace enters.
+
+    IPC-2221B Section 9.1.5 / IPC-A-600J Class 3: a track meeting a round pad
+    should be filleted. Drill wander alone is allowed 0.075 mm, which on a 0.6/0.3
+    via eats the entire 0.15 mm annular ring at the entry point — the trace neck
+    tears out of the pad and the net opens. The fillet widens that neck by 50-100%.
+
+    The entry angle is derived from the actual routed wire that terminates on the
+    via, not assumed: a teardrop pointing the wrong way reinforces nothing.
+    """
+    vias = geo.get("vias") or []
+    wires = geo.get("wires") or []
+    if not vias or not wires:
+        return []
+
+    polys: list[list[tuple[float, float]]] = []
+    for via in vias:
+        vx, vy = via["x"], via["y"]
+        r_pad = via["pad_mm"] / 2.0
+        if r_pad <= 0:
+            continue
+
+        # Which routed wires actually land on this via?
+        entries: list[tuple[float, float, float]] = []  # (dx, dy, width)
+        for wire in wires:
+            pts = wire["pts"]
+            for end, other in ((pts[0], pts[1]), (pts[-1], pts[-2])):
+                if math.hypot(end[0] - vx, end[1] - vy) > r_pad + 0.05:
+                    continue
+                d = math.hypot(end[0] - other[0], end[1] - other[1])
+                if d <= 1e-6:
+                    continue
+                # Direction the trace travels *away* from the via.
+                entries.append(
+                    ((end[0] - other[0]) / d, (end[1] - other[1]) / d, wire["width_mm"])
+                )
+
+        for dx, dy, tr_w in entries:
+            td_len = r_pad * extension_ratio
+            # Apex along the trace, half-width at least the trace, tapering to the pad.
+            apex = (vx + (r_pad + td_len) * dx, vy + (r_pad + td_len) * dy)
+            half = max(tr_w / 2.0, r_pad * 0.45)
+            perp = (-dy, dx)
+
+            # Tangent contact points sit on the pad circle at +/-45 deg from the
+            # entry direction — the standard teardrop construction. Rotating the
+            # unit direction is the whole computation; anything more elaborate
+            # just introduces its own sign errors.
+            c45 = math.cos(math.pi / 4)
+            s45 = math.sin(math.pi / 4)
+            t1 = (vx + r_pad * (dx * c45 - dy * s45), vy + r_pad * (dx * s45 + dy * c45))
+            t2 = (vx + r_pad * (dx * c45 + dy * s45), vy + r_pad * (-dx * s45 + dy * c45))
+
+            polys.append(
+                [
+                    t1,
+                    (apex[0] + perp[0] * half, apex[1] + perp[1] * half),
+                    (apex[0] - perp[0] * half, apex[1] - perp[1] * half),
+                    t2,
+                ]
+            )
+    return polys
+
+
 def _write_copper_layer(
     title: str,
     pads: list[dict[str, Any]],
     wires: list[dict[str, Any]],
     *,
     include_pour: tuple[float, float] | None = None,
+    vias: list[dict[str, Any]] | None = None,
+    teardrops: list[list[tuple[float, float]]] | None = None,
 ) -> str:
-    """Render one copper layer: aperture table, pad flashes, then real tracks."""
+    """Render one copper layer: apertures, pour, pads, via rings, then tracks.
+
+    Vias are flashed here as annular rings. A drill hit with no copper around it
+    is a hole punched through a trace: the plating has nothing to anchor to and
+    the two sides never connect. IPC-2221B Table 9-1 asks for an annular ring of
+    at least 0.05 mm per side, which the 0.6/0.3 padstack satisfies at 0.15 mm.
+    """
     defs: list[str] = []
     pad_codes: dict[tuple[float, float, bool], int] = {}
     next_code = 10
@@ -262,6 +384,13 @@ def _write_copper_layer(
             else:
                 defs.append(f"%ADD{next_code}R,{pad['w']:.5f}X{pad['h']:.5f}*%")
             next_code += 1
+
+    via_pads = vias or []
+    via_codes: dict[float, int] = {}
+    for d in sorted({round(v["pad_mm"], 4) for v in via_pads}):
+        via_codes[d] = next_code
+        defs.append(f"%ADD{next_code}C,{d:.5f}*%")
+        next_code += 1
 
     wire_codes: dict[float, int] = {}
     for w in sorted({round(x["width_mm"], 4) for x in wires}):
@@ -301,6 +430,32 @@ def _write_copper_layer(
             for pad in by_code[code]:
                 L.append(f"X{_format_gerber_coord(pad['x'])}Y{_format_gerber_coord(pad['y'])}D03*")
 
+    if via_pads:
+        L.append("G04 Plated Via Annular Rings*")
+        by_via: dict[int, list[dict[str, Any]]] = {}
+        for via in via_pads:
+            by_via.setdefault(via_codes[round(via["pad_mm"], 4)], []).append(via)
+        for code in sorted(by_via):
+            L.append(f"D{code}*")
+            for via in by_via[code]:
+                L.append(f"X{_format_gerber_coord(via['x'])}Y{_format_gerber_coord(via['y'])}D03*")
+
+    if teardrops:
+        # G36/G37 is the RS-274X region statement: the polygon between them is
+        # filled, not stroked. A stroked teardrop would be an outline of copper
+        # around empty space — worse than no teardrop at all.
+        L.append("G04 Teardrop Reinforcement Fillets (IPC-2221B 9.1.5)*")
+        for poly in teardrops:
+            if len(poly) < 3:
+                continue
+            L.append("G36*")
+            x0, y0 = poly[0]
+            L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(y0)}D02*")
+            for x, y in poly[1:]:
+                L.append(f"X{_format_gerber_coord(x)}Y{_format_gerber_coord(y)}D01*")
+            L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(y0)}D01*")
+            L.append("G37*")
+
     if wires:
         L.append("G04 Routed Tracks*")
         for w in sorted(wire_codes):
@@ -339,7 +494,13 @@ def generate_top_copper_gerber(
     geo = _parse_ses_geometry(ses_text)
     top_wires = [w for w in geo["wires"] if _is_top_layer(w["layer"])]
 
-    return _write_copper_layer("Top Copper Layer", pads, top_wires)
+    return _write_copper_layer(
+        "Top Copper Layer",
+        pads,
+        top_wires,
+        vias=geo["vias"],
+        teardrops=_via_teardrop_polygons(geo),
+    )
 
 
 def generate_bottom_copper_gerber(
@@ -373,7 +534,123 @@ def generate_bottom_copper_gerber(
         pads,
         bot_wires,
         include_pour=(board_width_mm, board_height_mm),
+        vias=geo["vias"],
+        teardrops=_via_teardrop_polygons(geo),
     )
+
+
+def generate_top_paste_gerber(
+    modules: dict[str, Any],
+    connections: list[dict[str, Any]],
+    board_width_mm: float = 70.0,
+    board_height_mm: float = 50.0,
+    *,
+    placements: dict[str, Any] | None = None,
+    paste_reduction: float = PASTE_REDUCTION_MM,
+) -> str:
+    """Generate the SMT stencil layer (.gtp) — one aperture per surface-mount pad.
+
+    Without this layer no SMT line can build the board: the stencil is what the
+    printer uses to deposit solder paste, and paste is what the reflow step turns
+    into the solder joint. The bundle shipped seven layers without it, so every
+    package was a "through-hole or hand-solder" board regardless of its parts.
+
+    Apertures are *reduced* relative to the copper land (IPC-7525B Section 4.2):
+    paste printed to the full pad area wicks under the part during reflow and
+    lifts it off its pads, producing opens and tombstones. Through-hole pins get
+    no aperture — they are wave- or hand-soldered, not reflowed.
+    """
+    if placements is None:
+        placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+
+    pads = [
+        p
+        for p in _collect_pads(modules, connections, placements)
+        if not p["through_hole"]
+    ]
+
+    L = ["G04 Gerber RS-274X SMT Stencil (Top Paste)*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%"]
+
+    groups: dict[tuple[float, float, bool], list[dict[str, Any]]] = {}
+    for pad in pads:
+        w = round(pad["w"] - 2 * paste_reduction, 5)
+        h = round(pad["h"] - 2 * paste_reduction, 5)
+        if w <= 0 or h <= 0:
+            continue
+        groups.setdefault((w, h, pad["round"]), []).append(pad)
+
+    code = 10
+    for (w, h, is_round), items in groups.items():
+        if is_round:
+            L.append(f"%ADD{code}C,{w:.5f}*%")
+        else:
+            L.append(f"%ADD{code}R,{w:.5f}X{h:.5f}*%")
+        L.append(f"D{code}*")
+        for pad in items:
+            L.append(f"X{_format_gerber_coord(pad['x'])}Y{_format_gerber_coord(pad['y'])}D03*")
+        code += 1
+
+    L.append("M02*")
+    return "\n".join(L) + "\n"
+
+
+def generate_bottom_paste_gerber(
+    modules: dict[str, Any],
+    connections: list[dict[str, Any]],
+    board_width_mm: float = 70.0,
+    board_height_mm: float = 50.0,
+    *,
+    placements: dict[str, Any] | None = None,
+    paste_reduction: float = PASTE_REDUCTION_MM,
+) -> str:
+    """Generate the bottom-side stencil layer (.gbp).
+
+    Only parts placed on the bottom side get apertures. A double-sided reflow
+    assembly needs both; a single-sided one legitimately has an empty file, and an
+    empty layer is the honest answer rather than apertures under parts that are
+    not there.
+    """
+    if placements is None:
+        placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+
+    bottom_refs = {ref for ref, p in placements.items() if p.layer == "Bottom"}
+    used: set[str] = set()
+    for conn in connections:
+        for pt in conn.get("points") or []:
+            if "." in pt:
+                ref = pt.split(".", 1)[0]
+                if ref in bottom_refs:
+                    used.add(ref)
+
+    pads = [
+        p
+        for p in _collect_pads(modules, connections, placements)
+        if not p["through_hole"] and p["ref"] in used
+    ]
+
+    L = ["G04 Gerber RS-274X SMT Stencil (Bottom Paste)*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%"]
+
+    groups: dict[tuple[float, float, bool], list[dict[str, Any]]] = {}
+    for pad in pads:
+        w = round(pad["w"] - 2 * paste_reduction, 5)
+        h = round(pad["h"] - 2 * paste_reduction, 5)
+        if w <= 0 or h <= 0:
+            continue
+        groups.setdefault((w, h, pad["round"]), []).append(pad)
+
+    code = 10
+    for (w, h, is_round), items in groups.items():
+        if is_round:
+            L.append(f"%ADD{code}C,{w:.5f}*%")
+        else:
+            L.append(f"%ADD{code}R,{w:.5f}X{h:.5f}*%")
+        L.append(f"D{code}*")
+        for pad in items:
+            L.append(f"X{_format_gerber_coord(pad['x'])}Y{_format_gerber_coord(pad['y'])}D03*")
+        code += 1
+
+    L.append("M02*")
+    return "\n".join(L) + "\n"
 
 
 def _write_mask_layer(title: str, pads: list[dict[str, Any]]) -> str:
@@ -450,14 +727,70 @@ def generate_top_silkscreen_gerber(
     board_height_mm: float = 50.0,
     *,
     placements: dict[str, Any] | None = None,
+    connections: list[dict[str, Any]] | None = None,
 ) -> str:
     """Generate Gerber RS-274X Top Silkscreen layer (.gto) with real body outlines.
 
     Extents come from each package's body size, so a 0603 gets a 0603 outline
     instead of a uniform box that overlaps its neighbours.
+
+    Each outline is clipped so no segment crosses a mask opening. Silk printed on
+    exposed copper is not cosmetic: the ink sits between the pad and the solder,
+    blocks wetting, and turns into a cold joint or a solder ball after reflow.
+    IPC-SM-840 asks for 0.15 mm between legend and an exposed land, so the clip
+    uses the mask opening expanded by that much.
     """
     if placements is None:
         placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+
+    # Mask openings (pad + expansion) plus the legend-to-land clearance.
+    avoid: list[tuple[float, float, float, float]] = []
+    for pad in _collect_pads(modules, connections or [], placements):
+        hw = pad["w"] / 2.0 + MASK_EXPANSION_MM + SILK_TO_PAD_CLEARANCE_MM
+        hh = pad["h"] / 2.0 + MASK_EXPANSION_MM + SILK_TO_PAD_CLEARANCE_MM
+        avoid.append((pad["x"] - hw, pad["y"] - hh, pad["x"] + hw, pad["y"] + hh))
+
+    def _free_spans(
+        x0: float, y0: float, x1: float, y1: float
+    ) -> list[tuple[float, float]]:
+        """Subtract mask openings from an axis-aligned segment.
+
+        Dropping a whole edge whenever a pad touches it erases the legend on any
+        part whose body sits between its own pads — which is most of them. The
+        correct result is the segment minus the blocked intervals: a QFN keeps
+        its long top edge, and a 0603 keeps nothing because both of its end edges
+        genuinely sit under copper.
+        """
+        horizontal = abs(y1 - y0) < 1e-9
+        a0, a1 = (x0, x1) if horizontal else (y0, y1)
+        fixed = y0 if horizontal else x0
+        lo, hi = min(a0, a1), max(a0, a1)
+
+        blocked: list[tuple[float, float]] = []
+        for bx0, by0, bx1, by1 in avoid:
+            b_lo, b_hi = (bx0, bx1) if horizontal else (by0, by1)
+            f_lo, f_hi = (by0, by1) if horizontal else (bx0, bx1)
+            if f_hi < fixed or fixed < f_lo:
+                continue
+            if b_hi <= lo or hi <= b_lo:
+                continue
+            blocked.append((max(b_lo, lo), min(b_hi, hi)))
+
+        if not blocked:
+            return [(lo, hi)]
+
+        blocked.sort()
+        spans: list[tuple[float, float]] = []
+        cursor = lo
+        for b_lo, b_hi in blocked:
+            if b_lo > cursor:
+                spans.append((cursor, b_lo))
+            cursor = max(cursor, b_hi)
+        if cursor < hi:
+            spans.append((cursor, hi))
+
+        # A stub shorter than the pen width is a dot of legend, not a line.
+        return [(s, e) for s, e in spans if e - s > 0.1]
 
     L = [
         "G04 Gerber RS-274X Top Silkscreen Layer*",
@@ -467,6 +800,7 @@ def generate_top_silkscreen_gerber(
         "%ADD10C,0.12000*%",  # 0.12mm silkscreen pen
         "D10*",
     ]
+    clipped = 0
     for _ref, p in sorted(placements.items()):
         pkg = p.package or ""
         body = BODY_DIMS_MM.get(pkg)
@@ -479,15 +813,30 @@ def generate_top_silkscreen_gerber(
             half = PACKAGE_HALF_EXTENTS.get(pkg, (1.0, 0.6))
             body = (half[0] * 2, half[1] * 2)
 
-        x0 = _format_gerber_coord(p.x_mm - body[0] / 2)
-        x1 = _format_gerber_coord(p.x_mm + body[0] / 2)
-        y0 = _format_gerber_coord(p.y_mm - body[1] / 2)
-        y1 = _format_gerber_coord(p.y_mm + body[1] / 2)
-        L.append(f"X{x0}Y{y0}D02*")
-        L.append(f"X{x1}Y{y0}D01*")
-        L.append(f"X{x1}Y{y1}D01*")
-        L.append(f"X{x0}Y{y1}D01*")
-        L.append(f"X{x0}Y{y0}D01*")
+        cx0 = p.x_mm - body[0] / 2
+        cx1 = p.x_mm + body[0] / 2
+        cy0 = p.y_mm - body[1] / 2
+        cy1 = p.y_mm + body[1] / 2
+
+        edges = [
+            (cx0, cy0, cx1, cy0),
+            (cx1, cy0, cx1, cy1),
+            (cx1, cy1, cx0, cy1),
+            (cx0, cy1, cx0, cy0),
+        ]
+        for x0, y0, x1, y1 in edges:
+            horizontal = abs(y1 - y0) < 1e-9
+            spans = _free_spans(x0, y0, x1, y1)
+            if not spans:
+                clipped += 1
+                continue
+            for s, e in spans:
+                if horizontal:
+                    L.append(f"X{_format_gerber_coord(s)}Y{_format_gerber_coord(y0)}D02*")
+                    L.append(f"X{_format_gerber_coord(e)}Y{_format_gerber_coord(y0)}D01*")
+                else:
+                    L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(s)}D02*")
+                    L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(e)}D01*")
 
     L.append("M02*")
     return "\n".join(L) + "\n"
@@ -516,6 +865,8 @@ def export_gerber_bundle(
         "board-F_Mask.gts": "...",
         "board-B_Mask.gbs": "...",
         "board-F_SilkS.gto": "...",
+        "board-F_Paste.gtp": "...",
+        "board-B_Paste.gbp": "...",
         "board.drl": "..."
       }
     """
@@ -560,6 +911,21 @@ def export_gerber_bundle(
         ),
         "board-F_SilkS.gto": generate_top_silkscreen_gerber(
             modules,
+            board_width_mm,
+            board_height_mm,
+            placements=placements,
+            connections=connections,
+        ),
+        "board-F_Paste.gtp": generate_top_paste_gerber(
+            modules,
+            connections,
+            board_width_mm,
+            board_height_mm,
+            placements=placements,
+        ),
+        "board-B_Paste.gbp": generate_bottom_paste_gerber(
+            modules,
+            connections,
             board_width_mm,
             board_height_mm,
             placements=placements,

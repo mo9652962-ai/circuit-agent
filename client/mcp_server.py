@@ -1385,6 +1385,76 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_fab.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "gate_production_readiness":
+            prompt = str(arguments.get("prompt", "")).strip()
+            if not prompt:
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "'prompt' is required and must not be empty"}],
+                }
+            bw = float(arguments.get("board_width_mm", 70.0))
+            bh = float(arguments.get("board_height_mm", 50.0))
+            j_name = str(arguments.get("job_name", "PCB_PROJECT"))
+
+            # Aliased imports: a bare `from x import name` inside this function
+            # makes `name` local to the whole of handle_tool_call, which silently
+            # breaks the earlier branches that already call it (ruff F823).
+            from .export_engine import (
+                export_jlcpcb_bom as _gate_bom,
+            )
+            from .export_engine import (
+                export_jlcpcb_cpl as _gate_cpl,
+            )
+            from .gerber_exporter import export_gerber_bundle as _gate_gerber
+            from .mfg_validator import validate_manufacturing_package as _gate_validate
+            from .router_engine import autoroute_circuit as _gate_route
+            from .synthesizer import synthesize_from_prompt as _gate_synth
+
+            spec = _gate_synth(prompt)
+            modules = spec.get("modules") or {}
+            connections = (spec.get("netlist") or {}).get("connections") or []
+
+            routed = _gate_route(modules, connections, board_width_mm=bw, board_height_mm=bh)
+            ses_text = routed.get("ses_text") if routed.get("success") else None
+
+            bundle = _gate_gerber(
+                modules,
+                connections,
+                board_width_mm=bw,
+                board_height_mm=bh,
+                ses_text=ses_text,
+            )
+            # A fab bundle alone is not a buildable order: the assembly house also
+            # needs the BOM to buy parts and the CPL to place them. Omitting them
+            # here made every gate call report "package incomplete" for a reason
+            # that had nothing to do with the board.
+            bundle["bom.csv"] = _gate_bom(spec)
+            bundle["cpl.csv"] = _gate_cpl(spec, board_width_mm=bw, board_height_mm=bh)
+            report = _gate_validate(
+                artifacts_dict=bundle, modules=modules, job_name=j_name
+            )
+
+            blockers = list(report.errors)
+            if not routed.get("success"):
+                blockers.append(
+                    f"autorouting did not converge: {routed.get('message') or routed.get('error') or 'unknown reason'}"
+                )
+
+            payload = {
+                "production_ready": report.is_package_complete and not blockers,
+                "job_name": j_name,
+                "layer_count": len(bundle),
+                "routed": bool(routed.get("success")),
+                "package_complete": report.is_package_complete,
+                "blocking_defects": blockers,
+                "manifest": report.to_dict(),
+            }
+            return {
+                "content": [
+                    {"type": "text", "text": json.dumps(payload, ensure_ascii=False, indent=2)}
+                ]
+            }
+
         if name == "validate_manufacturing_package":
             artifacts = arguments.get("artifacts_dict", {})
             if not isinstance(artifacts, dict):

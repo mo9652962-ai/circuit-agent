@@ -2068,6 +2068,35 @@ AVAILABLE_TOOLS = [
         },
     },
     {
+        "name": "gate_production_readiness",
+        "description": (
+            "One-call industrial release gate: synthesizes from a prompt, places, autoroutes, exports the full "
+            "9-layer fab bundle (copper, mask, silk, stencil, drill, BOM, CPL), then runs the manufacturing "
+            "validator including solder-mask dam width. Returns a single production_ready verdict plus the "
+            "blocking defects, so a CI job or a contract manufacturer can decide go/no-go without reading "
+            "five separate reports."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["prompt"],
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "Natural-language circuit description, e.g. 'ESP32-C3 sensor node with USB-C'.",
+                },
+                "board_width_mm": {"type": "number", "default": 70.0},
+                "board_height_mm": {"type": "number", "default": 50.0},
+                "job_name": {"type": "string", "default": "PCB_PROJECT"},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
         "name": "validate_manufacturing_package",
         "description": (
             "Headless manufacturing package validator for automated CI/CD and developer hand-off: checks completeness "

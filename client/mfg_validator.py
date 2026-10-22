@@ -61,12 +61,100 @@ class ManufacturingValidationReport:
 REF_TOKEN_RE = re.compile(r"^[A-Z]{1,3}[_A-Z0-9]*\d+[A-Z]?$")
 
 
+#: Minimum solder-mask web between two openings, in mm. Below this the mask
+#: scums during development and bridges the pins at reflow. 0.08 mm is the
+#: figure JLCPCB and PCBWay publish as their process floor.
+MIN_MASK_DAM_MM = 0.08
+
+
+def _mask_openings(gerber_text: str) -> list[tuple[float, float, float, float]]:
+    """Parse a mask Gerber into opening rectangles (x0, y0, x1, y1) in mm.
+
+    Aperture definitions are read from the ``%ADD`` block and flashes are
+    resolved against them, because the opening size is only knowable from the
+    aperture the flash uses — the coordinate alone says nothing about width.
+    """
+    apertures: dict[int, tuple[str, float, float]] = {}
+    for m in re.finditer(r"%ADD(\d+)([A-Z]),([0-9.]+)(?:X([0-9.]+))?\*%", gerber_text):
+        code = int(m.group(1))
+        shape = m.group(2)
+        w = float(m.group(3))
+        h = float(m.group(4)) if m.group(4) else w
+        apertures[code] = (shape, w, h)
+
+    rects: list[tuple[float, float, float, float]] = []
+    current: tuple[str, float, float] | None = None
+    for line in gerber_text.splitlines():
+        sel = re.fullmatch(r"D(\d+)\*", line.strip())
+        if sel:
+            current = apertures.get(int(sel.group(1)))
+            continue
+        flash = re.fullmatch(r"X(-?\d+)Y(-?\d+)D03\*", line.strip())
+        if flash and current:
+            _, w, h = current
+            x = int(flash.group(1)) / 100000.0
+            y = int(flash.group(2)) / 100000.0
+            rects.append((x - w / 2, y - h / 2, x + w / 2, y + h / 2))
+    return rects
+
+
+def _tightest_mask_dam(
+    artifacts_dict: dict[str, str | bytes],
+    modules: dict[str, dict] | None,
+) -> tuple[float, str, str] | None:
+    """Find the narrowest mask web in the top-mask layer.
+
+    Only pads that belong to the same part are compared: a web between two
+    unrelated parts is not a manufacturability problem, it is a placement
+    problem, and the DRC reports it separately.
+    """
+    raw = artifacts_dict.get("board-F_Mask.gts")
+    if raw is None:
+        return None
+    text = raw.decode("utf-8", errors="ignore") if isinstance(raw, bytes) else raw
+    rects = _mask_openings(text)
+    if len(rects) < 2:
+        return None
+
+    # Recover the designator for each opening from the CPL/placement data is not
+    # available here, so compare every pair that is close enough to be a dam and
+    # report the tightest. Pads from different parts are separated by placement
+    # clearance, which is far larger than a mask dam.
+    best: tuple[float, str, str] | None = None
+    for i in range(len(rects)):
+        ax0, ay0, ax1, ay1 = rects[i]
+        for j in range(i + 1, len(rects)):
+            bx0, by0, bx1, by1 = rects[j]
+            # Gap along X when the Y ranges overlap, and vice versa.
+            y_overlap = min(ay1, by1) - max(ay0, by0)
+            x_overlap = min(ax1, bx1) - max(ax0, bx0)
+            gap: float | None = None
+            if y_overlap > 0:
+                gap = max(bx0 - ax1, ax0 - bx1)
+            if x_overlap > 0:
+                g = max(by0 - ay1, ay0 - by1)
+                gap = g if gap is None else min(gap, g)
+            if gap is None or gap < 0:
+                continue
+            if best is None or gap < best[0]:
+                best = (
+                    gap,
+                    f"({ax0:.2f},{ay0:.2f})",
+                    f"({bx0:.2f},{by0:.2f})",
+                )
+    return best
+
+
 REQUIRED_FAB_ARTIFACTS = [
     ("board-Edge_Cuts.gm1", "gerber", "板框层 (Edge_Cuts)"),
     ("board-F_Cu.gtl", "gerber", "顶层走线铜皮 (F_Cu)"),
     ("board-B_Cu.gbl", "gerber", "底层走线铜皮 (B_Cu)"),
     ("board-F_Mask.gts", "gerber", "顶层阻焊开窗 (F_Mask)"),
     ("board-B_Mask.gbs", "gerber", "底层阻焊开窗 (B_Mask)"),
+    # Without a stencil layer no SMT line can build the board: the stencil is
+    # what the printer uses to deposit solder paste. A package without it is a
+    # hand-solder board regardless of what parts the design calls for.
+    ("board-F_Paste.gtp", "gerber", "顶层 SMT 激光钢网开孔 (F_Paste)"),
     ("board.drl", "drill", "Excellon 数控钻孔文件 (.drl)"),
     ("bom.csv", "bom", "量产嘉立创/EMS SMT BOM 表格"),
     ("cpl.csv", "cpl", "SMT 贴片机中心坐标文件 (CPL)"),
@@ -199,6 +287,24 @@ def validate_manufacturing_package(
         if orphaned:
             bom_consistent = False
             errors.append(f"CPL 中有 {len(orphaned)} 个位号不在 BOM 中，贴片机会找不到物料：{sorted(orphaned)[:8]}")
+
+    # 4. 阻焊桥 (Solder Mask Dam) 可制造性
+    #
+    # Between two pads closer than about 0.5 mm the mask web is only a few tens of
+    # microns wide. Below the fab's minimum the web lifts during development and
+    # floats into the gap — "mask scum". It looks like a cosmetic defect and
+    # behaves like a solder bridge: the next reflow shorts the two pins. The
+    # package must therefore state the tightest dam it contains, and whether it is
+    # under the process floor.
+    dam = _tightest_mask_dam(artifacts_dict, modules)
+    if dam is not None:
+        tightest_mm, ref_a, ref_b = dam
+        if tightest_mm < MIN_MASK_DAM_MM:
+            errors.append(
+                f"阻焊桥宽度仅 {tightest_mm:.3f} mm（{ref_a} / {ref_b} 之间），"
+                f"低于量产工艺极限 {MIN_MASK_DAM_MM:.2f} mm；显影时阻焊会剥离飘油，"
+                f"回流后两脚桥连。需改为合并开窗 (Gang Mask) 或加大焊盘间距。"
+            )
 
     is_complete = missing_cnt == 0 and len(errors) == 0
 

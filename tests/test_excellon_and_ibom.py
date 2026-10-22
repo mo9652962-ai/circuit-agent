@@ -45,7 +45,10 @@ def test_gerber_bundle_includes_drill_file():
     assert "board-F_Cu.gtl" in bundle
     assert "board-B_Cu.gbl" in bundle
     assert "board-B_Mask.gbs" in bundle
-    assert len(bundle) == 7  # .gm1, .gtl, .gbl, .gts, .gbs, .gto, .drl
+    assert "board-F_Paste.gtp" in bundle
+    assert "board-B_Paste.gbp" in bundle
+    # 9 layers: .gm1, .gtl, .gbl, .gts, .gbs, .gto, .gtp, .gbp, .drl
+    assert len(bundle) == 9
 
 
 def test_generate_interactive_bom_html():

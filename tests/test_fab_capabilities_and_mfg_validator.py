@@ -44,13 +44,15 @@ def test_fab_profiles_coverage():
 
 
 def test_validate_manufacturing_package_complete():
-    """Verify complete 5-layer Gerber + drill + BOM + CPL bundle passes with SHA256 manifest."""
+    """Verify a complete Gerber + stencil + drill + BOM + CPL bundle passes with SHA256 manifest."""
     bundle = {
         "board-Edge_Cuts.gm1": "G04 Edge cuts*",
         "board-F_Cu.gtl": "G04 Top copper*",
         "board-B_Cu.gbl": "G04 Bottom copper*",
         "board-F_Mask.gts": "G04 Top mask*",
         "board-B_Mask.gbs": "G04 Bottom mask*",
+        # Stencil: required, because a package without it cannot be reflowed.
+        "board-F_Paste.gtp": "G04 Top paste*",
         "board.drl": "M48\nT01C0.3\n%",
         "bom.csv": "Comment,Designator,Footprint\n100nF,C1,0402\nESP32,U1,QFN",
         "cpl.csv": "Designator,Mid X,Mid Y,Layer,Rotation\nC1,10,20,Top,0\nU1,30,20,Top,0",
@@ -118,6 +120,8 @@ def test_mcp_server_fab_and_validator_tools():
                 "board-B_Cu.gbl": "content",
                 "board-F_Mask.gts": "content",
                 "board-B_Mask.gbs": "content",
+                # The stencil is required: without it no SMT line can print paste.
+                "board-F_Paste.gtp": "content",
                 "board.drl": "content",
                 "bom.csv": "Designator\nC1",
                 "cpl.csv": "Designator\nC1",
