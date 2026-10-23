@@ -41,7 +41,34 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run test suite
-        run: pytest tests/ -v
+        # The routing-quality suite routes whole boards through freeroute and takes
+        # ~20 minutes per interpreter; run it in its own job so a 6-way matrix
+        # does not spend 6x that. Everything else stays here.
+        run: pytest tests/ -v --ignore=tests/test_routing_quality.py --ignore=tests/test_router_and_placement_advanced.py
+
+  routing:
+    name: Routing quality (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run routing-quality suite
+        run: pytest tests/test_routing_quality.py tests/test_router_and_placement_advanced.py -v
 
   lint:
     name: Lint (ruff)

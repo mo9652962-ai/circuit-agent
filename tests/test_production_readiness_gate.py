@@ -9,22 +9,38 @@ when it says no.
 from __future__ import annotations
 
 import json
+from functools import cache
 
 from client.mcp_server import handle_tool_call
 
 PROMPT = "ESP32-C3 环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键"
 
 
-def _gate(**args) -> dict:
-    payload = {"prompt": PROMPT, **args}
-    res = handle_tool_call("gate_production_readiness", payload)
+@cache
+def _gate_cached(prompt: str, bw: float, bh: float) -> str:
+    """Run the gate once per distinct board.
+
+    A gate call is a full synthesize -> place -> route -> export -> validate pass
+    and takes minutes. The assertions below ask different questions about the same
+    board, so running it per test would multiply the CI wall time for no extra
+    coverage. ``job_name`` is deliberately not part of the key: it only labels the
+    manifest, and including it re-ran the whole pipeline once per label.
+    """
+    res = handle_tool_call(
+        "gate_production_readiness",
+        {"prompt": prompt, "board_width_mm": bw, "board_height_mm": bh, "job_name": "GATE"},
+    )
     assert not res.get("isError"), res["content"][0]["text"]
-    return json.loads(res["content"][0]["text"])
+    return res["content"][0]["text"]
+
+
+def _gate(prompt: str = PROMPT, bw: float = 70.0, bh: float = 50.0) -> dict:
+    return json.loads(_gate_cached(prompt, bw, bh))
 
 
 class TestGateVerdict:
     def test_a_complete_design_is_production_ready(self):
-        d = _gate(job_name="GATE_OK")
+        d = _gate()
         assert d["production_ready"] is True, f"blocked by {d['blocking_defects']}"
         assert d["package_complete"] is True
         assert d["routed"] is True
@@ -98,5 +114,5 @@ class TestGateHonoursBoardSize:
         assert max(ys) <= h, f"a part sits at y={max(ys)} on a {h} mm board"
 
     def test_the_gate_passes_on_a_larger_board(self):
-        d = _gate(board_width_mm=120.0, board_height_mm=80.0, job_name="GATE_BIG")
+        d = _gate(bw=120.0, bh=80.0)
         assert d["production_ready"] is True, f"blocked by {d['blocking_defects']}"
