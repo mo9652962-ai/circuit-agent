@@ -143,11 +143,32 @@ def export_kicad_netlist(netlist_data: dict[str, Any], title: str = "CircuitAgen
 # 2. JLCPCB Production BOM Exporter (CSV)
 # --------------------------------------------------------------------------- #
 
+#: Reference prefixes and packages that are bare board copper or mechanical
+#: features, never physical SMT components. Writing them to BOM or CPL tells the
+#: pick-and-place machine to load a reel that does not exist and fails the job:
+#: * Fiducial marks (FID1, FID2, FID3) — optical alignment targets etched in copper.
+#: * Test points (TP1, TP2) — exposed bare probe lands, not soldered parts.
+#: * Mounting holes (H1..H4, MH1..MH4) — drilled holes, not SMT packages.
+_NON_SMT_REF_PREFIXES = ("FID", "TP", "H", "MH", "MOUNT")
+_NON_SMT_PACKAGE_HINTS = ("fiducial", "testpoint", "mountinghole", "mounting_hole")
+
+
+def _is_smt_component(ref: str, pkg: str) -> bool:
+    r_up = (ref or "").upper()
+    p_low = (pkg or "").lower()
+    return not (
+        any(r_up.startswith(pfx) for pfx in _NON_SMT_REF_PREFIXES)
+        or any(hint in p_low for hint in _NON_SMT_PACKAGE_HINTS)
+    )
+
+
 def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
     """Generate JLCPCB-compliant production BOM CSV.
 
     Columns: Comment, Designator, Footprint, LCSC Part Number, JLCPCB Part Class, Quantity
     Groups identical parts into single rows and flags Basic vs Extended parts.
+    Pure mechanical or bare copper features (fiducials, testpoints, mounting holes)
+    are strictly excluded to prevent pick-and-place feeder errors.
     """
     components, _ = _extract_components_and_connections(netlist_data)
 
@@ -155,8 +176,10 @@ def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
     groups: dict[tuple[str, str, str], list[str]] = {}
     for comp in components:
         ref = comp.get("ref", "")
-        val = comp.get("value", "")
         pkg = comp.get("package", "")
+        if not _is_smt_component(ref, pkg):
+            continue
+        val = comp.get("value", "")
         lcsc = comp.get("lcsc", "")
         key = (val, pkg, lcsc)
         groups.setdefault(key, []).append(ref)
@@ -213,8 +236,10 @@ def export_jlcpcb_cpl(
     for ref in sorted(placements):
         comp = modules.get(ref, {})
         place = placements[ref]
-        val = comp.get("value", "")
         pkg = comp.get("package", "") or place.package
+        if not _is_smt_component(ref, pkg):
+            continue
+        val = comp.get("value", "")
         pos_x = float(place.x_mm)
         pos_y = float(place.y_mm)
         # The engine's own rotation is the authoritative one when the netlist

@@ -182,8 +182,49 @@ def _collect_pads(
                     "h": h,
                     "through_hole": th,
                     "round": is_round,
+                    "is_fiducial": False,
                 }
             )
+
+    # Standalone fiducial marks and bare copper testpoints that carry no net
+    # connection still physically exist on the board:
+    # * Fiducials: 1.0 mm round copper lands with 2.0 mm circular mask clearance
+    #   (IPC-7351). They must NEVER receive solder paste or pick-and-place BOM entries.
+    # * Test points: round copper probe lands.
+    for ref, p in placements.items():
+        if ref in used:
+            continue
+        pkg = p.package or ""
+        r_up = ref.upper()
+        if r_up.startswith("FID") or "fiducial" in pkg.lower():
+            pads.append(
+                {
+                    "ref": ref,
+                    "pin": "1",
+                    "x": round(p.x_mm, 4),
+                    "y": round(p.y_mm, 4),
+                    "w": 1.0,
+                    "h": 1.0,
+                    "through_hole": False,
+                    "round": True,
+                    "is_fiducial": True,
+                }
+            )
+        elif r_up.startswith(("TP_", "TP")) or "testpoint" in pkg.lower():
+            pads.append(
+                {
+                    "ref": ref,
+                    "pin": "1",
+                    "x": round(p.x_mm, 4),
+                    "y": round(p.y_mm, 4),
+                    "w": 1.5,
+                    "h": 1.5,
+                    "through_hole": False,
+                    "round": True,
+                    "is_fiducial": False,
+                }
+            )
+
     return pads
 
 
@@ -696,6 +737,8 @@ def generate_top_paste_gerber(
         p
         for p in _collect_pads(modules, connections, placements)
         if not p["through_hole"]
+        and not p.get("is_fiducial")
+        and not p["ref"].upper().startswith("TP")
     ]
 
     L = ["G04 Gerber RS-274X SMT Stencil (Top Paste)*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%"]
@@ -754,7 +797,10 @@ def generate_bottom_paste_gerber(
     pads = [
         p
         for p in _collect_pads(modules, connections, placements)
-        if not p["through_hole"] and p["ref"] in used
+        if not p["through_hole"]
+        and p["ref"] in used
+        and not p.get("is_fiducial")
+        and not p["ref"].upper().startswith("TP")
     ]
 
     L = ["G04 Gerber RS-274X SMT Stencil (Bottom Paste)*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%"]
@@ -783,16 +829,25 @@ def generate_bottom_paste_gerber(
 
 
 def _write_mask_layer(title: str, pads: list[dict[str, Any]]) -> str:
-    """Render a solder-mask layer: one opening per pad, expanded by the mask allowance."""
+    """Render a solder-mask layer: one opening per pad, expanded by the mask allowance.
+
+    IPC-7351 Optical Fiducials: 1.0 mm copper land requires a 2.0 mm circular mask opening
+    (0.5 mm bare FR4 / solder mask clearance ring around the copper target).
+    Standard SMD pads use pad dimensions + 2 * MASK_EXPANSION_MM (0.05 mm per side).
+    """
     L = [f"G04 Gerber RS-274X {title}*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%"]
 
     groups: dict[tuple[float, float, bool], list[dict[str, Any]]] = {}
     for pad in pads:
-        key = (
-            round(pad["w"] + 2 * MASK_EXPANSION_MM, 5),
-            round(pad["h"] + 2 * MASK_EXPANSION_MM, 5),
-            pad["round"],
-        )
+        if pad.get("is_fiducial"):
+            # IPC-7351: 2.0 mm clear circular keepout opening around 1.0 mm target
+            key = (2.00000, 2.00000, True)
+        else:
+            key = (
+                round(pad["w"] + 2 * MASK_EXPANSION_MM, 5),
+                round(pad["h"] + 2 * MASK_EXPANSION_MM, 5),
+                pad["round"],
+            )
         groups.setdefault(key, []).append(pad)
 
     code = 10

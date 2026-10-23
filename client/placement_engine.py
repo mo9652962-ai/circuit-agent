@@ -309,6 +309,32 @@ def heuristic_place_components(
 
     placements: dict[str, ComponentPlacement] = {}
 
+    # 0. Optical Fiducials (IPC-7351 / SMEMA standard):
+    # Place fiducial marks in an asymmetric L-configuration near board corners:
+    # FID1 at bottom-left, FID2 at bottom-right, FID3 at top-left.
+    # Leaving the top-right corner empty allows automated optical inspection (AOI)
+    # and pick-and-place cameras to determine board orientation unambiguously.
+    fid_margin = min(3.5, min(board_width_mm, board_height_mm) * 0.1)
+    fid_corners = [
+        (fid_margin, fid_margin),                        # BL
+        (board_width_mm - fid_margin, fid_margin),       # BR
+        (fid_margin, board_height_mm - fid_margin),      # TL
+    ]
+    fid_refs = [
+        r
+        for r, m in modules.items()
+        if r.upper().startswith("FID")
+        or "fiducial" in str(m.get("package", "")).lower()
+    ]
+    for i, ref in enumerate(sorted(fid_refs)):
+        fx, fy = fid_corners[i % len(fid_corners)]
+        placements[ref] = ComponentPlacement(
+            ref=ref,
+            package=modules[ref].get("package", "Fiducial_1mm_Mask2mm"),
+            x_mm=round(fx, 2),
+            y_mm=round(fy, 2),
+        )
+
     # 1. Identify primary Microcontroller (MCU) -> Geometric center
     primary_mcu: str | None = None
     # Level A: Explicit kind MCU or canonical reference
@@ -607,6 +633,8 @@ def heuristic_place_components(
                 placements[ref] = ComponentPlacement(ref=ref, package=pkg, x_mm=20.0, y_mm=10.0)
 
     def _priority(ref: str) -> int:
+        if ref.upper().startswith("FID") or "fiducial" in ref.lower():
+            return -1
         if "MCU" in ref:
             return 0
         if ref.startswith(("U_", "J_")):
@@ -622,12 +650,13 @@ def heuristic_place_components(
     # 9. Collision avoidance pass: anchors resolved first, then a bounded spiral search
     #    around each component's *desired* position so local intent (decoupling, crystals)
     #    is preserved instead of being flung to a far corner.
-    def _free(x: float, y: float, hw: float, hh: float,
+    def _free(ref: str, x: float, y: float, hw: float, hh: float,
               placed_items: list[tuple[str, ComponentPlacement, float, float]],
               coords: set[tuple[float, float]]) -> bool:
-        if x - hw < 5.0 or x + hw > board_width_mm - 5.0:
+        edge_margin = 2.0 if (ref.upper().startswith("FID") or "fiducial" in ref.lower()) else 5.0
+        if x - hw < edge_margin or x + hw > board_width_mm - edge_margin:
             return False
-        if y - hh < 5.0 or y + hh > board_height_mm - 5.0:
+        if y - hh < edge_margin or y + hh > board_height_mm - edge_margin:
             return False
         if (round(x, 2), round(y, 2)) in coords:
             return False
@@ -646,7 +675,7 @@ def heuristic_place_components(
         hw, hh = _half_dims(ref, p.package or "")
         want_x, want_y = p.x_mm, p.y_mm
 
-        if _free(want_x, want_y, hw, hh, placed_items, used_coords):
+        if _free(ref, want_x, want_y, hw, hh, placed_items, used_coords):
             pass
         else:
             resolved = False
@@ -656,7 +685,7 @@ def heuristic_place_components(
                     ang = step * (math.pi / 8.0)
                     tx = round(want_x + radius * math.cos(ang), 2)
                     ty = round(want_y + radius * math.sin(ang), 2)
-                    if _free(tx, ty, hw, hh, placed_items, used_coords):
+                    if _free(ref, tx, ty, hw, hh, placed_items, used_coords):
                         p.x_mm, p.y_mm = tx, ty
                         resolved = True
                         break
@@ -666,7 +695,7 @@ def heuristic_place_components(
                 # Last-resort deterministic scan over the whole board
                 for gy in [round(6.0 + i * 2.0, 2) for i in range(int((board_height_mm - 12.0) / 2.0))]:
                     for gx in [round(6.0 + j * 2.0, 2) for j in range(int((board_width_mm - 12.0) / 2.0))]:
-                        if _free(gx, gy, hw, hh, placed_items, used_coords):
+                        if _free(ref, gx, gy, hw, hh, placed_items, used_coords):
                             p.x_mm, p.y_mm = gx, gy
                             resolved = True
                             break
