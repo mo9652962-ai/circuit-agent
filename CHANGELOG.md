@@ -7,7 +7,56 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- **`gate_production_readiness` MCP tool (70th tool).** One call takes a
+  natural-language requirement through synthesis, placement, autorouting, the
+  9-layer fab bundle plus BOM and CPL, and the manufacturing validator, and
+  returns a single `production_ready` verdict with the blocking defects. A CI job
+  or an assembly house decides go/no-go without reading five separate reports.
+
+- **SMT stencil layers (`.gtp` / `.gbp`).** The bundle had no paste layer, so no
+  SMT line could print paste and every board was a hand-solder job regardless of
+  what the BOM listed. Apertures follow IPC-7525B (land reduced 0.05 mm per side);
+  through-hole pins get none, and the bottom stencil is empty when every part is
+  on top.
+
+- **Teardrop reinforcement at via entries.** Built from the actual routed wire
+  that lands on each via — the entry angle is derived, not assumed — and emitted
+  as G36/G37 filled regions. Drill wander alone is allowed 0.075 mm, which on a
+  0.6/0.3 via is the entire annular ring at the trace neck.
+
 ### Fixed
+
+- **Copper layers carried no via annular ring.** The drill file had the holes and
+  the copper had nothing around them: every via was a hole punched through a trace
+  with no metal to plate onto. Vias are now flashed on both copper layers at their
+  padstack diameter (`Via[0.6-0.3]` → 0.6 mm land, 0.15 mm ring per side).
+
+- **Silkscreen was drawn straight across pads.** Legend printed on a mask opening
+  blocks wetting and leaves a cold joint or a solder ball. Outlines are now
+  clipped by subtracting the mask openings (plus 0.15 mm per IPC-SM-840) from each
+  edge — subtraction, not whole-edge drop, because dropping erased the legend on
+  every part whose body sits between its own pads.
+
+- **A package with no stencil passed validation**, and the solder-mask dam was
+  never measured. The validator now requires the stencil and reads the tightest
+  dam from the real mask Gerber against the 0.08 mm process floor; below it the
+  web scums during development and bridges the pins at reflow.
+
+- **`export_jlcpcb_cpl` hardcoded a 70 × 50 outline**, so on any other board size
+  every placement row pointed outside the edge cuts.
+
+- **A local import silently broke earlier MCP branches.** A bare
+  `from x import name` inside `handle_tool_call` makes the name local to the whole
+  function, so `synthesize_circuit` and the BOM/CPL exports referenced a variable
+  before assignment (ruff F823). The gate's imports are now aliased.
+
+### Changed
+
+- Version 0.18.0.
+
+### Fixed (earlier in this release)
 
 - **The autorouter reported success on shorted boards.** `autoroute_circuit`
   returned "12/12 nets routed" for a board carrying 36 real crossings: the
