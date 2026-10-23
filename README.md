@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **70 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **72 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -264,6 +264,8 @@ python -m client.mcp_server
 18. `export_specctra_dsn`: 生成通用 Specctra DSN (v15.0) 自动布线交互文件与启发式器件自动布局，支持直接送入 Freerouting / KiCad 执行 100% 自动化走线。
 18b. `autoroute_pcb`: 运行原生 Python 零 JVM 依赖多层自动布线引擎，执行启发式布局、Specctra DSN 转换与走线求解，输出 Specctra SES 走线文件与物理布线指标（网络连通率、走线总长、过孔数）。布线结果自动过物理 DRC 门禁，引擎不合格时按 `exact` → `room` → `grid` 自动回退，`engines_tried` 记录实际采用的引擎。
 18c. `run_pcb_drc`: 对布线结果执行物理 DRC 审计——真铜箔间距、蚀刻酸角、电源线宽、板边与禁布区、差分对偏斜，违规按网络聚合输出（错误/警告分级 + 定位坐标 + 修复建议）。
+18d. `analyze_ionic_contamination`: 组件后清洗离子污染 (ROSE) 与离子色谱合规审计器——依据 IPC-CH-65 与 IPC-TM-650 2.3.25/2.3.28，对标 Class 1.56 / Class 3 1.20 μg/cm² NaCl 当量限值与氯 0.70 / 溴 0.54 μg/cm² 物种限值，按偏压与导体间距评分枝晶/CAF 生长风险。
+18e. `analyze_enig_plating`: ENIG/ENEPIG 镀层厚度与黑盘 (镍晶界腐蚀) 风险审计器——依据 IPC-4552A/4556 校核金 0.05~0.20μm、镍 3.0~6.0μm、磷 7~10wt% 与钯 0.10~0.30μm 工艺窗口，综合返修次数与工艺类型评估电偶过腐蚀脆断风险，并预警金厚 >0.25μm 的 AuSn₄ 焊点脆化。
 19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。

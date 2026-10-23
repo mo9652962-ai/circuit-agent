@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **70 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **72 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -260,6 +260,8 @@ python -m client.mcp_server
 18. `export_specctra_dsn`: Generate universal Specctra DSN (v15.0) auto-router interchange file with heuristic auto-placement for automated track routing in Freerouting or KiCad.
 18b. `autoroute_pcb`: Native Python PCB layout & multi-layer autorouter engine generating standard Specctra SES session tracks and physical routing metrics (completion rate, total wire length, via count, layer utilization) with zero JVM dependencies. Results pass through a physical DRC gate; a failing engine falls back automatically through `exact` → `room` → `grid`, with `engines_tried` recording what was actually used.
 18c. `run_pcb_drc`: Physical DRC audit of a routed board — true copper-to-copper clearance, etching acid traps, power-trace width, board-edge and keepout intrusion, differential-pair skew. Findings are aggregated per net with severity, location and a concrete fix.
+18d. `analyze_ionic_contamination`: Post-clean ionic contamination (ROSE) and ion chromatography compliance auditor per IPC-CH-65 and IPC-TM-650 2.3.25/2.3.28 — checks NaCl-equivalent loading against 1.56 (Class 1/2) / 1.20 (Class 3) μg/cm² limits and per-species halide limits (chloride 0.70, bromide 0.54 μg/cm²), scoring dendrite/CAF risk from bias voltage and conductor pitch.
+18e. `analyze_enig_plating`: ENIG/ENEPIG plating thickness and black-pad (nickel grain-boundary corrosion) risk auditor per IPC-4552A/4556 — verifies gold 0.05~0.20 μm, nickel 3.0~6.0 μm, phosphorus 7~10 wt%, and palladium 0.10~0.30 μm windows, scores galvanic corrosion susceptibility from rework cycles and process type, and flags gold >0.25 μm AuSn₄ embrittlement.
 19. `export_kicad_schematic`: Export native modern KiCad 8/9 S-Expression schematic (.kicad_sch) directly viewable and editable in Eeschema with sheet layout and component symbols.
 20. `audit_supply_chain`: Supply chain multi-sourcing resilience auditor (ISO 9001 audit), identifying single-source bottlenecks and mapping pin-compatible second-source drop-in replacements with LCSC cross-references.
 21. `calculate_differential_skew`: High-speed differential pair intra-pair propagation delay skew solver (USB 2.0 HS ≤10ps, Ethernet ≤25ps, CAN-FD ≤50ps) with serpentine tuning geometry calculations.
