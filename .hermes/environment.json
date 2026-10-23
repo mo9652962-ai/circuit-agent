@@ -4,11 +4,11 @@
     "name": "CircuitAgent",
     "kind": "python",
     "bootstrap": [
-      "pip install -r requirements.txt"
+      "pip install -e .[dev]"
     ],
     "build": [],
     "test": [
-      "pytest"
+      "pytest tests/test_contract_sync.py tests/test_mcp_server.py tests/test_industrial_manufacturing_layers.py tests/test_fab_capabilities_and_mfg_validator.py tests/test_excellon_and_ibom.py tests/test_gerber_and_stackup.py -q"
     ],
     "start": null,
     "port": null,
