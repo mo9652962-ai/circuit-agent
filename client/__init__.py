@@ -38,6 +38,7 @@ from .circuit_blocks import (
     block_watchdog_supervisor,
 )
 from .copper_pour_analyzer import calculate_copper_pour_current_drop
+from .enig_plating_analyzer import analyze_enig_plating
 from .export_engine import (
     export_jlcpcb_bom,
     export_jlcpcb_cpl,
@@ -55,6 +56,7 @@ from .industrial_dfx import (
     get_ipc2221_clearance,
     solve_trace_width_ipc2152,
 )
+from .ionic_contamination import analyze_ionic_contamination
 from .ipc6012_auditor import audit_ipc6012_class_compliance
 from .lcsc_client import search_lcsc_parts
 from .mfg_validator import validate_manufacturing_package
@@ -75,7 +77,7 @@ from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 
-__version__ = "0.18.0"
+__version__ = "0.19.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -90,6 +92,8 @@ __all__ = [
     "RCFilterResult",
     "TraceCurrentResult",
     "__version__",
+    "analyze_enig_plating",
+    "analyze_ionic_contamination",
     "apply_chip_pinout",
     "audit_component_msl_floor_life",
     "audit_fab_capabilities",

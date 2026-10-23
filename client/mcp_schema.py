@@ -2785,6 +2785,109 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "analyze_ionic_contamination",
+        "description": (
+            "Post-clean ionic contamination (ROSE) and ion chromatography compliance analyzer per IPC-CH-65 and "
+            "IPC-TM-650 2.3.25/2.3.28: compares NaCl-equivalent loading against class limits (1.56 μg/cm² standard, "
+            "1.20 Class 3), flags per-species halide carryover (chloride 0.70, bromide 0.54 μg/cm²), and scores dendrite/CAF "
+            "risk from bias voltage and conductor pitch."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "required": ["rose_measured_ug_cm2"],
+            "properties": {
+                "rose_measured_ug_cm2": {
+                    "type": "number",
+                    "description": "Measured NaCl-equivalent loading from the ROSE tester in μg/cm².",
+                },
+                "board_area_cm2": {
+                    "type": "number",
+                    "description": "Total extracted board area in cm² (default: 100.0).",
+                    "default": 100.0,
+                },
+                "target_class": {
+                    "type": "string",
+                    "description": "IPC reliability class: 'Class 1', 'Class 2' (default), or 'Class 3'.",
+                    "default": "Class 2",
+                },
+                "species_ug_cm2": {
+                    "type": "object",
+                    "description": "Optional ion chromatography per-species results in μg/cm² (chloride, bromide, fluoride, nitrate, sulfate, weak_organic_acid).",
+                },
+                "bias_voltage_v": {
+                    "type": "number",
+                    "description": "Largest sustained DC bias between adjacent conductors (default: 5.0).",
+                    "default": 5.0,
+                },
+                "min_conductor_gap_mm": {
+                    "type": "number",
+                    "description": "Smallest biased conductor spacing in mm (default: 0.20).",
+                    "default": 0.20,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "analyze_enig_plating",
+        "description": (
+            "ENIG/ENEPIG plating thickness and black-pad (interfacial nickel corrosion) risk auditor per IPC-4552A and "
+            "IPC-4556: verifies gold 0.05~0.20 μm, nickel 3.0~6.0 μm, phosphorus 7~10 wt%, and ENEPIG palladium "
+            "0.10~0.30 μm windows; scores galvanic black-pad susceptibility from phosphorus content, gold over-deposition, "
+            "rework cycles, and process type, and flags gold >0.25 μm solder embrittlement."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "finish_type": {
+                    "type": "string",
+                    "description": "Surface finish: 'enig' (default) or 'enepig'.",
+                    "default": "enig",
+                },
+                "gold_thickness_um": {
+                    "type": "number",
+                    "description": "XRF immersion-gold thickness in μm (default: 0.08).",
+                    "default": 0.08,
+                },
+                "nickel_thickness_um": {
+                    "type": "number",
+                    "description": "XRF electroless-nickel thickness in μm (default: 4.0).",
+                    "default": 4.0,
+                },
+                "phosphorus_wt_pct": {
+                    "type": "number",
+                    "description": "Nickel deposit phosphorus content in wt% (default: 8.5).",
+                    "default": 8.5,
+                },
+                "palladium_thickness_um": {
+                    "type": "number",
+                    "description": "ENEPIG palladium barrier thickness in μm (optional).",
+                },
+                "rework_cycles": {
+                    "type": "integer",
+                    "description": "Number of prior soldering/rework thermal excursions (default: 0).",
+                    "default": 0,
+                },
+                "soldering_process": {
+                    "type": "string",
+                    "description": "Assembly process: 'reflow' (default), 'wave', or 'hand'.",
+                    "default": "reflow",
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

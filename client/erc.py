@@ -1417,6 +1417,67 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     )
                 )
 
+    # 48. IONIC_CONTAMINATION_EXCEEDANCE (warning)：组件后清洗 ROSE 离子污染超限枝晶风险
+    meta_mod = modules.get("__meta__", {}) if modules else {}
+    rose_val = meta_mod.get("rose_ionic_ug_cm2")
+    if rose_val is not None and float(rose_val) > 0:
+        from .ionic_contamination import analyze_ionic_contamination
+
+        rep_ion = analyze_ionic_contamination(
+            board_area_cm2=float(meta_mod.get("board_area_cm2", 100.0)),
+            rose_measured_ug_cm2=float(rose_val),
+            target_class=target_class or "Class 2",
+            bias_voltage_v=float(meta_mod.get("max_bias_voltage_v", 5.0)),
+            min_conductor_gap_mm=float(meta_mod.get("min_conductor_gap_mm", 0.20)),
+        )
+        if not rep_ion.is_rose_compliant or rep_ion.dendrite_risk_level == "high":
+            issues.append(
+                _issue(
+                    "IONIC_CONTAMINATION_EXCEEDANCE",
+                    "清洗后离子污染 (ROSE) 超限枝晶漏电风险",
+                    f"ROSE 实测 {rep_ion.rose_measured_ug_cm2:.2f} μg/cm² 超出 {rep_ion.target_class} 限值 "
+                    f"{rep_ion.rose_limit_ug_cm2:.2f} μg/cm² (枝晶风险: {rep_ion.dendrite_risk_level})；"
+                    "残留卤化物活化剂在偏压下沿导体间隙生长枝晶/CAF 漏电通道，需水基皂洗复洗并做离子色谱定位物种（IPC-CH-65）。",
+                    "warning",
+                    "IPC-CH-65 & IPC-TM-650 2.3.25/2.3.28 Ionic Cleanliness Standards",
+                    object_id="mfg:cleanliness",
+                )
+            )
+
+    # 49. BLACK_PAD_NICKEL_CORROSION_RISK (warning)：ENIG 镀层参数失控黑盘脆断风险
+    finish = str(meta_mod.get("surface_finish", "")).lower()
+    if "enig" in finish or "enepig" in finish:
+        from .enig_plating_analyzer import analyze_enig_plating
+
+        rep_pl = analyze_enig_plating(
+            finish_type=finish,
+            gold_thickness_um=float(meta_mod.get("gold_thickness_um", 0.08)),
+            nickel_thickness_um=float(meta_mod.get("nickel_thickness_um", 4.0)),
+            phosphorus_wt_pct=float(meta_mod.get("phosphorus_wt_pct", 8.5)),
+            palladium_thickness_um=(
+                float(meta_mod["palladium_thickness_um"]) if "palladium_thickness_um" in meta_mod else None
+            ),
+            rework_cycles=int(meta_mod.get("rework_cycles", 0)),
+            soldering_process=str(meta_mod.get("soldering_process", "reflow")),
+        )
+        if rep_pl.black_pad_risk == "high" or rep_pl.gold_embrittlement_risk:
+            detail = (
+                f"{rep_pl.finish_type}: Au {rep_pl.gold_thickness_um:.2f}μm / Ni {rep_pl.nickel_thickness_um:.1f}μm / "
+                f"P {rep_pl.phosphorus_wt_pct:.1f}wt%，黑盘风险 {rep_pl.black_pad_risk}"
+                + ("，且金厚超过 0.25μm 存在 AuSn₄ 焊点脆化" if rep_pl.gold_embrittlement_risk else "")
+                + "；浸金槽电偶过腐蚀高磷镍晶界将形成不润湿泥裂界面，焊点在机械应力下脆断（IPC-4552A）。"
+            )
+            issues.append(
+                _issue(
+                    "BLACK_PAD_NICKEL_CORROSION_RISK",
+                    "ENIG 表面处理参数失控引发黑盘脆断风险",
+                    detail,
+                    "warning",
+                    "IPC-4552A & IPC-4556 Plating Specifications (Black Pad / Nickel Corrosion)",
+                    object_id="fab:surface_finish",
+                )
+            )
+
     return issues
 
 

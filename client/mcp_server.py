@@ -1783,6 +1783,44 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(drc_report.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "analyze_ionic_contamination":
+            if "rose_measured_ug_cm2" not in arguments:
+                return {
+                    "isError": True,
+                    "content": [{"type": "text", "text": "Missing required parameter 'rose_measured_ug_cm2'"}],
+                }
+            species_arg = arguments.get("species_ug_cm2")
+            from .ionic_contamination import analyze_ionic_contamination
+
+            rep_ion = analyze_ionic_contamination(
+                rose_measured_ug_cm2=float(arguments["rose_measured_ug_cm2"]),
+                board_area_cm2=float(arguments.get("board_area_cm2", 100.0)),
+                target_class=str(arguments.get("target_class", "Class 2")),
+                species_ug_cm2=species_arg if isinstance(species_arg, dict) else None,
+                bias_voltage_v=float(arguments.get("bias_voltage_v", 5.0)),
+                min_conductor_gap_mm=float(arguments.get("min_conductor_gap_mm", 0.20)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_ion.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "analyze_enig_plating":
+            pd_arg = arguments.get("palladium_thickness_um")
+            from .enig_plating_analyzer import analyze_enig_plating
+
+            rep_pl = analyze_enig_plating(
+                finish_type=str(arguments.get("finish_type", "enig")),
+                gold_thickness_um=float(arguments.get("gold_thickness_um", 0.08)),
+                nickel_thickness_um=float(arguments.get("nickel_thickness_um", 4.0)),
+                phosphorus_wt_pct=float(arguments.get("phosphorus_wt_pct", 8.5)),
+                palladium_thickness_um=float(pd_arg) if pd_arg is not None else None,
+                rework_cycles=int(arguments.get("rework_cycles", 0)),
+                soldering_process=str(arguments.get("soldering_process", "reflow")),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_pl.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

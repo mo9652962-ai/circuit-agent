@@ -115,7 +115,9 @@ def test_mcp_tools_list():
     assert "calculate_high_speed_skin_depth_loss" in tool_names
     assert "calculate_bare_board_test_parameters" in tool_names
     assert "gate_production_readiness" in tool_names
-    assert len(tools) == 70
+    assert "analyze_ionic_contamination" in tool_names
+    assert "analyze_enig_plating" in tool_names
+    assert len(tools) == 72
 
 
 def test_mcp_tool_call_synthesize():
