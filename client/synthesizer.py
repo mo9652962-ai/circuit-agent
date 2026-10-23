@@ -543,12 +543,14 @@ def synthesize_from_prompt(
         for comp in blk.components:
             if comp.ref in modules:
                 raise ValueError(f"duplicate designator across blocks: {comp.ref}")
-            modules[comp.ref] = {
+            mod_data = {
                 "kind": comp.kind,
                 "value": comp.value,
                 "package": comp.package,
-                "lcsc": comp.lcsc,
             }
+            if comp.lcsc:
+                mod_data["lcsc"] = comp.lcsc
+            modules[comp.ref] = mod_data
         for net, endpoints in blk.nets.items():
             bucket = net_merge.setdefault(net, [])
             for ep in endpoints:
