@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **69 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **70 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -308,6 +308,7 @@ python -m client.mcp_server
 64. `solve_feedback_divider`: Exact R1/R2 feedback pair for a regulator or comparator target, plus the static error the E96 snap adds. The ideal pair almost never exists in E96, and that snap error is a **systematic offset, not a tolerance**: it is identical on every board and must be budgeted separately from the tolerance band.
 65. `calculate_high_speed_skin_depth_loss`: High-frequency skin effect depth and copper foil surface roughness attenuation analyzer — calculates skin depth, Hammerstad-Jensen roughness correction factor (Ksr), and conductor attenuation (dB/inch) for 1GHz to 50GHz signals (PCIe 5.0/6.0, 112G PAM4) per IPC-4562B and IPC-2141A across standard ED, VLP, and HVLP/RTF foils.
 66. `calculate_bare_board_test_parameters`: Bare-board continuity and isolation test parameter planner & dielectric safety auditor — plans IPC-9252B Class 1/2/3 test voltages (50V, 100V, 250V DC) and continuity thresholds (signal <= 10Ω, power <= 2Ω), automatically derating test voltage to 100V on fine-pitch (<0.100mm) or sensitive RF nets to prevent micro-arc dielectric breakdown.
+67. `gate_production_readiness`: One-call industrial release gate — takes a natural-language requirement through synthesis, placement, autorouting, the 9-layer fab bundle (copper, mask, silk, stencil, drill) plus BOM and CPL, then the manufacturing validator, returning a single `production_ready` verdict with the blocking defects. A CI job or an assembly house gets go/no-go without reading five reports; solder-mask dam width is measured against the 0.08 mm process floor and blocks below it.
 
 ### Exposed Resources
 Directly mount specifications and catalogues into model context via `circuit://` URIs:
