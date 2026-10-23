@@ -477,6 +477,36 @@ def _pour_hatch_segments(
         r = via["pad_mm"] / 2.0 + POUR_CLEARANCE_MM
         obstacles.append((via["x"] - r, via["y"] - r, via["x"] + r, via["y"] + r))
 
+    # Mounting hole keepouts:
+    # A CNC drill bit drilling a 3.2mm hole must never tear raw copper ground pour,
+    # and an M3 metal screw head (6.0mm diameter) tightened against the board needs a clean
+    # keepout zone unless explicitly designed as a chassis ground pad.
+    mount_coords: list[tuple[float, float]] = []
+    for pad in pads:
+        if (
+            pad["ref"].upper().startswith(("H", "MH", "MOUNT"))
+            or "mounting" in str(pad.get("package", "")).lower()
+        ):
+            mount_coords.append((pad["x"], pad["y"]))
+
+    if not mount_coords and board_w >= 30.0 and board_h >= 30.0:
+        mount_coords = [
+            (3.5, 3.5),
+            (board_w - 3.5, 3.5),
+            (3.5, board_h - 3.5),
+            (board_w - 3.5, board_h - 3.5),
+        ]
+
+    for mx, my in mount_coords:
+        is_gnd_mount = any(
+            (pad["ref"], pad["pin"]) in gnd_pads
+            for pad in pads
+            if abs(pad["x"] - mx) < 0.1 and abs(pad["y"] - my) < 0.1
+        )
+        if not is_gnd_mount:
+            # 6.0mm screw keepout -> 3.0mm half-extent
+            obstacles.append((mx - 3.0, my - 3.0, mx + 3.0, my + 3.0))
+
     segments: list[tuple[float, float, float, float]] = []
     y = lo_y
     while y <= hi_y + 1e-9:

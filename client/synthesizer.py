@@ -59,6 +59,7 @@ from .circuit_blocks import (
     block_isolated_adc_ina219,
     block_led,
     block_motor_driver_drv8825,
+    block_mounting_holes,
     block_optocoupler_isolated_io,
     block_power_ldo_3v3,
     block_power_pi_filter,
@@ -126,6 +127,7 @@ _REV_TOKENS = ("防反接", "反接保护", "polarity", "肖特基防反")
 _PI_TOKENS = ("pi滤波", "π滤波", "滤波", "磁珠", "clc", "lc滤波")
 _DFT_TOKENS = ("测试点", "testpoint", "ict", "飞针", "测试焊盘")
 _DFA_TOKENS = ("mark点", "mark", "fiducial", "光学定位", "对准点")
+_MOUNT_TOKENS = ("固定孔", "安装孔", "螺丝孔", "螺孔", "m3孔", "定位孔", "mounting_hole", "mounting", "mount_hole")
 _ETHERNET_TOKENS = ("ethernet", "以太网", "网口", "rj45", "w5500", "lan")
 _INA219_TOKENS = ("电流采样", "功率监测", "ina219", "power monitor", "current monitor", "电量计")
 _MOTOR_TOKENS = ("电机", "步进电机", "drv8825", "stepper", "motor", "马达")
@@ -359,6 +361,9 @@ def synthesize_from_prompt(
     # engineer instead of informing them.
     if _has(prompt_lower, prompt, _DFA_TOKENS) or is_industrial:
         blocks.append(block_fiducial_marks())
+
+    if _has(prompt_lower, prompt, _MOUNT_TOKENS):
+        blocks.append(block_mounting_holes())
 
     if _has(prompt_lower, prompt, _ETHERNET_TOKENS):
         blocks.append(block_ethernet_phy_w5500())

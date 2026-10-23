@@ -309,17 +309,62 @@ def heuristic_place_components(
 
     placements: dict[str, ComponentPlacement] = {}
 
-    # 0. Optical Fiducials (IPC-7351 / SMEMA standard):
+    # 0a. PCB Mounting Holes:
+    # Corner mounting holes sit at (3.5, 3.5), (bw-3.5, 3.5), etc. with 6.0mm diameter
+    # keepouts for M3 screws. Explicitly place declared mounting holes at these corners.
+    mount_corners = [
+        (3.5, 3.5),
+        (round(board_width_mm - 3.5, 2), 3.5),
+        (3.5, round(board_height_mm - 3.5, 2)),
+        (round(board_width_mm - 3.5, 2), round(board_height_mm - 3.5, 2)),
+    ]
+    mount_refs = [
+        r
+        for r, m in modules.items()
+        if r.upper().startswith(("H", "MH", "MOUNT"))
+        or "mounting" in str(m.get("package", "")).lower()
+    ]
+    for i, ref in enumerate(sorted(mount_refs)):
+        mx, my = mount_corners[i % len(mount_corners)]
+        placements[ref] = ComponentPlacement(
+            ref=ref,
+            package=modules[ref].get("package", "MountingHole_3.2mm_M3"),
+            x_mm=round(mx, 2),
+            y_mm=round(my, 2),
+        )
+
+    # 0b. Optical Fiducials (IPC-7351 / SMEMA standard):
     # Place fiducial marks in an asymmetric L-configuration near board corners:
     # FID1 at bottom-left, FID2 at bottom-right, FID3 at top-left.
     # Leaving the top-right corner empty allows automated optical inspection (AOI)
     # and pick-and-place cameras to determine board orientation unambiguously.
-    fid_margin = min(3.5, min(board_width_mm, board_height_mm) * 0.1)
-    fid_corners = [
-        (fid_margin, fid_margin),                        # BL
-        (board_width_mm - fid_margin, fid_margin),       # BR
-        (fid_margin, board_height_mm - fid_margin),      # TL
-    ]
+    #
+    # CRITICAL DFM COLLISION PREVENTION:
+    # When corner mounting holes exist (standard for boards >= 30x30mm or when declared),
+    # a 3.2mm hole is drilled at (3.5, 3.5) with a 6.0mm screw head keepout.
+    # Placing fiducials at (3.5, 3.5) causes the CNC drill bit to punch out the fiducials!
+    # Therefore, on boards with corner mounts, fiducials are safely offset along the
+    # perimeter (6.5mm away from hole centers, leaving 2.5mm clear space outside screw heads):
+    # - FID1: (3.5, 10.0) — offset vertically along left edge
+    # - FID2: (bw - 10.0, 3.5) — offset horizontally along bottom edge
+    # - FID3: (3.5, bh - 10.0) — offset vertically along left edge
+    has_corner_mounts = (
+        (board_width_mm >= 30.0 and board_height_mm >= 30.0)
+        or bool(mount_refs)
+    )
+    if has_corner_mounts and board_width_mm >= 25.0 and board_height_mm >= 25.0:
+        fid_corners = [
+            (3.5, 10.0),
+            (round(board_width_mm - 10.0, 2), 3.5),
+            (3.5, round(board_height_mm - 10.0, 2)),
+        ]
+    else:
+        fid_margin = min(3.5, min(board_width_mm, board_height_mm) * 0.1)
+        fid_corners = [
+            (fid_margin, fid_margin),                        # BL
+            (round(board_width_mm - fid_margin, 2), fid_margin),       # BR
+            (fid_margin, round(board_height_mm - fid_margin, 2)),      # TL
+        ]
     fid_refs = [
         r
         for r, m in modules.items()
@@ -633,7 +678,11 @@ def heuristic_place_components(
                 placements[ref] = ComponentPlacement(ref=ref, package=pkg, x_mm=20.0, y_mm=10.0)
 
     def _priority(ref: str) -> int:
-        if ref.upper().startswith("FID") or "fiducial" in ref.lower():
+        if (
+            ref.upper().startswith(("FID", "H", "MH", "MOUNT"))
+            or "fiducial" in ref.lower()
+            or "mounting" in ref.lower()
+        ):
             return -1
         if "MCU" in ref:
             return 0
@@ -653,7 +702,12 @@ def heuristic_place_components(
     def _free(ref: str, x: float, y: float, hw: float, hh: float,
               placed_items: list[tuple[str, ComponentPlacement, float, float]],
               coords: set[tuple[float, float]]) -> bool:
-        edge_margin = 2.0 if (ref.upper().startswith("FID") or "fiducial" in ref.lower()) else 5.0
+        is_anchor = (
+            ref.upper().startswith(("FID", "H", "MH", "MOUNT"))
+            or "fiducial" in ref.lower()
+            or "mounting" in ref.lower()
+        )
+        edge_margin = 1.5 if is_anchor else 5.0
         if x - hw < edge_margin or x + hw > board_width_mm - edge_margin:
             return False
         if y - hh < edge_margin or y + hh > board_height_mm - edge_margin:

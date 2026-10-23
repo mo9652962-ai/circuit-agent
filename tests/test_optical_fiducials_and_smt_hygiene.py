@@ -38,14 +38,73 @@ def test_fiducial_asymmetric_corner_placement():
     assert "FID1" in pl and "FID2" in pl and "FID3" in pl
     p1, p2, p3 = pl["FID1"], pl["FID2"], pl["FID3"]
 
-    # Bottom-left, Bottom-right, Top-left
-    assert p1.x_mm <= 5.0 and p1.y_mm <= 5.0
-    assert p2.x_mm >= bw - 5.0 and p2.y_mm <= 5.0
-    assert p3.x_mm <= 5.0 and p3.y_mm >= bh - 5.0
+    # Bottom-left, Bottom-right, Top-left perimeter zones (within 12mm of corners)
+    assert p1.x_mm <= 5.0 and p1.y_mm <= 12.0
+    assert p2.x_mm >= bw - 12.0 and p2.y_mm <= 5.0
+    assert p3.x_mm <= 5.0 and p3.y_mm >= bh - 12.0
 
     # Top-right corner must be kept empty to preserve asymmetry for vision cameras
     for p in (p1, p2, p3):
-        assert not (p.x_mm >= bw - 5.0 and p.y_mm >= bh - 5.0)
+        assert not (p.x_mm >= bw - 12.0 and p.y_mm >= bh - 12.0)
+
+
+def test_fiducials_do_not_collide_with_mounting_holes():
+    """Fiducials must maintain at least 5.0mm clearance from any drilled mounting hole."""
+    import math
+    import re
+
+    from client.excellon_exporter import export_excellon_drill
+
+    spec = synthesize_from_prompt("带有 Mark 点的 ESP32-C3 节点")
+    bw, bh = 70.0, 50.0
+    pl = heuristic_place_components(spec["modules"], bw, bh)
+    drl = export_excellon_drill(
+        spec["modules"],
+        spec["netlist"]["connections"],
+        "TEST",
+        bw,
+        bh,
+        placements=pl,
+    )
+
+    fid_coords = [(pl[r].x_mm, pl[r].y_mm) for r in pl if "FID" in r]
+    hits = [
+        (round(int(m.group(1)) / 1000.0, 3), round(int(m.group(2)) / 1000.0, 3))
+        for m in re.finditer(r"X(\d{6})Y(\d{6})", drl)
+    ]
+    assert hits, "No drill hits found in drill file"
+
+    for fx, fy in fid_coords:
+        for hx, hy in hits:
+            dist = math.hypot(fx - hx, fy - hy)
+            assert dist >= 5.0, (
+                f"FATAL: Fiducial at ({fx}, {fy}) collides with drill hole at ({hx}, {hy}) (dist={dist:.2f}mm < 5mm)!"
+            )
+
+
+def test_ground_pour_avoids_mounting_holes():
+    """Bottom copper ground pour must not run copper tracks through mounting holes."""
+    from client.gerber_exporter import _pour_hatch_segments
+
+    segs = _pour_hatch_segments(70.0, 50.0, [], [], [], set())
+    for mx, my in ((3.5, 3.5), (66.5, 3.5), (3.5, 46.5), (66.5, 46.5)):
+        crossing = [
+            s for s in segs
+            if abs(s[1] - my) < 1.6 and s[0] <= mx <= s[2]
+        ]
+        assert not crossing, (
+            f"Ground pour has copper segments running straight through mount at ({mx}, {my}): {crossing}"
+        )
+
+
+def test_synthesizer_mounting_holes_block():
+    """Synthesizer must recognize mounting hole prompt tokens and generate mechanical blocks."""
+    spec = synthesize_from_prompt("ESP32-C3 环境监测节点，带有 4个固定孔 和 2个按键")
+    mount_modules = [
+        ref for ref in spec["modules"]
+        if ref.upper().startswith(("H", "MH", "MOUNT"))
+    ]
+    assert len(mount_modules) == 4, f"Expected 4 mounting holes, got: {mount_modules}"
 
 
 def test_bom_and_cpl_smt_hygiene():

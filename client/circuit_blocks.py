@@ -785,7 +785,7 @@ def block_fiducial_marks(count: int = 3) -> CircuitBlock:
     """Optical fiducial marks for automated SMT pick-and-place vision alignment (DFA)."""
     count = max(3, count)
     components = [
-        CircuitComponent(f"FID{i + 1}", "FIDUCIAL", "1.0mm", "Fiducial_1mm_Mask2mm", "C9999998", {})
+        CircuitComponent(f"FID{i + 1}", "FIDUCIAL", "1.0mm", "Fiducial_1mm_Mask2mm", "", {})
         for i in range(count)
     ]
     return CircuitBlock(
@@ -794,6 +794,43 @@ def block_fiducial_marks(count: int = 3) -> CircuitBlock:
         components=components,
         nets={},
         properties={"pad_diameter_mm": 1.0, "clearance_mm": 2.0, "quantity": count},
+    )
+
+
+def block_mounting_holes(
+    count: int = 4,
+    hole_dia_mm: float = 3.2,
+    gnd_net: str | None = None,
+) -> CircuitBlock:
+    """Standard M3/M2.5/M2 PCB mounting holes.
+
+    Holes are drilled at board corners. If gnd_net is set, holes are plated (PTH)
+    for chassis grounding; otherwise non-plated (NPTH) isolated mounting holes.
+    """
+    count = max(1, count)
+    components = []
+    nets: dict[str, list[str]] = {}
+    for i in range(1, count + 1):
+        ref = f"H{i}"
+        pins = {"1": gnd_net} if gnd_net else {}
+        components.append(
+            CircuitComponent(
+                ref,
+                "MECHANICAL",
+                f"M3_{hole_dia_mm:.1f}mm",
+                "MountingHole_3.2mm_M3",
+                "",
+                pins,
+            )
+        )
+        if gnd_net:
+            nets.setdefault(gnd_net, []).append(f"{ref}.1")
+    return CircuitBlock(
+        name="Mounting_Holes",
+        description=f"Set of {count} mounting holes ({hole_dia_mm:.1f}mm drill for M3 hardware)",
+        components=components,
+        nets=nets,
+        properties={"hole_diameter_mm": hole_dia_mm, "quantity": count},
     )
 
 
