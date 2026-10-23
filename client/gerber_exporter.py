@@ -34,6 +34,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+from itertools import pairwise
 from typing import Any
 
 from .placement_engine import (
@@ -355,6 +356,127 @@ def _via_teardrop_polygons(
     return polys
 
 
+#: Ground pour geometry, in mm. These are the values a 2-layer board actually
+#: gets built with, not arbitrary round numbers:
+#: * CLEARANCE — copper-to-copper spacing the fab can etch reliably at 1 oz.
+#: * GRID — the fill is drawn as a hatch of this pitch. A solid G36/G37 region
+#:   would be one polygon with the pads cut out of it, which no simple exporter
+#:   can express; a hatch is what most 2-layer ground pours actually are, and it
+#:   keeps the copper off the drill and the soldermask dams.
+#: * THERMAL_GAP / THERMAL_SPOKE — a GND pad tied straight into the pour is a heat
+#:   sink: hand soldering never reaches temperature and reflow wicks the paste
+#:   away. IPC-7351 asks for four spokes and a gap; the pad connects thermally,
+#:   not as a solid block.
+POUR_CLEARANCE_MM = 0.30
+POUR_GRID_MM = 0.60
+POUR_TRACE_MM = 0.30
+POUR_THERMAL_GAP_MM = 0.30
+POUR_THERMAL_SPOKE_MM = 0.30
+POUR_EDGE_INSET_MM = 0.50
+
+
+def _gnd_pad_keys(
+    modules: dict[str, Any], connections: list[dict[str, Any]]
+) -> set[tuple[str, str]]:
+    """(ref, pin) pairs on the ground net, from the netlist itself."""
+    gnd: set[tuple[str, str]] = set()
+    for conn in connections:
+        net = str(conn.get("net") or "")
+        if net.strip("/").upper() not in ("GND", "AGND", "DGND", "VSS", "GROUND"):
+            continue
+        for pt in conn.get("points") or []:
+            if "." in pt:
+                ref, pin = pt.split(".", 1)
+                gnd.add((ref, pin))
+    return gnd
+
+
+def _pour_hatch_segments(
+    board_w: float,
+    board_h: float,
+    pads: list[dict[str, Any]],
+    wires: list[dict[str, Any]],
+    vias: list[dict[str, Any]],
+    gnd_pads: set[tuple[str, str]],
+) -> list[tuple[float, float, float, float]]:
+    """Compute the hatch lines of a real ground pour, with every obstacle cut out.
+
+    Each horizontal hatch line is the board span minus the intervals occupied by
+    pads, tracks and vias (each expanded by the pour clearance). Subtracting the
+    obstacles rather than skipping whole lines is the difference between a pour
+    and a set of stripes: a line crossing a single 0603 pad would otherwise be
+    deleted end to end.
+
+    GND pads are not obstacles — they are the connection. They are handled by
+    leaving the pad's own thermal gap open and adding spokes, so the pad is
+    thermally relieved instead of being swallowed by the plane.
+    """
+    lo_x = POUR_EDGE_INSET_MM
+    hi_x = board_w - POUR_EDGE_INSET_MM
+    lo_y = POUR_EDGE_INSET_MM
+    hi_y = board_h - POUR_EDGE_INSET_MM
+    if hi_x <= lo_x or hi_y <= lo_y:
+        return []
+
+    obstacles: list[tuple[float, float, float, float]] = []
+
+    for pad in pads:
+        if (pad["ref"], pad["pin"]) in gnd_pads:
+            continue
+        hw = pad["w"] / 2.0 + POUR_CLEARANCE_MM
+        hh = pad["h"] / 2.0 + POUR_CLEARANCE_MM
+        obstacles.append((pad["x"] - hw, pad["y"] - hh, pad["x"] + hw, pad["y"] + hh))
+
+    for wire in wires:
+        w = wire["width_mm"] / 2.0 + POUR_CLEARANCE_MM
+        for (x0, y0), (x1, y1) in pairwise(wire["pts"]):
+            obstacles.append((min(x0, x1) - w, min(y0, y1) - w, max(x0, x1) + w, max(y0, y1) + w))
+
+    for via in vias:
+        r = via["pad_mm"] / 2.0 + POUR_CLEARANCE_MM
+        obstacles.append((via["x"] - r, via["y"] - r, via["x"] + r, via["y"] + r))
+
+    segments: list[tuple[float, float, float, float]] = []
+    y = lo_y
+    while y <= hi_y + 1e-9:
+        blocked: list[tuple[float, float]] = []
+        for ox0, oy0, ox1, oy1 in obstacles:
+            if oy1 < y or y < oy0:
+                continue
+            b_lo, b_hi = max(ox0, lo_x), min(ox1, hi_x)
+            if b_hi > b_lo:
+                blocked.append((b_lo, b_hi))
+
+        cursor = lo_x
+        blocked.sort()
+        for b_lo, b_hi in blocked:
+            if b_lo > cursor:
+                segments.append((cursor, y, b_lo, y))
+            cursor = max(cursor, b_hi)
+        if cursor < hi_x:
+            segments.append((cursor, y, hi_x, y))
+
+        y += POUR_GRID_MM
+
+    # A stub shorter than the fill width is a fleck of copper, not a connection.
+    return [(x0, y0, x1, y1) for x0, y0, x1, y1 in segments if x1 - x0 > POUR_TRACE_MM]
+
+
+def _thermal_spokes(pad: dict[str, Any]) -> list[tuple[float, float, float, float]]:
+    """Four spokes from a GND pad out to the pour, per IPC-7351 thermal relief."""
+    cx, cy = pad["x"], pad["y"]
+    hw = pad["w"] / 2.0 + POUR_THERMAL_GAP_MM
+    hh = pad["h"] / 2.0 + POUR_THERMAL_GAP_MM
+    out = POUR_THERMAL_GAP_MM + POUR_THERMAL_SPOKE_MM
+    half = POUR_THERMAL_SPOKE_MM / 2.0
+    return [
+        (cx - hw - out, cy - half, cx - hw, cy + half),  # left
+        (cx + hw, cy - half, cx + hw + out, cy + half),  # right
+        (cx - half, cy - hh - out, cx + half, cy - hh),  # down
+        (cx - half, cy + hh, cx + half, cy + hh + out),  # up
+    ]
+
+
 def _write_copper_layer(
     title: str,
     pads: list[dict[str, Any]],
@@ -363,6 +485,7 @@ def _write_copper_layer(
     include_pour: tuple[float, float] | None = None,
     vias: list[dict[str, Any]] | None = None,
     teardrops: list[list[tuple[float, float]]] | None = None,
+    gnd_pads: set[tuple[str, str]] | None = None,
 ) -> str:
     """Render one copper layer: apertures, pour, pads, via rings, then tracks.
 
@@ -398,27 +521,32 @@ def _write_copper_layer(
         defs.append(f"%ADD{next_code}C,{w:.5f}*%")
         next_code += 1
 
-    pour_code: int | None = None
+    pour_track_code: int | None = None
     if include_pour is not None:
-        defs.append(f"%ADD{next_code}C,0.25000*%")
-        pour_code = next_code
+        defs.append(f"%ADD{next_code}C,{POUR_TRACE_MM:.5f}*%")
+        pour_track_code = next_code
+        next_code += 1
 
     L = [f"G04 Gerber RS-274X {title}*", "%FSLAX45Y45*%", "%MOMM*%", "%LPD*%", *defs]
 
-    if pour_code is not None and include_pour is not None:
+    if pour_track_code is not None and include_pour is not None:
         bw, bh = include_pour
-        inset = 1.0
-        L.append("G04 Ground Pour Boundary*")
-        L.append(f"D{pour_code}*")
-        corners = [
-            (inset, inset),
-            (bw - inset, inset),
-            (bw - inset, bh - inset),
-            (inset, bh - inset),
-            (inset, inset),
-        ]
-        for i, (x, y) in enumerate(corners):
-            L.append(f"X{_format_gerber_coord(x)}Y{_format_gerber_coord(y)}{'D02' if i == 0 else 'D01'}*")
+        segments = _pour_hatch_segments(bw, bh, pads, wires, vias or [], gnd_pads or set())
+        if segments:
+            L.append("G04 Ground Pour (GND hatch, obstacles cleared)*")
+            L.append(f"D{pour_track_code}*")
+            for x0, y0, x1, y1 in segments:
+                L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(y0)}D02*")
+                L.append(f"X{_format_gerber_coord(x1)}Y{_format_gerber_coord(y1)}D01*")
+        if gnd_pads:
+            L.append("G04 Ground Pad Thermal Relief Spokes*")
+            L.append(f"D{pour_track_code}*")
+            for pad in pads:
+                if (pad["ref"], pad["pin"]) not in gnd_pads:
+                    continue
+                for x0, y0, x1, y1 in _thermal_spokes(pad):
+                    L.append(f"X{_format_gerber_coord(x0)}Y{_format_gerber_coord(y0)}D02*")
+                    L.append(f"X{_format_gerber_coord(x1)}Y{_format_gerber_coord(y1)}D01*")
 
     if pads:
         L.append("G04 Component Pads*")
@@ -536,6 +664,7 @@ def generate_bottom_copper_gerber(
         include_pour=(board_width_mm, board_height_mm),
         vias=geo["vias"],
         teardrops=_via_teardrop_polygons(geo),
+        gnd_pads=_gnd_pad_keys(modules, connections),
     )
 
 
