@@ -81,11 +81,16 @@ def test_no_two_parts_occupy_the_same_point(prompt):
 
 @pytest.mark.parametrize("prompt", PROMPTS, ids=lambda p: p[:24])
 def test_cpl_covers_every_component(prompt):
-    """One placement row per part, no more and no fewer."""
+    """One placement row per part, no more and no fewer.
+
+    Fiducials and test points are fabricated features: the PnP machine never
+    places them, so the CPL deliberately omits them.
+    """
     spec = _spec(prompt)
     refs = {r for r in spec["modules"] if r != "__meta__"}
+    pnp_refs = {r for r in refs if not r.startswith(("FID", "TP_"))}
     placed = {r[0] for r in _cpl_rows(prompt)}
-    assert placed == refs, f"missing {refs - placed}, unexpected {placed - refs}"
+    assert placed == pnp_refs, f"missing {pnp_refs - placed}, unexpected {placed - pnp_refs}"
 
 
 def test_rotation_correction_applies_to_packages_that_need_it():

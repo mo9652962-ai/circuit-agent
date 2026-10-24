@@ -60,8 +60,12 @@ def test_component_designators_are_unique(factory):
 @pytest.mark.parametrize("factory", BLOCK_FACTORIES, ids=lambda f: f.__name__)
 def test_every_component_has_lcsc_and_package(factory):
     blk = factory()
+    # Mechanical parts (fiducials, test points, mounting holes) are fabricated
+    # features, not purchased parts — they intentionally carry no LCSC number.
     for comp in blk.components:
         assert comp.package, f"{comp.ref} missing package"
+        if getattr(comp, "kind", "") in ("FIDUCIAL", "TESTPOINT", "MECHANICAL"):
+            continue
         assert comp.lcsc.startswith("C"), f"{comp.ref} missing LCSC part number"
 
 

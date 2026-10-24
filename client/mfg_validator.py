@@ -210,7 +210,14 @@ def validate_manufacturing_package(
 
     # 3. 校验 BOM 与 modules 元件位号一致性
     bom_consistent = True
-    real_mod_refs = {r for r in modules if r != "__meta__"}
+    # Fiducials / test points / mounting holes are fabricated features, not
+    # purchased parts: the BOM legitimately omits them, so they take no part
+    # in the designator comparison.
+    real_mod_refs = {
+        r
+        for r in modules
+        if r != "__meta__" and not r.startswith(("FID", "TP_"))
+    }
     mod_count = len(real_mod_refs)
     bom_count = 0
 
