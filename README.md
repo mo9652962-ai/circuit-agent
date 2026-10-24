@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **72 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **74 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -266,6 +266,8 @@ python -m client.mcp_server
 18c. `run_pcb_drc`: 对布线结果执行物理 DRC 审计——真铜箔间距、蚀刻酸角、电源线宽、板边与禁布区、差分对偏斜，违规按网络聚合输出（错误/警告分级 + 定位坐标 + 修复建议）。
 18d. `analyze_ionic_contamination`: 组件后清洗离子污染 (ROSE) 与离子色谱合规审计器——依据 IPC-CH-65 与 IPC-TM-650 2.3.25/2.3.28，对标 Class 1.56 / Class 3 1.20 μg/cm² NaCl 当量限值与氯 0.70 / 溴 0.54 μg/cm² 物种限值，按偏压与导体间距评分枝晶/CAF 生长风险。
 18e. `analyze_enig_plating`: ENIG/ENEPIG 镀层厚度与黑盘 (镍晶界腐蚀) 风险审计器——依据 IPC-4552A/4556 校核金 0.05~0.20μm、镍 3.0~6.0μm、磷 7~10wt% 与钯 0.10~0.30μm 工艺窗口，综合返修次数与工艺类型评估电偶过腐蚀脆断风险，并预警金厚 >0.25μm 的 AuSn₄ 焊点脆化。
+18f. `estimate_solder_joint_thermal_fatigue`: IPC-9701A / IPC-D-279 Engelmaier 热循环疲劳寿命估算器——按 CTE 失配剪切应变范围 (Δα·ΔT·DNP/2h)、蠕变感知循环指数 (热驻留时间与平均结温) 计算 TC1~TC4 车规/航空温度谱下焊点 63.2% 失效特征寿命 (NTC)，对照服役循环数判定陶瓷大 DNP 封装是否需欠填充。
+18g. `plan_conformal_coating`: IPC-CC-830C / IPC-A-610G §10 三防漆选型与掩膜禁涂区规划器——校核 AR/ER/UR (30~130μm)、SR (50~210μm)、XY (10~50μm) 膜厚窗口，预警与现场返修需求的冲突 (ER/XY 近似不可返修)，并从 BOM 自动枚举连接器/测试点/开关掩膜禁涂清单，杜绝涂层渗入触点的间歇接触失效。
 19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。

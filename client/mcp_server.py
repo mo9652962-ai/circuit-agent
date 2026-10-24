@@ -1821,6 +1821,42 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_pl.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "estimate_solder_joint_thermal_fatigue":
+            tmin = arguments.get("temp_min_c")
+            tmax = arguments.get("temp_max_c")
+            from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
+
+            rep_fat = estimate_solder_joint_thermal_fatigue(
+                component=str(arguments.get("component", "U1_BGA256")),
+                dnp_mm=float(arguments.get("dnp_mm", 15.0)),
+                joint_height_mm=float(arguments.get("joint_height_mm", 0.10)),
+                condition=str(arguments.get("condition", "TC3")),
+                temp_min_c=float(tmin) if tmin is not None else None,
+                temp_max_c=float(tmax) if tmax is not None else None,
+                hot_dwell_min=float(arguments.get("hot_dwell_min", 10.0)),
+                pcb_cte_ppm=float(arguments.get("pcb_cte_ppm", 15.0)),
+                package_cte_ppm=float(arguments.get("package_cte_ppm", 14.0)),
+                compliance_factor_f=float(arguments.get("compliance_factor_f", 0.5)),
+                required_cycles=float(arguments.get("required_cycles", 3000.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_fat.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "plan_conformal_coating":
+            mods_cc = arguments.get("modules")
+            from .conformal_coating import plan_conformal_coating
+
+            rep_cc = plan_conformal_coating(
+                coating_type=str(arguments.get("coating_type", "AR")),
+                measured_thickness_um=float(arguments.get("measured_thickness_um", 75.0)),
+                modules=mods_cc if isinstance(mods_cc, dict) else None,
+                requires_field_rework=bool(arguments.get("requires_field_rework", False)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_cc.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

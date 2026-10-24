@@ -1478,6 +1478,77 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 )
             )
 
+    # 50. THERMAL_CYCLING_FATIGUE_RISK (warning)：关键封装热循环疲劳寿命不足
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        dnp = props.get("thermal_dnp_mm")
+        if dnp is None or float(dnp) <= 0:
+            continue
+        from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
+
+        rep_fat = estimate_solder_joint_thermal_fatigue(
+            component=net_name,
+            dnp_mm=float(dnp),
+            joint_height_mm=float(props.get("joint_height_mm", 0.10)),
+            condition=str(props.get("thermal_cycling_condition", "TC3")),
+            hot_dwell_min=float(props.get("hot_dwell_min", 10.0)),
+            package_cte_ppm=float(props.get("package_cte_ppm", 14.0)),
+            required_cycles=float(props.get("required_cycles", 3000.0)),
+        )
+        if not rep_fat.meets_requirement:
+            issues.append(
+                _issue(
+                    "THERMAL_CYCLING_FATIGUE_RISK",
+                    "关键焊点热循环疲劳寿命低于服役要求",
+                    f"器件 {net_name} DNP {float(dnp):.1f}mm 在 {rep_fat.condition} "
+                    f"({rep_fat.temp_min_c:.0f}~{rep_fat.temp_max_c:.0f}°C) 下 Engelmaier 寿命 "
+                    f"{rep_fat.cycles_to_failure_ntf:,.0f} 循环 < 要求 {rep_fat.required_cycles:,.0f}；"
+                    "CTE 失配剪切应变将率先撕开最远角焊点（IPC-9701）。缩短 DNP/降低 ΔT/欠填充。",
+                    "warning",
+                    "IPC-9701A & IPC-D-279 Engelmaier Thermal Fatigue Model",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 51. CONFORMAL_COATING_CONTACT_RISK (warning)：三防漆渗入未掩膜触点风险
+    meta_cc = modules.get("__meta__", {}) if modules else {}
+    cc_type = str(meta_cc.get("conformal_coating", "")).upper().strip()
+    if cc_type in ("AR", "ER", "UR", "SR", "XY"):
+        from .conformal_coating import plan_conformal_coating
+
+        rep_cc = plan_conformal_coating(
+            coating_type=cc_type,
+            measured_thickness_um=float(meta_cc.get("coating_thickness_um", 75.0)),
+            modules=modules,
+            requires_field_rework=bool(meta_cc.get("requires_field_rework", False)),
+        )
+        for r in rep_cc.unmasked_contact_risk:
+            ref_c = r["ref"]
+            issues.append(
+                _issue(
+                    "CONFORMAL_COATING_CONTACT_RISK",
+                    "三防漆工艺存在触点渗入未掩膜失效风险",
+                    f"器件 {ref_c} 声明免涂但未做掩膜验证：{r['issue']}；"
+                    f"涂覆程序须在 {cc_type} 选择性喷涂前对连接器/测试点/开关完成掩膜并首件确认（IPC-A-610G §10.4）。",
+                    "warning",
+                    "IPC-CC-830C & IPC-A-610G §10.4 Coating Keep-out Requirements",
+                    object_id=f"comp:{ref_c}",
+                )
+            )
+        if rep_cc.reworkability_conflict:
+            issues.append(
+                _issue(
+                    "CONFORMAL_COATING_CONTACT_RISK",
+                    "三防漆选型与现场返修需求冲突",
+                    f"{rep_cc.coating_type_name} 返修等级为 {rep_cc.rework_level}，"
+                    "产品要求现场可返修——改选 Type AR 或为易损区域预留可剥离掩膜（IPC-WP-825）。",
+                    "warning",
+                    "IPC-WP-825 Conformal Coating Selection Guidelines",
+                    object_id="mfg:conformal_coating",
+                )
+            )
+
     return issues
 
 

@@ -37,6 +37,7 @@ from .circuit_blocks import (
     block_usb_c_power,
     block_watchdog_supervisor,
 )
+from .conformal_coating import plan_conformal_coating
 from .copper_pour_analyzer import calculate_copper_pour_current_drop
 from .enig_plating_analyzer import analyze_enig_plating
 from .export_engine import (
@@ -76,8 +77,9 @@ from .parametric_equations import (
 from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
+from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
 
-__version__ = "0.19.1"
+__version__ = "0.20.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -129,6 +131,7 @@ __all__ = [
     "calculate_ipc2152",
     "calculate_ldo_thermal",
     "calculate_rc_filter",
+    "estimate_solder_joint_thermal_fatigue",
     "export_jlcpcb_bom",
     "export_jlcpcb_cpl",
     "export_kicad_netlist",
@@ -138,6 +141,7 @@ __all__ = [
     "list_supported_chips",
     "optimize_smt_feeder_setup",
     "plan_bare_board_test_parameters",
+    "plan_conformal_coating",
     "register_chip_rule",
     "render_ascii_topology",
     "search_lcsc_parts",
