@@ -2888,6 +2888,112 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "estimate_solder_joint_thermal_fatigue",
+        "description": (
+            "IPC-9701A / IPC-D-279 Engelmaier thermal cycling fatigue life estimator for critical SMT "
+            "attachments: computes CTE-mismatch shear strain range over the component DNP, applies the "
+            "creep-aware cycle exponent (hot dwell and mean joint temperature), and reports cycles-to-63.2%-"
+            "failure against the service requirement across TC1-TC4 automotive/aerospace profiles."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "component": {
+                    "type": "string",
+                    "description": "Ref/designation of the worst-case component (default: U1_BGA256).",
+                    "default": "U1_BGA256",
+                },
+                "dnp_mm": {
+                    "type": "number",
+                    "description": "Distance from board neutral point to farthest joint in mm (default: 15.0).",
+                    "default": 15.0,
+                },
+                "joint_height_mm": {
+                    "type": "number",
+                    "description": "Solder joint standoff height in mm; BGA ~0.10-0.45, QFN ~0.05 (default: 0.10).",
+                    "default": 0.10,
+                },
+                "condition": {
+                    "type": "string",
+                    "description": "IPC-9701 profile: 'TC1' 0-100, 'TC2' -25-125, 'TC3' -40-125 (default), 'TC4' -55-125 °C.",
+                    "default": "TC3",
+                },
+                "temp_min_c": {"type": "number", "description": "Explicit cycle minimum °C (overrides condition)."},
+                "temp_max_c": {"type": "number", "description": "Explicit cycle maximum °C (overrides condition)."},
+                "hot_dwell_min": {
+                    "type": "number",
+                    "description": "Hot dwell time per cycle in minutes (default: 10.0).",
+                    "default": 10.0,
+                },
+                "pcb_cte_ppm": {
+                    "type": "number",
+                    "description": "PCB in-plane CTE in ppm/K (default: 15.0 FR-4).",
+                    "default": 15.0,
+                },
+                "package_cte_ppm": {
+                    "type": "number",
+                    "description": "Package substrate/leadframe CTE in ppm/K (default: 14.0 BT BGA).",
+                    "default": 14.0,
+                },
+                "compliance_factor_f": {
+                    "type": "number",
+                    "description": "Joint compliance factor (0.5 typical, 1.0 stiff; default: 0.5).",
+                    "default": 0.5,
+                },
+                "required_cycles": {
+                    "type": "number",
+                    "description": "Service cycles the attachment must survive (default: 3000).",
+                    "default": 3000.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "plan_conformal_coating",
+        "description": (
+            "IPC-CC-830C / IPC-A-610G §10 conformal coating material selector and masking keepout planner: "
+            "validates dry-film thickness against the type windows (AR/ER/UR 30-130, SR 50-210, XY 10-50 μm), "
+            "flags reworkability conflicts for field-repairable products, and enumerates connector/test-point/"
+            "switch masking keepouts from the BOM before the selective-coating program is generated."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "coating_type": {
+                    "type": "string",
+                    "description": "IPC-CC-830 type: 'AR' acrylic (default), 'ER' epoxy, 'UR' urethane, 'SR' silicone, or 'XY' parylene.",
+                    "default": "AR",
+                },
+                "measured_thickness_um": {
+                    "type": "number",
+                    "description": "Witness-coupon measured dry-film thickness in μm (default: 75.0).",
+                    "default": 75.0,
+                },
+                "modules": {
+                    "type": "object",
+                    "description": "Optional BOM modules dict — contact-bearing parts become masking keepouts.",
+                },
+                "requires_field_rework": {
+                    "type": "boolean",
+                    "description": "Whether the product must be repairable in service (default: False).",
+                    "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #
