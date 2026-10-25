@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **76 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **78 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -270,6 +270,8 @@ python -m client.mcp_server
 18g. `plan_conformal_coating`: IPC-CC-830C / IPC-A-610G §10 三防漆选型与掩膜禁涂区规划器——校核 AR/ER/UR (30~130μm)、SR (50~210μm)、XY (10~50μm) 膜厚窗口，预警与现场返修需求的冲突 (ER/XY 近似不可返修)，并从 BOM 自动枚举连接器/测试点/开关掩膜禁涂清单，杜绝涂层渗入触点的间歇接触失效。
 18h. `predict_assembly_mtbf`: Telcordia SR-332 / MIL-HDBK-217F part-stress 整机 MTBF 预测器——BOM 自动分类至 Telcordia 器件类别，施加 Arrhenius 温度因子 (πT)、质量等级 (πQ 1~3) 与环境因子 (πE 地面固定 1.0~机载 12.0)，输出总 FIT、MTBF (小时/年)、5 年存活率与 Top-5 失效率主导器件。
 18i. `assess_drop_shock_reliability`: JEDEC JESD22-B111 板级跌落冲击评估器 (1500G/0.5ms 半正弦 30 连跌)——逐器件计算惯性焊点载荷 F=ma，标记板角高应变区大质量器件，估计板基频 (边框加强环感知)，给出欠填充/居中迁移/螺柱卸载整改建议。
+18j. `solve_via_current_array`: IPC-2152 / IPC-2221 过孔孔壁载流与并联阵列求解器——按钻孔/孔铜计算环形截面积，施加内外层 k 常数 (0.048/0.024)、40% 阵列均流降额与 IPC-4761 Type VII 填铜信用，输出大电流轨道所需最小并联过孔数。
+18k. `budget_fab_order`: JLCPCB / PCBWay 无头下单离线预算与提交清单构建器——纯 stdlib 对公开价格阶梯 (层板/数量/面积/表面工艺/SMT/运费/加急) 做跨厂商比价，生成制造交付件 SHA-256 防篡改提交账本；零网络零密钥，macOS 笔记本与 Docker CI runner 通吃。
 19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。

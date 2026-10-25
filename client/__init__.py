@@ -48,6 +48,7 @@ from .export_engine import (
     render_ascii_topology,
 )
 from .fab_capabilities import audit_fab_capabilities
+from .fab_order_client import budget_fab_order
 from .industrial_dfx import (
     IPC2221_CLEARANCES,
     DFXViolation,
@@ -80,8 +81,9 @@ from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
+from .via_current_solver import solve_via_current_array
 
-__version__ = "0.21.0"
+__version__ = "0.22.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -128,6 +130,7 @@ __all__ = [
     "block_testpoint_matrix",
     "block_usb_c_power",
     "block_watchdog_supervisor",
+    "budget_fab_order",
     "calculate_copper_pour_current_drop",
     "calculate_high_speed_skin_depth_loss",
     "calculate_i2c_pullup",
@@ -152,6 +155,7 @@ __all__ = [
     "snap_to_e_series",
     "solve_resistor_divider",
     "solve_trace_width_ipc2152",
+    "solve_via_current_array",
     "synthesize_from_prompt",
     "validate_manufacturing_package",
     "validate_pin_allocation",
