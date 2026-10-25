@@ -3092,6 +3092,63 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "solve_via_current_array",
+        "description": (
+            "IPC-2152 / IPC-2221 via barrel current capacity and stitching-array solver: computes the "
+            "annular barrel cross-section from drill and plating, applies the thermal formula with "
+            "internal/external k constants, 40% array current-sharing derate, and IPC-4761 Type VII "
+            "fill+cap credit, returning the minimum parallel via count for a rail current."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "current_a": {"type": "number", "description": "Rail current to carry in A (default: 3.0).", "default": 3.0},
+                "via_drill_mm": {"type": "number", "description": "Finished drill diameter in mm (default: 0.30).", "default": 0.30},
+                "plating_um": {"type": "number", "description": "Copper plating thickness in μm (default: 25.0).", "default": 25.0},
+                "is_filled": {"type": "boolean", "description": "IPC-4761 Type VII fill+cap via (default: False).", "default": False},
+                "internal_layer": {"type": "boolean", "description": "Transition between internal layers k=0.024 (default: False).", "default": False},
+                "max_delta_t_c": {"type": "number", "description": "Allowable barrel temperature rise °C (default: 20.0).", "default": 20.0},
+                "max_array_size": {"type": "integer", "description": "Stitching ceiling before recommending wider traces (default: 8).", "default": 8},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "budget_fab_order",
+        "description": (
+            "JLCPCB / PCBWay headless order cost budget and submission manifest builder: offline math over "
+            "public price ladders (layers, quantity, area, finish, SMT, shipping, lead priority), cross-vendor "
+            "recommendation, and a SHA-256 tamper-evident manifest over the manufacturing artifacts for CI "
+            "order staging — no network, no keys, stdlib-only (macOS laptop or Docker CI runner)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "layers": {"type": "integer", "description": "2 / 4 / 6 layers (default: 2).", "default": 2},
+                "qty": {"type": "integer", "description": "Panel quantity: 5/10/30/100 ladder (default: 5).", "default": 5},
+                "board_w_mm": {"type": "number", "description": "Outline width mm (default: 70.0).", "default": 70.0},
+                "board_h_mm": {"type": "number", "description": "Outline height mm (default: 50.0).", "default": 50.0},
+                "surface_finish": {"type": "string", "description": "'hasl_lead_free' (default) | 'enig' | 'osp'.", "default": "hasl_lead_free"},
+                "include_smt": {"type": "boolean", "description": "Request PCBA assembly (default: False).", "default": False},
+                "smt_parts": {"type": "integer", "description": "Number of SMT placements (default: 0).", "default": 0},
+                "shipping": {"type": "string", "description": "'standard' (default) | 'dhl'.", "default": "standard"},
+                "lead_priority": {"type": "string", "description": "'economy' | 'standard' (default) | 'expedite'.", "default": "standard"},
+                "artifacts": {"type": "object", "description": "Manufacturing artifacts {filename: content} for the SHA-256 submission manifest."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

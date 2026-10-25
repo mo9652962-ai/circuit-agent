@@ -1890,6 +1890,42 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_drop.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "solve_via_current_array":
+            from .via_current_solver import solve_via_current_array
+
+            rep_via = solve_via_current_array(
+                current_a=float(arguments.get("current_a", 3.0)),
+                via_drill_mm=float(arguments.get("via_drill_mm", 0.30)),
+                plating_um=float(arguments.get("plating_um", 25.0)),
+                is_filled=bool(arguments.get("is_filled", False)),
+                internal_layer=bool(arguments.get("internal_layer", False)),
+                max_delta_t_c=float(arguments.get("max_delta_t_c", 20.0)),
+                max_array_size=int(arguments.get("max_array_size", 8)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_via.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "budget_fab_order":
+            arts_arg = arguments.get("artifacts")
+            from .fab_order_client import budget_fab_order
+
+            budget = budget_fab_order(
+                layers=int(arguments.get("layers", 2)),
+                qty=int(arguments.get("qty", 5)),
+                board_w_mm=float(arguments.get("board_w_mm", 70.0)),
+                board_h_mm=float(arguments.get("board_h_mm", 50.0)),
+                surface_finish=str(arguments.get("surface_finish", "hasl_lead_free")),
+                include_smt=bool(arguments.get("include_smt", False)),
+                smt_parts=int(arguments.get("smt_parts", 0)),
+                shipping=str(arguments.get("shipping", "standard")),
+                lead_priority=str(arguments.get("lead_priority", "standard")),
+                artifacts=arts_arg if isinstance(arts_arg, dict) else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(budget.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

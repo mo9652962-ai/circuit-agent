@@ -1608,6 +1608,57 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     )
                 )
 
+    # 54. VIA_BARREL_CURRENT_OVERLOAD (warning)：大电流单过孔/阵列孔壁载流过载
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        via_current = props.get("via_current_a")
+        if via_current is None or float(via_current) <= 0:
+            continue
+        from .via_current_solver import solve_via_current_array
+
+        rep_via = solve_via_current_array(
+            current_a=float(via_current),
+            via_drill_mm=float(props.get("via_drill_mm", 0.30)),
+            plating_um=float(props.get("via_plating_um", 25.0)),
+            is_filled=bool(props.get("via_filled", False)),
+            internal_layer=bool(props.get("via_internal", False)),
+            max_delta_t_c=float(props.get("via_max_delta_t_c", 20.0)),
+            max_array_size=int(props.get("via_array_max", 8)),
+        )
+        if not rep_via.meets_requirement:
+            issues.append(
+                _issue(
+                    "VIA_BARREL_CURRENT_OVERLOAD",
+                    "过孔孔壁载流超出并联阵列容量",
+                    f"网络 {net_name} 过孔 {rep_via.via_drill_mm}mm/{rep_via.plating_um:.0f}μm 承载 "
+                    f"{via_current}A，{rep_via.array_size} 孔并联仅 {rep_via.array_capacity_a:.1f}A；"
+                    "孔壁焦耳热将烧毁树脂致断路。加宽走线/扩大端部铜泊/改用填铜过孔（IPC-2152）。",
+                    "warning",
+                    "IPC-2152 & IPC-2221 Via Current Capacity Formula",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 55. FAB_ORDER_MANIFEST_INCOMPLETE (warning)：无头下单制造包缺失关键交付件
+    if "fabrication_order" in (modules.get("__meta__", {}) if modules else {}):
+        meta_fab = modules["__meta__"]["fabrication_order"]
+        required_artifacts = ("board-Edge_Cuts.gm1", "board-F_Cu.gtl", "board.drl", "bom.csv", "cpl.csv")
+        provided = meta_fab.get("artifacts", [])
+        missing = [a for a in required_artifacts if a not in provided]
+        if missing:
+            issues.append(
+                _issue(
+                    "FAB_ORDER_MANIFEST_INCOMPLETE",
+                    "无头下单制造交付包缺少关键文件",
+                    f"JLCPCB/PCBWay API 下单前制造包缺少: {', '.join(missing)}；"
+                    "提交前须补齐并重算 SHA-256 提交账本，否则厂商 CAM 预审将 EQ 拒单（headless CI 门禁）。",
+                    "warning",
+                    "JLCPCB Online API & PCBWay Partner API Submission Requirements",
+                    object_id="mfg:fab_order",
+                )
+            )
+
     return issues
 
 
