@@ -119,7 +119,9 @@ def test_mcp_tools_list():
     assert "analyze_enig_plating" in tool_names
     assert "estimate_solder_joint_thermal_fatigue" in tool_names
     assert "plan_conformal_coating" in tool_names
-    assert len(tools) == 74
+    assert "predict_assembly_mtbf" in tool_names
+    assert "assess_drop_shock_reliability" in tool_names
+    assert len(tools) == 76
 
 
 def test_mcp_tool_call_synthesize():
