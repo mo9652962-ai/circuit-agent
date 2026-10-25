@@ -2994,6 +2994,104 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "predict_assembly_mtbf",
+        "description": (
+            "Telcordia SR-332 / MIL-HDBK-217F part-stress MTBF prediction: classifies the BOM into Telcordia "
+            "part classes, applies Arrhenius πT at worst-case ambient, quality πQ (level 1-3), and environment "
+            "πE (ground benign 1.0 to airborne 12.0), returns total FIT, MTBF hours/years, 5-year survival "
+            "probability, and the top-5 dominant failure-rate contributors."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "part_counts": {
+                    "type": "object",
+                    "description": "Explicit {part_class: quantity} mapping (Telcordia classes).",
+                },
+                "modules": {
+                    "type": "object",
+                    "description": "BOM modules dict — parts are auto-classified by kind/value.",
+                },
+                "ambient_temp_c": {
+                    "type": "number",
+                    "description": "Worst-case operating ambient in °C (default: 40.0).",
+                    "default": 40.0,
+                },
+                "environment": {
+                    "type": "string",
+                    "description": "'ground_benign' | 'ground_fixed' (default) | 'ground_mobile' | 'airborne'.",
+                    "default": "ground_fixed",
+                },
+                "quality_level": {
+                    "type": "integer",
+                    "description": "Telcordia qualification level 1 (screened 0.8×) / 2 (standard, default) / 3 (uncertified 2.0×).",
+                    "default": 2,
+                },
+                "duty_cycle_derate": {
+                    "type": "number",
+                    "description": "Operating duty fraction 0-1 applied to total λ (default: 1.0).",
+                    "default": 1.0,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "assess_drop_shock_reliability",
+        "description": (
+            "JEDEC JESD22-B111 board-level drop shock assessor (1500 G / 0.5 ms half-sine, 30 drops): "
+            "computes per-component inertial joint loads (F=ma), flags heavy components in board-corner "
+            "high-strain flexure zones, estimates board natural frequency (border-ring stiffener aware), "
+            "and prescribes underfill / center-migration / boss-fastening mitigations."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "board_width_mm": {
+                    "type": "number",
+                    "description": "PCB width in mm (default: 80.0).",
+                    "default": 80.0,
+                },
+                "board_height_mm": {
+                    "type": "number",
+                    "description": "PCB height in mm (default: 50.0).",
+                    "default": 50.0,
+                },
+                "board_mass_g": {
+                    "type": "number",
+                    "description": "Total assembled board mass in g (default: 60.0).",
+                    "default": 60.0,
+                },
+                "components": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "[{ref, mass_g, x_mm, y_mm, joint_count}] coordinates relative to board center.",
+                },
+                "test_g": {
+                    "type": "number",
+                    "description": "Peak shock level in G (default: 1500 per JESD22-B111).",
+                    "default": 1500.0,
+                },
+                "has_border_ring_stiffener": {
+                    "type": "boolean",
+                    "description": "True when a mid-frame/border ring anchors the board edge (default: False).",
+                    "default": False,
+                },
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **74 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **76 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -264,6 +264,8 @@ python -m client.mcp_server
 18e. `analyze_enig_plating`: ENIG/ENEPIG plating thickness and black-pad (nickel grain-boundary corrosion) risk auditor per IPC-4552A/4556 — verifies gold 0.05~0.20 μm, nickel 3.0~6.0 μm, phosphorus 7~10 wt%, and palladium 0.10~0.30 μm windows, scores galvanic corrosion susceptibility from rework cycles and process type, and flags gold >0.25 μm AuSn₄ embrittlement.
 18f. `estimate_solder_joint_thermal_fatigue`: IPC-9701A / IPC-D-279 Engelmaier thermal cycling fatigue life estimator — CTE-mismatch shear strain range over DNP, creep-aware cycle exponent (hot dwell + mean joint temperature), TC1~TC4 automotive/aerospace profiles, Nf(63.2%) vs service cycles for ceramic/large-DNP packages.
 18g. `plan_conformal_coating`: IPC-CC-830C / IPC-A-610G §10 conformal coating selector & masking keepout planner — AR/ER/UR (30-130 μm), SR (50-210 μm), XY (10-50 μm) thickness windows, field-rework conflict flags, and BOM-derived connector/testpoint/switch masking lists before selective-coating programming.
+18h. `predict_assembly_mtbf`: Telcordia SR-332 / MIL-HDBK-217F part-stress MTBF prediction — BOM auto-classified into Telcordia part classes with Arrhenius πT, quality πQ (levels 1-3), and environment πE (ground benign 1.0 to airborne 12.0); returns total FIT, MTBF hours/years, 5-year survival, and top-5 dominant contributors.
+18i. `assess_drop_shock_reliability`: JEDEC JESD22-B111 board-level drop shock assessor (1500 G / 0.5 ms, 30 drops) — per-component inertial joint loads, heavy-corner-zone flags, board natural frequency with border-ring awareness, and underfill/migration/boss-fastening mitigations.
 19. `export_kicad_schematic`: Export native modern KiCad 8/9 S-Expression schematic (.kicad_sch) directly viewable and editable in Eeschema with sheet layout and component symbols.
 20. `audit_supply_chain`: Supply chain multi-sourcing resilience auditor (ISO 9001 audit), identifying single-source bottlenecks and mapping pin-compatible second-source drop-in replacements with LCSC cross-references.
 21. `calculate_differential_skew`: High-speed differential pair intra-pair propagation delay skew solver (USB 2.0 HS ≤10ps, Ethernet ≤25ps, CAN-FD ≤50ps) with serpentine tuning geometry calculations.

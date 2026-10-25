@@ -1549,6 +1549,65 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 )
             )
 
+    # 52. MTBF_RELIABILITY_BUDGET_SHORTFALL (warning)：整机 MTBF 低于可靠性分配目标
+    meta_rel = modules.get("__meta__", {}) if modules else {}
+    mtbf_target_h = meta_rel.get("mtbf_target_hours")
+    if mtbf_target_h is not None and float(mtbf_target_h) > 0 and modules:
+        from .mtbf_predictor import predict_assembly_mtbf
+
+        rep_rel = predict_assembly_mtbf(
+            modules=modules,
+            ambient_temp_c=float(meta_rel.get("worst_ambient_c", 40.0)),
+            environment=str(meta_rel.get("reliability_environment", "ground_fixed")),
+            quality_level=int(meta_rel.get("quality_level", 2)),
+        )
+        if rep_rel.mtbf_hours < float(mtbf_target_h):
+            worst_share = (
+                f"（最大贡献: {rep_rel.dominant_parts[0]['part_class']} "
+                f"{rep_rel.dominant_parts[0]['share_pct']:.0f}%）"
+                if rep_rel.dominant_parts
+                else ""
+            )
+            issues.append(
+                _issue(
+                    "MTBF_RELIABILITY_BUDGET_SHORTFALL",
+                    "整机 MTBF 预测低于可靠性分配目标",
+                    f"Telcordia SR-332 part-stress 预测 MTBF {rep_rel.mtbf_hours:,.0f}h "
+                    f"({rep_rel.mtbf_hours / 8760.0:.1f} 年) < 目标 {float(mtbf_target_h):,.0f}h"
+                    f"{worst_share}；降额关键器件温升、提升质量等级或冗余设计后复算（Telcordia SR-332）。",
+                    "warning",
+                    "Telcordia SR-332 Issue 3 Part-Stress Reliability Prediction",
+                    object_id="sys:reliability",
+                )
+            )
+
+    # 53. DROP_SHOCK_HIGH_RISK_PLACEMENT (warning)：大质量器件板角高应变区跌落脆断
+    drop_comps = meta_rel.get("drop_test_components")
+    if isinstance(drop_comps, list) and drop_comps:
+        from .drop_shock import assess_drop_shock_reliability
+
+        rep_drop = assess_drop_shock_reliability(
+            board_width_mm=float(meta_rel.get("board_width_mm", 80.0)),
+            board_height_mm=float(meta_rel.get("board_height_mm", 50.0)),
+            board_mass_g=float(meta_rel.get("board_mass_g", 60.0)),
+            components=drop_comps,
+            test_g=float(meta_rel.get("drop_test_g", 1500.0)),
+        )
+        for c in rep_drop.components:
+            if c.risk_level == "high":
+                issues.append(
+                    _issue(
+                        "DROP_SHOCK_HIGH_RISK_PLACEMENT",
+                        "器件跌落冲击惯性过载高风险",
+                        f"器件 {c.ref} ({c.mass_g:.1f}g, {c.joint_count} 焊点) 在 1500G 脉冲下单点载荷 "
+                        f"{c.per_joint_load_n:.0f}N 且处于板角高应变区；"
+                        f"{c.mitigation}（JESD22-B111）。",
+                        "warning",
+                        "JEDEC JESD22-B111 Board-Level Drop Test Method",
+                        object_id=f"comp:{c.ref}",
+                    )
+                )
+
     return issues
 
 

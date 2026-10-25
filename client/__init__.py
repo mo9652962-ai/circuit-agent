@@ -39,6 +39,7 @@ from .circuit_blocks import (
 )
 from .conformal_coating import plan_conformal_coating
 from .copper_pour_analyzer import calculate_copper_pour_current_drop
+from .drop_shock import assess_drop_shock_reliability
 from .enig_plating_analyzer import analyze_enig_plating
 from .export_engine import (
     export_jlcpcb_bom,
@@ -62,6 +63,7 @@ from .ipc6012_auditor import audit_ipc6012_class_compliance
 from .lcsc_client import search_lcsc_parts
 from .mfg_validator import validate_manufacturing_package
 from .msl_manager import audit_component_msl_floor_life
+from .mtbf_predictor import predict_assembly_mtbf
 from .parametric_equations import (
     DividerResult,
     I2CPullUpResult,
@@ -79,7 +81,7 @@ from .smt_feeder_optimizer import optimize_smt_feeder_setup
 from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
 
-__version__ = "0.20.0"
+__version__ = "0.21.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -97,6 +99,7 @@ __all__ = [
     "analyze_enig_plating",
     "analyze_ionic_contamination",
     "apply_chip_pinout",
+    "assess_drop_shock_reliability",
     "audit_component_msl_floor_life",
     "audit_fab_capabilities",
     "audit_industrial_dfx",
@@ -142,6 +145,7 @@ __all__ = [
     "optimize_smt_feeder_setup",
     "plan_bare_board_test_parameters",
     "plan_conformal_coating",
+    "predict_assembly_mtbf",
     "register_chip_rule",
     "render_ascii_topology",
     "search_lcsc_parts",

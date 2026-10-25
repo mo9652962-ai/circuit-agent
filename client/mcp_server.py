@@ -1857,6 +1857,39 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_cc.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "predict_assembly_mtbf":
+            pc_arg = arguments.get("part_counts")
+            mods_arg = arguments.get("modules")
+            from .mtbf_predictor import predict_assembly_mtbf
+
+            rep_rel = predict_assembly_mtbf(
+                part_counts=pc_arg if isinstance(pc_arg, dict) else None,
+                modules=mods_arg if isinstance(mods_arg, dict) else None,
+                ambient_temp_c=float(arguments.get("ambient_temp_c", 40.0)),
+                environment=str(arguments.get("environment", "ground_fixed")),
+                quality_level=int(arguments.get("quality_level", 2)),
+                duty_cycle_derate=float(arguments.get("duty_cycle_derate", 1.0)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_rel.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "assess_drop_shock_reliability":
+            comps_arg = arguments.get("components")
+            from .drop_shock import assess_drop_shock_reliability
+
+            rep_drop = assess_drop_shock_reliability(
+                board_width_mm=float(arguments.get("board_width_mm", 80.0)),
+                board_height_mm=float(arguments.get("board_height_mm", 50.0)),
+                board_mass_g=float(arguments.get("board_mass_g", 60.0)),
+                components=comps_arg if isinstance(comps_arg, list) else None,
+                test_g=float(arguments.get("test_g", 1500.0)),
+                has_border_ring_stiffener=bool(arguments.get("has_border_ring_stiffener", False)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_drop.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
