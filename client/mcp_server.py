@@ -1926,6 +1926,33 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(budget.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_qfn_thermal_pad_stencil":
+            from .qfn_thermal_pad import calculate_qfn_thermal_pad_stencil
+
+            rep_qfn = calculate_qfn_thermal_pad_stencil(
+                pad_width_mm=float(arguments.get("pad_width_mm", 4.5)),
+                pad_height_mm=float(arguments.get("pad_height_mm", 4.5)),
+                target_coverage_pct=float(arguments.get("target_coverage_pct", 60.0)),
+                web_width_mm=float(arguments.get("web_width_mm", 0.20)),
+                has_unfilled_thermal_vias=bool(arguments.get("has_unfilled_thermal_vias", False)),
+                is_automotive_class3=bool(arguments.get("is_automotive_class3", False)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_qfn.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "audit_smt_tombstone_risk":
+            comps_arg = arguments.get("components")
+            from .tombstone_analyzer import audit_smt_tombstone_risk
+
+            rep_tomb = audit_smt_tombstone_risk(
+                components=comps_arg if isinstance(comps_arg, list) else None,
+                default_trace_width_mm=float(arguments.get("default_trace_width_mm", 0.20)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_tomb.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
