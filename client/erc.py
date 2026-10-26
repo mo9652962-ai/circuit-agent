@@ -1659,6 +1659,68 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                 )
             )
 
+    # 56. QFN_THERMAL_PAD_SOLID_PASTE_VOIDING_RISK (warning)：QFN/BTC 底部散热盘实心锡膏开孔气孔与倾斜风险
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        if any(b in pkg for b in ("QFN", "DFN", "POWERSTAGE", "WQFN")) or bool(m.get("has_exposed_thermal_slug", False)):
+            solid_paste = bool(m.get("solid_thermal_paste", False))
+            open_vias = bool(m.get("thermal_pad_open_vias", False))
+            if solid_paste or open_vias:
+                from .qfn_thermal_pad import calculate_qfn_thermal_pad_stencil
+
+                w_slug = float(m.get("thermal_pad_width_mm", 4.5))
+                h_slug = float(m.get("thermal_pad_height_mm", 4.5))
+                rep_qfn = calculate_qfn_thermal_pad_stencil(
+                    pad_width_mm=w_slug,
+                    pad_height_mm=h_slug,
+                    has_unfilled_thermal_vias=open_vias,
+                )
+                if solid_paste or not rep_qfn.is_coverage_compliant or open_vias:
+                    issues.append(
+                        _issue(
+                            "QFN_THERMAL_PAD_SOLID_PASTE_VOIDING_RISK",
+                            "QFN/BTC 散热盘实心开孔产生高气孔率与短路风险",
+                            f"器件 {ref} ({pkg}) 底部散热焊盘未做九宫格/窗口钢网开孔（预估回流焊空洞率达 "
+                            f"{rep_qfn.estimated_voiding_pct:.1f}%）；未逸出助焊剂蒸气将导致芯片漂移倾斜 "
+                            "并使锡膏挤出短路外圈引脚，须转为 50%~70% 矩阵网格开孔（IPC-7093A §4.5）。",
+                            "warning",
+                            "IPC-7093A Section 4.5 & IPC-7525A Stencil Window Guidelines",
+                            object_id=f"comp:{ref}",
+                        )
+                    )
+
+    # 57. SMT_PAD_THERMAL_IMBALANCE_TOMBSTONE_RISK (warning)：片式无源器件焊盘热不对称立碑风险
+    tomb_list = []
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        if any(c in pkg for c in ("0201", "0402", "0603", "0805", "1206")):
+            p1_type = str(m.get("pad1_connection_type", "trace")).lower()
+            p2_type = str(m.get("pad2_connection_type", "trace")).lower()
+            if (p1_type == "solid_plane" and p2_type != "solid_plane") or (p2_type == "solid_plane" and p1_type != "solid_plane"):
+                tomb_list.append({"ref": ref, "package": pkg, "pad1_type": p1_type, "pad2_type": p2_type})
+    if tomb_list:
+        from .tombstone_analyzer import audit_smt_tombstone_risk
+
+        rep_tomb = audit_smt_tombstone_risk(tomb_list)
+        for comp_risk in rep_tomb.at_risk_components:
+            if comp_risk.risk_level == "high":
+                issues.append(
+                    _issue(
+                        "SMT_PAD_THERMAL_IMBALANCE_TOMBSTONE_RISK",
+                        "无源片式元件焊盘热惯量不对称立碑风险",
+                        f"器件 {comp_risk.ref_des} ({comp_risk.package}) 单端直连大铺铜未加十字花焊隔离 "
+                        f"(热失配比 R={comp_risk.thermal_imbalance_ratio:.1f})；回流时表面张力扭矩失衡将把元件拉起竖立，"
+                        "必须在直连端铺铜添加 2~4 条 0.20mm 热隔离花焊辐条 (IPC-A-610G §8.3)。",
+                        "warning",
+                        "IPC-A-610G Section 8.3.2.9 & IPC-SM-782 Thermal Balance",
+                        object_id=f"comp:{comp_risk.ref_des}",
+                    )
+                )
+
     return issues
 
 

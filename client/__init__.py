@@ -83,7 +83,7 @@ from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
 from .via_current_solver import solve_via_current_array
 
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -106,6 +106,7 @@ __all__ = [
     "audit_fab_capabilities",
     "audit_industrial_dfx",
     "audit_ipc6012_class_compliance",
+    "audit_smt_tombstone_risk",
     "block_battery_tp4056",
     "block_button",
     "block_buzzer",
@@ -136,6 +137,7 @@ __all__ = [
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",
+    "calculate_qfn_thermal_pad_stencil",
     "calculate_rc_filter",
     "estimate_solder_joint_thermal_fatigue",
     "export_jlcpcb_bom",

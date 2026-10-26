@@ -3149,6 +3149,56 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "calculate_qfn_thermal_pad_stencil",
+        "description": (
+            "IPC-7093A / IPC-7525A QFN and BTC thermal slug window-pane stencil aperture solver: converts solid 100% "
+            "paste openings into an optimized matrix grid (50%~70% paste coverage, default 60%) separated by 0.15~0.25mm "
+            "bare copper web outgassing channels, preventing solder voiding (>35%), die floating, and perimeter bridging."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pad_width_mm": {"type": "number", "description": "Thermal slug width in mm (default: 4.5).", "default": 4.5},
+                "pad_height_mm": {"type": "number", "description": "Thermal slug height in mm (default: 4.5).", "default": 4.5},
+                "target_coverage_pct": {"type": "number", "description": "Target paste coverage percentage 50~70% (default: 60.0).", "default": 60.0},
+                "web_width_mm": {"type": "number", "description": "Outgassing web channel width in mm (default: 0.20).", "default": 0.20},
+                "has_unfilled_thermal_vias": {"type": "boolean", "description": "Whether open unfilled vias exist in the pad (default: False).", "default": False},
+                "is_automotive_class3": {"type": "boolean", "description": "Whether strict Class 3 / automotive voiding limit <=15% applies (default: False).", "default": False},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "audit_smt_tombstone_risk",
+        "description": (
+            "IPC-A-610G §8.3.2.9 / IPC-SM-782 SMT chip passive component thermal relief & tombstoning (Manhattan effect) "
+            "risk auditor: checks thermal connection width symmetry between opposite pads on 0201/0402/0603/0805 passives, "
+            "flagging direct solid plane connections without thermal relief spokes that create unbalanced wetting torque."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of passive component dicts ({ref, package, pad1_type, pad2_type, pad1_width_mm, pad2_width_mm}).",
+                },
+                "default_trace_width_mm": {"type": "number", "description": "Nominal signal trace width in mm (default: 0.20).", "default": 0.20},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

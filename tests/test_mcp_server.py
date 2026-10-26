@@ -123,7 +123,9 @@ def test_mcp_tools_list():
     assert "assess_drop_shock_reliability" in tool_names
     assert "solve_via_current_array" in tool_names
     assert "budget_fab_order" in tool_names
-    assert len(tools) == 78
+    assert "calculate_qfn_thermal_pad_stencil" in tool_names
+    assert "audit_smt_tombstone_risk" in tool_names
+    assert len(tools) == 80
 
 
 def test_mcp_tool_call_synthesize():
