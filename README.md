@@ -190,7 +190,7 @@ for comp in blk.components:
 
 CircuitAgent 内置标准 JSON-RPC 2.0 stdio MCP Server，基于纯 Python 标准库构建（无需任何第三方 pip 库），可无缝接入 **Claude Desktop**、**Cursor** 或 **Windsurf**。
 
-当前暴露 **80 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
+当前暴露 **82 个工具**、8 个资源（`circuit://` URI）与 4 个工程提示词（slash-command）。
 
 ### 协议版本：MCP `2026-07-28`
 
@@ -274,6 +274,8 @@ python -m client.mcp_server
 18k. `budget_fab_order`: JLCPCB / PCBWay 无头下单离线预算与提交清单构建器——纯 stdlib 对公开价格阶梯 (层板/数量/面积/表面工艺/SMT/运费/加急) 做跨厂商比价，生成制造交付件 SHA-256 防篡改提交账本；零网络零密钥，macOS 笔记本与 Docker CI runner 通吃。
 18l. `calculate_qfn_thermal_pad_stencil`: IPC-7093A / IPC-7525A QFN 与 BTC 底部大散热盘窗口式 (Window-Pane) 钢网开孔求解器——将实心 100% 锡膏开孔自动转换为 50%~70% 阵列网格，规划 0.15~0.25mm 裸铜排气逃气通道，防止回流焊巨型空洞 (>35%)、芯片漂移倾斜与周边引脚连锡短路。
 18m. `audit_smt_tombstone_risk`: IPC-A-610G §8.3.2.9 / IPC-SM-782 片式无源元件焊盘热对称性与立碑 (曼哈顿效应) 风险审计器——逐项比对 0201/0402/0603 阻容两端引出导线截面与大铺铜热惯量差异，强制要求单端直连铺铜添加 2~4 条 0.20mm 热隔离花焊辐条 (Thermal Relief) 以消除表面张力翻转力矩。
+18n. `calculate_castellated_pad_geometry`: IPC-A-600J §2.9 / IPC-6012E §3.6.3 板边半孔包边镀铜 (Castellated Hole) 加工性求解器——核验最小成型孔径 (≥0.80mm)、外形铣削对中偏移 (|Δ|≤0.05mm)、内延焊盘长度 (≥0.50mm) 与孔壁镀铜厚度 (≥20μm)，防止邮票孔子板分板时铜皮撕脱与毛刺飞边。
+18o. `calculate_pcb_bow_and_twist`: IPC-TM-650 2.4.22 / IPC-6012E §3.4.4 PCB 板弯板翘与热机械平面度分析器——评估介质叠层不对称度与上下层铺铜密度梯度在回流降温时激发的双金属弯曲残余应力，严格对标 SMT 装配 ≤0.75% 门限，消除 BGA 枕头效应 (HiP)、空焊与立碑缺陷。
 19. `export_kicad_schematic`: 导出原生现代 KiCad 8/9 S-Expression 原理图文件 (.kicad_sch)，支持在 Eeschema 中直接以可视化原理图打开编辑（含器件符号排布、属性及图框）。
 20. `audit_supply_chain`: 供应链多源弹性审计器（ISO 9001 采购供应链审计），自动排查单源卡脖子器件并映射引脚完全兼容的第二货源替代料 (Drop-in Second-Source) 与立创商城编号。
 21. `calculate_differential_skew`: 高速差分对等长与时延差约束求解器（USB 2.0 HS ≤10ps、以太网 ≤25ps、CAN-FD ≤50ps），反求目标等长差与蛇形绕线 (Serpentine tuning) 齿数与几何尺寸。

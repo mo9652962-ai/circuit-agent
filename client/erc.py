@@ -1721,6 +1721,63 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     )
                 )
 
+    # 58. CASTELLATED_HOLE_FAB_VIOLATION (warning)：半孔包边镀铜孔径过小或环宽不足致撕铜
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        if bool(props.get("is_castellated", False)):
+            from .castellated_pads import calculate_castellated_pad_geometry
+
+            rep_cas = calculate_castellated_pad_geometry(
+                hole_drill_diameter_mm=float(props.get("castellated_drill_mm", 1.0)),
+                center_to_edge_offset_mm=float(props.get("centerline_offset_mm", 0.0)),
+                pad_inward_length_mm=float(props.get("pad_inward_length_mm", 0.8)),
+                pad_pitch_mm=float(props.get("pad_pitch_mm", 2.0)),
+                copper_plating_thickness_um=float(props.get("copper_plating_um", 25.0)),
+            )
+            if not rep_cas.is_manufacturable:
+                v_desc = "; ".join(rep_cas.violations)
+                issues.append(
+                    _issue(
+                        "CASTELLATED_HOLE_FAB_VIOLATION",
+                        "板边半孔包边镀铜孔径/内延环宽不满足加工标准",
+                        f"网络 {net_name} 邮票半孔存在加工缺陷风险: {v_desc}；"
+                        "成型铣刀铣削边缘时将撕脱孔壁铜皮或产生飞边短路（IPC-A-600J §2.9 & IPC-6012E §3.6.3）。",
+                        "warning",
+                        "IPC-A-600J §2.9 & IPC-6012E §3.6.3 Castellated Hole Rules",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 59. STACKUP_ASYMMETRY_WARPAGE_RISK (warning)：叠层与铺铜不对称导致回流焊板弯板翘超限
+    meta_warp = modules.get("__meta__", {}) if modules else {}
+    cu_ratio = meta_warp.get("copper_balance_ratio")
+    diel_asym = meta_warp.get("dielectric_asymmetry_pct")
+    if cu_ratio is not None or diel_asym is not None:
+        from .bow_and_twist import calculate_pcb_bow_and_twist
+
+        rep_warp = calculate_pcb_bow_and_twist(
+            board_length_mm=float(meta_warp.get("board_length_mm", 100.0)),
+            board_width_mm=float(meta_warp.get("board_width_mm", 80.0)),
+            board_thickness_mm=float(meta_warp.get("board_thickness_mm", 1.6)),
+            has_smt_components=bool(meta_warp.get("has_smt_components", True)),
+            copper_balance_ratio_top_bottom=float(cu_ratio or 1.0),
+            dielectric_asymmetry_pct=float(diel_asym or 0.0),
+        )
+        if not rep_warp.is_compliant:
+            issues.append(
+                _issue(
+                    "STACKUP_ASYMMETRY_WARPAGE_RISK",
+                    "PCB 叠层热机械不对称导致板弯板翘超限",
+                    f"预估板弯 Bow={rep_warp.calculated_bow_pct:.2f}%, 板翘 Twist={rep_warp.calculated_twist_pct:.2f}% "
+                    f"超出 IPC-6012E SMT 限值 ({rep_warp.max_allowable_pct:.2f}%)；"
+                    "260°C 回流冷却双金属热应力将导致 BGA 枕头效应 (HiP)、空焊与锡膏漏印（IPC-TM-650 2.4.22）。",
+                    "warning",
+                    "IPC-6012E §3.4.4 Table 3-3 & IPC-TM-650 2.4.22 Bow and Twist Limits",
+                    object_id="stackup:warpage",
+                )
+            )
+
     return issues
 
 

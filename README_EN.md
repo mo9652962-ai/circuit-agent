@@ -189,7 +189,7 @@ declared component, and every block ties to `/GND`.
 
 CircuitAgent bundles a standards-compliant JSON-RPC 2.0 stdio MCP Server written in pure Python standard library (zero external pip packages required). It connects out of the box with **Claude Desktop**, **Cursor**, and **Windsurf**.
 
-It currently exposes **80 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
+It currently exposes **82 tools**, 8 resources (`circuit://` URIs) and 4 engineering prompts (slash-commands).
 
 ### Protocol revision: MCP `2026-07-28`
 
@@ -270,6 +270,8 @@ python -m client.mcp_server
 18k. `budget_fab_order`: JLCPCB / PCBWay headless order offline budget & submission manifest builder — pure-stdlib cross-vendor math over public price ladders (layers/qty/area/finish/SMT/shipping/lead), SHA-256 tamper-evident manifest over manufacturing artifacts; zero network, zero keys, runs on macOS laptops and Docker CI runners.
 18l. `calculate_qfn_thermal_pad_stencil`: IPC-7093A / IPC-7525A QFN and BTC bottom thermal slug window-pane stencil aperture solver — converts solid 100% paste coverage into an optimized 50%~70% matrix array with 0.15~0.25mm bare-copper outgassing channels, preventing solder voiding (>35%), die floating, and perimeter bridging.
 18m. `audit_smt_tombstone_risk`: IPC-A-610G §8.3.2.9 / IPC-SM-782 SMT chip passive component thermal symmetry and tombstoning (Manhattan effect) risk auditor — checks heat dissipation balance across opposing terminations on 0201/0402/0603 passives, mandating thermal relief spokes on direct plane connections to eliminate unbalanced wetting capillary torque.
+18n. `calculate_castellated_pad_geometry`: IPC-A-600J §2.9 / IPC-6012E §3.6.3 castellated hole (edge plating half-hole) manufacturability solver — verifies minimum finished drill diameter (>=0.80mm), centerline routing cut offset (|delta| <= 0.05mm), inward pad extension (>=0.50mm), and barrel copper thickness (>=20μm) to prevent copper tearout and burrs during daughterboard depaneling.
+18o. `calculate_pcb_bow_and_twist`: IPC-TM-650 2.4.22 / IPC-6012E §3.4.4 PCB bow and twist (warpage & flatness) analyzer — evaluates residual bimetallic thermal curvature driven by dielectric stackup core/prepreg asymmetry and copper density gradients, enforcing strict <=0.75% limit for SMT assemblies to prevent BGA Head-in-Pillow (HiP) open defects and tombstoning.
 19. `export_kicad_schematic`: Export native modern KiCad 8/9 S-Expression schematic (.kicad_sch) directly viewable and editable in Eeschema with sheet layout and component symbols.
 20. `audit_supply_chain`: Supply chain multi-sourcing resilience auditor (ISO 9001 audit), identifying single-source bottlenecks and mapping pin-compatible second-source drop-in replacements with LCSC cross-references.
 21. `calculate_differential_skew`: High-speed differential pair intra-pair propagation delay skew solver (USB 2.0 HS ≤10ps, Ethernet ≤25ps, CAN-FD ≤50ps) with serpentine tuning geometry calculations.

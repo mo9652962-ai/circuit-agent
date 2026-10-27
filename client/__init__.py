@@ -1,6 +1,8 @@
 """CircuitAgent Public Client & Specification Package."""
 
 from .bare_board_test_planner import plan_bare_board_test_parameters
+from .bow_and_twist import calculate_pcb_bow_and_twist
+from .castellated_pads import calculate_castellated_pad_geometry
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
@@ -83,7 +85,7 @@ from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
 from .via_current_solver import solve_via_current_array
 
-__version__ = "0.23.0"
+__version__ = "0.24.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -132,11 +134,13 @@ __all__ = [
     "block_usb_c_power",
     "block_watchdog_supervisor",
     "budget_fab_order",
+    "calculate_castellated_pad_geometry",
     "calculate_copper_pour_current_drop",
     "calculate_high_speed_skin_depth_loss",
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",
+    "calculate_pcb_bow_and_twist",
     "calculate_qfn_thermal_pad_stencil",
     "calculate_rc_filter",
     "estimate_solder_joint_thermal_fatigue",

@@ -3199,6 +3199,62 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "calculate_castellated_pad_geometry",
+        "description": (
+            "IPC-A-600J §2.9 / IPC-6012E §3.6.3 castellated hole (edge plating half-hole) manufacturability solver: "
+            "verifies minimum finished hole diameter (>=0.80mm), centerline routing cut offset (|delta| <= 0.05mm), "
+            "minimum inward pad extension (>=0.50mm), pitch (>=1.27mm), and barrel copper plating thickness (>=20μm) "
+            "to prevent copper barrel tearout and burrs during daughterboard depaneling."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "hole_drill_diameter_mm": {"type": "number", "description": "Finished drill diameter in mm (default: 1.00).", "default": 1.00},
+                "center_to_edge_offset_mm": {"type": "number", "description": "Cutter path offset from hole center in mm (default: 0.00).", "default": 0.00},
+                "pad_inward_length_mm": {"type": "number", "description": "Inward annular pad extension from board edge in mm (default: 0.80).", "default": 0.80},
+                "pad_width_mm": {"type": "number", "description": "Pad width along board perimeter in mm (default: 0.80).", "default": 0.80},
+                "pad_pitch_mm": {"type": "number", "description": "Center-to-center pitch between adjacent holes in mm (default: 2.00).", "default": 2.00},
+                "copper_plating_thickness_um": {"type": "number", "description": "Barrel copper plating thickness in μm (default: 25.0).", "default": 25.0},
+                "solder_mask_clearance_mm": {"type": "number", "description": "Solder mask relief opening margin in mm (default: 0.080).", "default": 0.080},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_pcb_bow_and_twist",
+        "description": (
+            "IPC-TM-650 2.4.22 / IPC-6012E §3.4.4 PCB bow and twist (warpage & flatness) analyzer: evaluates "
+            "residual bimetallic thermal curvature driven by dielectric stackup core/prepreg asymmetry and copper "
+            "density gradients, enforcing strict <=0.75% limit for SMT assemblies to prevent BGA Head-in-Pillow (HiP) "
+            "open defects and tombstoning."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "board_length_mm": {"type": "number", "description": "Board longest edge in mm (default: 100.0).", "default": 100.0},
+                "board_width_mm": {"type": "number", "description": "Board shortest edge in mm (default: 80.0).", "default": 80.0},
+                "board_thickness_mm": {"type": "number", "description": "Total PCB thickness in mm (default: 1.60).", "default": 1.60},
+                "layer_count": {"type": "integer", "description": "Total layer count (default: 4).", "default": 4},
+                "has_smt_components": {"type": "boolean", "description": "Whether assembly contains SMT parts <=0.75% (default: True).", "default": True},
+                "copper_balance_ratio_top_bottom": {"type": "number", "description": "Top-to-bottom copper volume ratio (default: 1.0).", "default": 1.0},
+                "dielectric_asymmetry_pct": {"type": "number", "description": "Dielectric core/prepreg thickness asymmetry % (default: 0.0).", "default": 0.0},
+                "measured_bow_height_mm": {"type": "number", "description": "Optional measured dial-gauge bow deflection in mm."},
+                "measured_twist_height_mm": {"type": "number", "description": "Optional measured corner lift in mm."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

@@ -1953,6 +1953,42 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_tomb.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "calculate_castellated_pad_geometry":
+            from .castellated_pads import calculate_castellated_pad_geometry
+
+            rep_cas = calculate_castellated_pad_geometry(
+                hole_drill_diameter_mm=float(arguments.get("hole_drill_diameter_mm", 1.00)),
+                center_to_edge_offset_mm=float(arguments.get("center_to_edge_offset_mm", 0.00)),
+                pad_inward_length_mm=float(arguments.get("pad_inward_length_mm", 0.80)),
+                pad_width_mm=float(arguments.get("pad_width_mm", 0.80)),
+                pad_pitch_mm=float(arguments.get("pad_pitch_mm", 2.00)),
+                copper_plating_thickness_um=float(arguments.get("copper_plating_thickness_um", 25.0)),
+                solder_mask_clearance_mm=float(arguments.get("solder_mask_clearance_mm", 0.080)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_cas.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_pcb_bow_and_twist":
+            bow_h = arguments.get("measured_bow_height_mm")
+            twist_h = arguments.get("measured_twist_height_mm")
+            from .bow_and_twist import calculate_pcb_bow_and_twist
+
+            rep_warp = calculate_pcb_bow_and_twist(
+                board_length_mm=float(arguments.get("board_length_mm", 100.0)),
+                board_width_mm=float(arguments.get("board_width_mm", 80.0)),
+                board_thickness_mm=float(arguments.get("board_thickness_mm", 1.60)),
+                layer_count=int(arguments.get("layer_count", 4)),
+                has_smt_components=bool(arguments.get("has_smt_components", True)),
+                copper_balance_ratio_top_bottom=float(arguments.get("copper_balance_ratio_top_bottom", 1.0)),
+                dielectric_asymmetry_pct=float(arguments.get("dielectric_asymmetry_pct", 0.0)),
+                measured_bow_height_mm=float(bow_h) if bow_h is not None else None,
+                measured_twist_height_mm=float(twist_h) if twist_h is not None else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_warp.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
