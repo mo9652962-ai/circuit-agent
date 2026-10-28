@@ -3,8 +3,6 @@
 from .bare_board_test_planner import plan_bare_board_test_parameters
 from .bow_and_twist import calculate_pcb_bow_and_twist
 from .castellated_pads import calculate_castellated_pad_geometry
-from .smt_nozzle_selector import audit_smt_nozzle_selection
-from .trace_fusing_current import calculate_trace_fusing_current
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
@@ -83,8 +81,10 @@ from .parametric_equations import (
 )
 from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
+from .smt_nozzle_selector import audit_smt_nozzle_selection
 from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
+from .trace_fusing_current import calculate_trace_fusing_current
 from .via_current_solver import solve_via_current_array
 
 __version__ = "0.25.0"
