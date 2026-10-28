@@ -1,0 +1,12 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties: {}
+  commandFunction: |-
+    (config) => ({
+      command: 'uvx',
+      args: ['--from', 'circuit-agent-client', 'circuit-agent-mcp']
+    })
