@@ -1,25 +1,38 @@
 name: Publish to MCP Registry
 
-# 与 PyPI publish 同 tag 触发。先等 PyPI 新版本上线（Registry 的所有权校验读取
-# PyPI 描述中的 mcp-name 标记），再向官方 Registry（registry.modelcontextprotocol.io）
-# 登记。GitHub OIDC 免 token（server.json 命名 io.github/{owner}/ 前缀）。
+# 在 "Publish to PyPI" 成功完成后再触发（workflow_run），而不是与它同 tag 并行启动。
+# 原因：PyPI 发布前的测试 job 约需 2.5 小时，旧版本同 tag 触发、只等 6 分钟，
+# 首次运行必然因 PyPI 404 失败（v0.18–v0.25 均如此，只能手动 rerun）。
+# Registry 的所有权校验读取 PyPI 描述中的 mcp-name 标记，所以必须等 PyPI 新版本上线。
+# GitHub OIDC 免 token（server.json 命名 io.github/{owner}/ 前缀）。
+# 手动补发：workflow_dispatch 并在 ref 输入里填 tag（如 v0.25.0），留空则用所选分支。
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["Publish to PyPI"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "要发布的 tag / commit（如 v0.25.0），留空=所选分支"
+        required: false
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   publish:
+    # workflow_run 触发时只在 PyPI 发布成功后继续
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write # MCP Registry GitHub OIDC 认证
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # workflow_run：检出触发 PyPI 发布的那个 commit（tag 指向的 commit）
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || github.ref }}
 
       - name: Sync server.json version from pyproject
         run: |
@@ -31,12 +44,12 @@ jobs:
         run: |
           PKG=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['name'])")
           VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
-          for i in $(seq 1 36); do
+          for i in $(seq 1 60); do
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/$PKG/$VERSION/json")
             if [ "$code" = "200" ]; then echo "PyPI $PKG@$VERSION ready"; exit 0; fi
-            echo "waiting for PyPI ($i/36): $code"; sleep 10
+            echo "waiting for PyPI ($i/60): $code"; sleep 10
           done
-          echo "PyPI release not visible in 6min"; exit 1
+          echo "PyPI release not visible in 10min"; exit 1
 
       - name: Install mcp-publisher
         run: |
