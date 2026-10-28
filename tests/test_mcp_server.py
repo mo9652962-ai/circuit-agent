@@ -127,7 +127,9 @@ def test_mcp_tools_list():
     assert "audit_smt_tombstone_risk" in tool_names
     assert "calculate_castellated_pad_geometry" in tool_names
     assert "calculate_pcb_bow_and_twist" in tool_names
-    assert len(tools) == 82
+    assert "audit_smt_nozzle_selection" in tool_names
+    assert "calculate_trace_fusing_current" in tool_names
+    assert len(tools) == 84
 
 
 def test_mcp_tool_call_synthesize():

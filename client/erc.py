@@ -58,6 +58,8 @@
 - PRESS_FIT_PTH_TOLERANCE_VIOLATION (warning)：无焊压接鱼眼针过孔成品孔径偏离 0.94~1.09mm 或孔铜 < 25μm，机械开裂或微动磨损断路（IPC-9797 / IEC 60352-5）。
 - FAB_CAPABILITY_LIMIT_EXCEEDED (warning)：走线线宽、线距或过孔钻孔低于板厂基础制程能力下限，工程 CAM 预审驳回（IPC-6012）。
 - SILKSCREEN_OVER_EXPOSED_COPPER (warning)：丝印层文字/图形覆盖到裸露焊盘铜皮上，阻焊与润湿不良引发焊接虚焊缺陷（IPC-A-600J / IPC-7351B）。
+- SMT_PICK_AND_PLACE_NOZZLE_MISMATCH (warning)：贴片机吸嘴外径过大导致料带口袋/邻近器件碰撞或内孔过大真空泄漏飞件（EIA-481 & Juki/Yamaha 标准）。
+- CONDUCTOR_FUSING_BURNOUT_RISK (warning)：走线短路脉冲热能量突破 FR-4 爆板分层极限或与上游保险丝配合失调充当牺牲熔丝（IPC-2152 §5.3 / Onderdonk 方程）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -1777,6 +1779,122 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     object_id="stackup:warpage",
                 )
             )
+
+    # 60. SMT_PICK_AND_PLACE_NOZZLE_MISMATCH (warning)：贴片机吸嘴选型不匹配致抛料撞件或真空泄漏
+    from .smt_nozzle_selector import audit_smt_nozzle_selection
+
+    meta_nozzle = modules.get("__meta__", {}).get("smt_nozzle_audit") if modules else None
+    if meta_nozzle:
+        for n_item in (meta_nozzle if isinstance(meta_nozzle, list) else [meta_nozzle]):
+            rep_noz = audit_smt_nozzle_selection(
+                component_designator=n_item.get("designator", "U1"),
+                package_type=n_item.get("package", "0603"),
+                component_length_mm=n_item.get("length_mm"),
+                component_width_mm=n_item.get("width_mm"),
+                component_height_mm=n_item.get("height_mm"),
+                component_mass_mg=n_item.get("mass_mg"),
+                specified_nozzle_model=n_item.get("nozzle_model"),
+                vacuum_pressure_kpa=float(n_item.get("vacuum_kpa", 70.0)),
+                head_acceleration_g=float(n_item.get("acceleration_g", 3.5)),
+            )
+            if not rep_noz.is_suitable:
+                issues.append(
+                    _issue(
+                        "SMT_PICK_AND_PLACE_NOZZLE_MISMATCH",
+                        "SMT 贴片机吸嘴外径过大碰撞或内径过大真空泄漏",
+                        f"器件 {rep_noz.component_designator} ({rep_noz.package_type}) 吸嘴选型冲突: "
+                        f"{'; '.join(rep_noz.violations)} "
+                        f"(OD={rep_noz.nozzle_outer_diameter_mm}mm, ID={rep_noz.nozzle_inner_diameter_mm}mm, 动载SF={rep_noz.dynamic_safety_factor})；"
+                        "贴装将引发料带口袋撞件或转塔高速旋转甩料（EIA-481 & Juki/Yamaha 标准）。",
+                        "warning",
+                        "EIA-481 & Juki/Yamaha SMT Placement Nozzle Guidelines",
+                        object_id=f"part:{rep_noz.component_designator}",
+                    )
+                )
+    if modules:
+        for des, m_info in modules.items():
+            if des.startswith("__"):
+                continue
+            if not isinstance(m_info, dict):
+                continue
+            noz_model = m_info.get("nozzle_model") or m_info.get("specified_nozzle")
+            if noz_model:
+                rep_noz = audit_smt_nozzle_selection(
+                    component_designator=des,
+                    package_type=m_info.get("package", "0603"),
+                    component_length_mm=m_info.get("length_mm"),
+                    component_width_mm=m_info.get("width_mm"),
+                    component_height_mm=m_info.get("height_mm"),
+                    component_mass_mg=m_info.get("mass_mg"),
+                    specified_nozzle_model=noz_model,
+                )
+                if not rep_noz.is_suitable:
+                    issues.append(
+                        _issue(
+                            "SMT_PICK_AND_PLACE_NOZZLE_MISMATCH",
+                            "SMT 贴片机吸嘴外径过大碰撞或内径过大真空泄漏",
+                            f"器件 {des} 吸嘴选型冲突: {'; '.join(rep_noz.violations)}；"
+                            "高速下压与转塔旋转将引发飞料抛件（EIA-481）。",
+                            "warning",
+                            "EIA-481 & Juki/Yamaha SMT Placement Nozzle Guidelines",
+                            object_id=f"part:{des}",
+                        )
+                    )
+
+    # 61. CONDUCTOR_FUSING_BURNOUT_RISK (warning)：PCB 走线短路脉冲热能量超限起泡碳化与保险丝配合失调
+    from .trace_fusing_current import calculate_trace_fusing_current
+
+    meta_fuse = modules.get("__meta__", {}).get("trace_fusing_audit") if modules else None
+    if meta_fuse:
+        for f_item in (meta_fuse if isinstance(meta_fuse, list) else [meta_fuse]):
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(f_item.get("trace_width_mm", 0.5)),
+                copper_thickness_um=float(f_item.get("copper_thickness_um", 35.0)),
+                trace_layer=str(f_item.get("trace_layer", "external")),
+                fault_current_a=float(f_item.get("fault_current_a", 15.0)),
+                pulse_duration_s=float(f_item.get("pulse_duration_s", 0.1)),
+                upstream_fuse_rating_a=f_item.get("upstream_fuse_rating_a"),
+                upstream_fuse_i2t_a2s=f_item.get("upstream_fuse_i2t_a2s"),
+            )
+            if not rep_fuse.is_safe:
+                issues.append(
+                    _issue(
+                        "CONDUCTOR_FUSING_BURNOUT_RISK",
+                        "PCB 走线短路过流耐受不足致基材分层起泡或充当牺牲熔丝",
+                        f"网络走线短路故障热核算未通过: {'; '.join(rep_fuse.violations)} "
+                        f"(短时极限={rep_fuse.fr4_delamination_current_a:.1f}A, 动作积分 I²t={rep_fuse.action_integral_i2t_a2s:.2f}A²s)；"
+                        "短路时将引起基板碳化起火或铜箔爆裂开路（IPC-2152 §5.3 / Onderdonk 方程）。",
+                        "warning",
+                        "IPC-2152 §5.3 & Onderdonk Conductor Fusing Equation",
+                        object_id="trace:fusing",
+                    )
+                )
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        fault_cur = props.get("fault_current_a")
+        if fault_cur is not None:
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(props.get("trace_width_mm", 0.3)),
+                copper_thickness_um=float(props.get("copper_thickness_um", 35.0)),
+                trace_layer=str(props.get("trace_layer", "external")),
+                fault_current_a=float(fault_cur),
+                pulse_duration_s=float(props.get("pulse_duration_s", 0.1)),
+                upstream_fuse_rating_a=props.get("upstream_fuse_rating_a"),
+                upstream_fuse_i2t_a2s=props.get("upstream_fuse_i2t_a2s"),
+            )
+            if not rep_fuse.is_safe:
+                issues.append(
+                    _issue(
+                        "CONDUCTOR_FUSING_BURNOUT_RISK",
+                        "PCB 走线短路过流耐受不足致基材分层起泡或充当牺牲熔丝",
+                        f"网络 {net_name} 短路过流热耐受不足: {'; '.join(rep_fuse.violations)}；"
+                        "强短路冲击下铜线将先于保险丝起火烧断（IPC-2152 §5.3）。",
+                        "warning",
+                        "IPC-2152 §5.3 & Onderdonk Conductor Fusing Equation",
+                        object_id=f"net:{net_name}",
+                    )
+                )
 
     return issues
 
