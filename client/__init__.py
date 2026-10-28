@@ -3,6 +3,8 @@
 from .bare_board_test_planner import plan_bare_board_test_parameters
 from .bow_and_twist import calculate_pcb_bow_and_twist
 from .castellated_pads import calculate_castellated_pad_geometry
+from .smt_nozzle_selector import audit_smt_nozzle_selection
+from .trace_fusing_current import calculate_trace_fusing_current
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
@@ -85,7 +87,7 @@ from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
 from .via_current_solver import solve_via_current_array
 
-__version__ = "0.24.0"
+__version__ = "0.25.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -108,6 +110,7 @@ __all__ = [
     "audit_fab_capabilities",
     "audit_industrial_dfx",
     "audit_ipc6012_class_compliance",
+    "audit_smt_nozzle_selection",
     "audit_smt_tombstone_risk",
     "block_battery_tp4056",
     "block_button",
@@ -143,6 +146,7 @@ __all__ = [
     "calculate_pcb_bow_and_twist",
     "calculate_qfn_thermal_pad_stencil",
     "calculate_rc_filter",
+    "calculate_trace_fusing_current",
     "estimate_solder_joint_thermal_fatigue",
     "export_jlcpcb_bom",
     "export_jlcpcb_cpl",

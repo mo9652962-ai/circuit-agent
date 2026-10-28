@@ -3255,6 +3255,65 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "audit_smt_nozzle_selection",
+        "description": (
+            "EIA-481 & Juki/Yamaha/Fuji/Panasonic SMT pick-and-place nozzle selector & vacuum audit: verifies "
+            "nozzle outer diameter (OD) clearances against tape pocket walls and component margins, inner diameter (ID) "
+            "vacuum seal against leakage, and dynamic inertial hold safety factor (SF >= 1.5) under 3G~5G head acceleration "
+            "to eliminate pick failure and fly-off."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "component_designator": {"type": "string", "description": "Component designator (default: 'U1').", "default": "U1"},
+                "package_type": {"type": "string", "description": "Package designation (e.g. '0402', '0603', 'SOT-23', 'QFN-32').", "default": "0603"},
+                "component_length_mm": {"type": "number", "description": "Component length in mm."},
+                "component_width_mm": {"type": "number", "description": "Component width in mm."},
+                "component_height_mm": {"type": "number", "description": "Component height in mm."},
+                "component_mass_mg": {"type": "number", "description": "Component mass in milligrams."},
+                "specified_nozzle_model": {"type": "string", "description": "Optional explicit nozzle model (e.g. 'Juki-502', 'Yamaha-302A')."},
+                "vacuum_pressure_kpa": {"type": "number", "description": "Factory vacuum pressure in kPa (default: 70.0).", "default": 70.0},
+                "head_acceleration_g": {"type": "number", "description": "Head acceleration in G (default: 3.5).", "default": 3.5},
+                "friction_coefficient": {"type": "number", "description": "Surface friction coefficient (default: 0.30).", "default": 0.30},
+                "vendor_preference": {"type": "string", "description": "Vendor preference ('Juki', 'Yamaha', 'Fuji').", "default": "Juki"},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_trace_fusing_current",
+        "description": (
+            "IPC-2152 §5.3 & Onderdonk equation short-time transient conductor fusing current and burnout solver: "
+            "computes adiabatic fusing current, time-to-melt, FR-4 resin delamination/blister threshold, and Joule action "
+            "integral (I²t) for internal/external traces, verifying upstream fuse/PTC protection coordination margin (>=2.0x) "
+            "against electrical fire."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trace_width_mm": {"type": "number", "description": "Trace width in mm (default: 0.50).", "default": 0.50},
+                "copper_thickness_um": {"type": "number", "description": "Copper thickness in μm (default: 35.0 for 1oz).", "default": 35.0},
+                "trace_layer": {"type": "string", "description": "Layer type ('external' or 'internal') (default: 'external').", "default": "external"},
+                "fault_current_a": {"type": "number", "description": "Estimated short-circuit fault current in Amperes (default: 15.0).", "default": 15.0},
+                "pulse_duration_s": {"type": "number", "description": "Fault pulse duration in seconds (default: 0.10).", "default": 0.10},
+                "ambient_temp_c": {"type": "number", "description": "Initial ambient temperature in °C (default: 25.0).", "default": 25.0},
+                "upstream_fuse_rating_a": {"type": "number", "description": "Optional upstream fuse rated current in Amperes."},
+                "upstream_fuse_i2t_a2s": {"type": "number", "description": "Optional upstream fuse rated melting I²t in A²s."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

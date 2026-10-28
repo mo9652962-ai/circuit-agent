@@ -1989,6 +1989,47 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_warp.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "audit_smt_nozzle_selection":
+            from .smt_nozzle_selector import audit_smt_nozzle_selection
+
+            rep_noz = audit_smt_nozzle_selection(
+                component_designator=str(arguments.get("component_designator", "U1")),
+                package_type=str(arguments.get("package_type", "0603")),
+                component_length_mm=float(arguments["component_length_mm"]) if "component_length_mm" in arguments and arguments["component_length_mm"] is not None else None,
+                component_width_mm=float(arguments["component_width_mm"]) if "component_width_mm" in arguments and arguments["component_width_mm"] is not None else None,
+                component_height_mm=float(arguments["component_height_mm"]) if "component_height_mm" in arguments and arguments["component_height_mm"] is not None else None,
+                component_mass_mg=float(arguments["component_mass_mg"]) if "component_mass_mg" in arguments and arguments["component_mass_mg"] is not None else None,
+                specified_nozzle_model=str(arguments["specified_nozzle_model"]) if "specified_nozzle_model" in arguments and arguments["specified_nozzle_model"] is not None else None,
+                vacuum_pressure_kpa=float(arguments.get("vacuum_pressure_kpa", 70.0)),
+                head_acceleration_g=float(arguments.get("head_acceleration_g", 3.5)),
+                friction_coefficient=float(arguments.get("friction_coefficient", 0.30)),
+                vendor_preference=str(arguments.get("vendor_preference", "Juki")),
+            )
+            import dataclasses
+            return {
+                "content": [{"type": "text", "text": json.dumps(dataclasses.asdict(rep_noz), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_trace_fusing_current":
+            from .trace_fusing_current import calculate_trace_fusing_current
+
+            fuse_r = arguments.get("upstream_fuse_rating_a")
+            fuse_i2t = arguments.get("upstream_fuse_i2t_a2s")
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(arguments.get("trace_width_mm", 0.50)),
+                copper_thickness_um=float(arguments.get("copper_thickness_um", 35.0)),
+                trace_layer=str(arguments.get("trace_layer", "external")),
+                fault_current_a=float(arguments.get("fault_current_a", 15.0)),
+                pulse_duration_s=float(arguments.get("pulse_duration_s", 0.10)),
+                ambient_temp_c=float(arguments.get("ambient_temp_c", 25.0)),
+                upstream_fuse_rating_a=float(fuse_r) if fuse_r is not None else None,
+                upstream_fuse_i2t_a2s=float(fuse_i2t) if fuse_i2t is not None else None,
+            )
+            import dataclasses
+            return {
+                "content": [{"type": "text", "text": json.dumps(dataclasses.asdict(rep_fuse), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}
