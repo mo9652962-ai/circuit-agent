@@ -49,7 +49,8 @@ jobs:
   routing:
     name: Routing quality (py${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 该套件通过时约 50 分钟，60 分钟上限频繁被超时取消（main 与多个 PR 均如此）
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
