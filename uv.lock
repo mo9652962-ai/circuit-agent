@@ -17,23 +17,29 @@ wheels = [
 
 [[package]]
 name = "circuit-agent-client"
-version = "0.4.1"
+version = "0.25.0"
 source = { editable = "." }
 
 [package.optional-dependencies]
 dev = [
+    { name = "freeroute" },
     { name = "jsonschema" },
     { name = "pytest" },
     { name = "ruff" },
 ]
+routing = [
+    { name = "freeroute" },
+]
 
 [package.metadata]
 requires-dist = [
+    { name = "freeroute", marker = "extra == 'dev'", specifier = ">=2026.7.14" },
+    { name = "freeroute", marker = "extra == 'routing'", specifier = ">=2026.7.14" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "routing"]
 
 [[package]]
 name = "colorama"
@@ -54,6 +60,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0e/97c33bf5009bdbac74fd2beace167cab3f978feb69cc36f1ef79360d6c4e/exceptiongroup-1.3.1-py3-none-any.whl", hash = "sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598", size = 16740, upload-time = "2025-11-21T23:01:53.443Z" },
+]
+
+[[package]]
+name = "freeroute"
+version = "2026.7.14"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/65/b76c1911d9bc39a0a605eae27070d93af5227c6d283a311e087d77d3bab4/freeroute-2026.7.14.tar.gz", hash = "sha256:61056f96fde5481fa2911c2ea1898c275fc75edc982d293dce84b3d7b258b31a", size = 97221, upload-time = "2026-07-14T13:26:57.048Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/09/350a04986472d750b0c12d04c844bb0f7d18c0a58494b1ddefb851104a43/freeroute-2026.7.14-py3-none-any.whl", hash = "sha256:a1b8b369a3e5df558dea15568876621f705e0c9510979caa92b3ff2c43ee4a93", size = 112957, upload-time = "2026-07-14T13:26:58.495Z" },
 ]
 
 [[package]]

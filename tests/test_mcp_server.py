@@ -121,7 +121,15 @@ def test_mcp_tools_list():
     assert "plan_conformal_coating" in tool_names
     assert "predict_assembly_mtbf" in tool_names
     assert "assess_drop_shock_reliability" in tool_names
-    assert len(tools) == 76
+    assert "solve_via_current_array" in tool_names
+    assert "budget_fab_order" in tool_names
+    assert "calculate_qfn_thermal_pad_stencil" in tool_names
+    assert "audit_smt_tombstone_risk" in tool_names
+    assert "calculate_castellated_pad_geometry" in tool_names
+    assert "calculate_pcb_bow_and_twist" in tool_names
+    assert "audit_smt_nozzle_selection" in tool_names
+    assert "calculate_trace_fusing_current" in tool_names
+    assert len(tools) == 84
 
 
 def test_mcp_tool_call_synthesize():

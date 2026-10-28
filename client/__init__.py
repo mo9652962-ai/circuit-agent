@@ -1,6 +1,8 @@
 """CircuitAgent Public Client & Specification Package."""
 
 from .bare_board_test_planner import plan_bare_board_test_parameters
+from .bow_and_twist import calculate_pcb_bow_and_twist
+from .castellated_pads import calculate_castellated_pad_geometry
 from .chip_rules import (
     ChipPinoutRule,
     apply_chip_pinout,
@@ -48,6 +50,7 @@ from .export_engine import (
     render_ascii_topology,
 )
 from .fab_capabilities import audit_fab_capabilities
+from .fab_order_client import budget_fab_order
 from .industrial_dfx import (
     IPC2221_CLEARANCES,
     DFXViolation,
@@ -78,10 +81,13 @@ from .parametric_equations import (
 )
 from .skin_effect_analyzer import calculate_high_speed_skin_depth_loss
 from .smt_feeder_optimizer import optimize_smt_feeder_setup
+from .smt_nozzle_selector import audit_smt_nozzle_selection
 from .synthesizer import synthesize_from_prompt
 from .thermal_fatigue import estimate_solder_joint_thermal_fatigue
+from .trace_fusing_current import calculate_trace_fusing_current
+from .via_current_solver import solve_via_current_array
 
-__version__ = "0.21.0"
+__version__ = "0.25.0"
 
 __all__ = [
     "IPC2221_CLEARANCES",
@@ -104,6 +110,8 @@ __all__ = [
     "audit_fab_capabilities",
     "audit_industrial_dfx",
     "audit_ipc6012_class_compliance",
+    "audit_smt_nozzle_selection",
+    "audit_smt_tombstone_risk",
     "block_battery_tp4056",
     "block_button",
     "block_buzzer",
@@ -128,12 +136,17 @@ __all__ = [
     "block_testpoint_matrix",
     "block_usb_c_power",
     "block_watchdog_supervisor",
+    "budget_fab_order",
+    "calculate_castellated_pad_geometry",
     "calculate_copper_pour_current_drop",
     "calculate_high_speed_skin_depth_loss",
     "calculate_i2c_pullup",
     "calculate_ipc2152",
     "calculate_ldo_thermal",
+    "calculate_pcb_bow_and_twist",
+    "calculate_qfn_thermal_pad_stencil",
     "calculate_rc_filter",
+    "calculate_trace_fusing_current",
     "estimate_solder_joint_thermal_fatigue",
     "export_jlcpcb_bom",
     "export_jlcpcb_cpl",
@@ -152,6 +165,7 @@ __all__ = [
     "snap_to_e_series",
     "solve_resistor_divider",
     "solve_trace_width_ipc2152",
+    "solve_via_current_array",
     "synthesize_from_prompt",
     "validate_manufacturing_package",
     "validate_pin_allocation",

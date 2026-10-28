@@ -1184,6 +1184,8 @@
     </div>
 
     <div class="nav-right">
+      <a href="https://github.com/mo9652962-ai/circuit-agent" target="_blank" rel="noopener noreferrer" class="btn btn-ghost" style="background:rgba(234,179,8,0.12);border:1px solid rgba(234,179,8,0.38);color:#facc15;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:5px 12px;font-size:12px;text-decoration:none;">⭐ Star on GitHub</a>
+
       <button class="btn btn-ghost" id="btnOpenSettings" title="配置 API 地址与密钥">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
@@ -1452,9 +1454,17 @@
                 在左侧输入自然语言或点选 Prompt 胶囊，点击上方「生成设计」开始全自动芯片引脚仲裁、物理布局与嘉立创制造闭环。
               </div>
             </div>
-            <button class="btn btn-ghost" id="btnQuickLoadHero" style="font-size:12px;">
-              ⚡ 快速载入官方 STM32 验证工程
-            </button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
+              <button class="btn btn-ghost" id="btnQuickLoadEsp32" style="font-size:12px; border-color:rgba(59,130,246,0.3);">
+                💎 ESP32-C3 极简温湿度节点
+              </button>
+              <button class="btn btn-ghost" id="btnQuickLoadHero" style="font-size:12px; border-color:rgba(16,185,129,0.3);">
+                🏭 STM32 工业双总线控制板
+              </button>
+              <button class="btn btn-ghost" id="btnQuickLoadRp2040" style="font-size:12px; border-color:rgba(168,85,247,0.3);">
+                ⚡ RP2040 双核传感器扩展板
+              </button>
+            </div>
           </div>
 
           <!-- 原理图渲染器 (严格保留 id="preview") -->
@@ -1769,14 +1779,14 @@ function showToast(msg, kind = 'ok') {
 }
 
 // 内置矢量演示工程资源 (纯内联 SVG，无外部请求)
-const DEMO_SCH_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+const DEMO_SCH_SVG_ESP32 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
   <rect width="100%" height="100%" fill="#0a0b0e"/>
   <defs>
-    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+    <pattern id="grid1" width="20" height="20" patternUnits="userSpaceOnUse">
       <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
     </pattern>
   </defs>
-  <rect width="100%" height="100%" fill="url(#grid)" />
+  <rect width="100%" height="100%" fill="url(#grid1)" />
   <rect x="250" y="140" width="300" height="220" rx="8" fill="#12151c" stroke="#3b82f6" stroke-width="2"/>
   <text x="400" y="180" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">ESP32-C3-WROOM-02</text>
   <text x="400" y="202" fill="#64748b" font-family="monospace" font-size="11" text-anchor="middle">RISC-V 32-bit MCU @ 160MHz</text>
@@ -1797,10 +1807,10 @@ const DEMO_SCH_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns
   <line x1="400" y1="360" x2="400" y2="390" stroke="#6366f1" stroke-width="2"/>
 </svg>`);
 
-const DEMO_PCB_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+const DEMO_PCB_SVG_ESP32 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
   <rect width="100%" height="100%" fill="#0a0b0e"/>
   <rect x="150" y="70" width="500" height="360" rx="12" fill="#0d1b14" stroke="#10b981" stroke-width="2"/>
-  <text x="400" y="110" fill="#34d399" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">TOP LAYER (F.Cu) - 4-LAYER CONTROLLED IMPEDANCE</text>
+  <text x="400" y="110" fill="#34d399" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">TOP LAYER (F.Cu) - 4-LAYER CONTROLLED IMPEDANCE (ESP32-C3)</text>
 
   <rect x="320" y="160" width="160" height="180" rx="4" fill="#064e3b" stroke="#eab308" stroke-width="1.5"/>
   <text x="400" y="255" fill="#fef08a" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">U1 ESP32-C3</text>
@@ -1814,6 +1824,120 @@ const DEMO_PCB_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns
   <circle cx="630" cy="90" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
   <circle cx="170" cy="410" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
   <circle cx="630" cy="410" r="4" fill="none" stroke="#10b981" stroke-width="1.5"/>
+</svg>`);
+
+const DEMO_SCH_SVG_STM32 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <defs>
+    <pattern id="grid2" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid2)" />
+  <rect x="240" y="110" width="320" height="260" rx="8" fill="#111827" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="150" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">STM32F103C8T6 (LQFP-48)</text>
+  <text x="400" y="172" fill="#60a5fa" font-family="monospace" font-size="11" text-anchor="middle">ARM Cortex-M3 @ 72MHz · Dual-Bus Master</text>
+
+  <rect x="50" y="130" width="130" height="74" rx="6" fill="#1e293b" stroke="#38bdf8" stroke-width="1.5"/>
+  <text x="115" y="160" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">SN65HVD230</text>
+  <text x="115" y="180" fill="#38bdf8" font-family="monospace" font-size="9" text-anchor="middle">CAN-FD 1Mbps / 3.3V</text>
+  <line x1="180" y1="167" x2="240" y2="167" stroke="#38bdf8" stroke-width="2"/>
+
+  <rect x="50" y="240" width="130" height="74" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="115" y="270" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">MAX485ESA</text>
+  <text x="115" y="290" fill="#f59e0b" font-family="monospace" font-size="9" text-anchor="middle">RS485 Half-Duplex</text>
+  <line x1="180" y1="277" x2="240" y2="277" stroke="#f59e0b" stroke-width="2"/>
+
+  <rect x="620" y="180" width="140" height="90" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+  <text x="690" y="215" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Screw Terminal 6P</text>
+  <text x="690" y="235" fill="#10b981" font-family="monospace" font-size="9" text-anchor="middle">CAN_H/L + RS485_A/B</text>
+  <line x1="560" y1="225" x2="620" y2="225" stroke="#10b981" stroke-width="2"/>
+
+  <rect x="330" y="390" width="140" height="60" rx="6" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="400" y="420" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">AMS1117-3.3 LDO</text>
+  <text x="400" y="435" fill="#a855f7" font-family="monospace" font-size="9" text-anchor="middle">5.0V → 3.3V / 1.0A</text>
+  <line x1="400" y1="370" x2="400" y2="390" stroke="#a855f7" stroke-width="2"/>
+</svg>`);
+
+const DEMO_PCB_SVG_STM32 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <rect x="140" y="60" width="520" height="380" rx="12" fill="#081024" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="95" fill="#60a5fa" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">4-LAYER CONTROLLED IMPEDANCE (STM32 INDUSTRIAL DUAL-BUS)</text>
+
+  <rect x="320" y="150" width="160" height="160" rx="4" fill="#1e3a8a" stroke="#60a5fa" stroke-width="1.5"/>
+  <text x="400" y="235" fill="#bfdbfe" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">U1 STM32 LQFP-48</text>
+
+  <rect x="180" y="150" width="60" height="50" rx="3" fill="#172554" stroke="#38bdf8" stroke-width="1"/>
+  <text x="210" y="180" fill="#7dd3fc" font-family="monospace" font-size="9" text-anchor="middle">CAN-FD</text>
+
+  <rect x="180" y="250" width="60" height="50" rx="3" fill="#172554" stroke="#f59e0b" stroke-width="1"/>
+  <text x="210" y="280" fill="#fcd34d" font-family="monospace" font-size="9" text-anchor="middle">RS485</text>
+
+  <rect x="560" y="170" width="65" height="120" rx="4" fill="#052e16" stroke="#10b981" stroke-width="1.5"/>
+  <text x="592" y="235" fill="#86efac" font-family="monospace" font-size="10" text-anchor="middle">TB-6P</text>
+
+  <line x1="240" y1="175" x2="320" y2="175" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="240" y1="275" x2="320" y2="275" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="480" y1="230" x2="560" y2="230" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`);
+
+const DEMO_SCH_SVG_RP2040 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <defs>
+    <pattern id="grid3" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#grid3)" />
+  <rect x="250" y="120" width="300" height="250" rx="8" fill="#1c102c" stroke="#a855f7" stroke-width="2"/>
+  <text x="400" y="160" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">RP2040 (QFN-56)</text>
+  <text x="400" y="182" fill="#c084fc" font-family="monospace" font-size="11" text-anchor="middle">Dual-Core ARM Cortex-M0+ @ 133MHz</text>
+
+  <rect x="60" y="140" width="130" height="74" rx="6" fill="#2e1065" stroke="#e879f9" stroke-width="1.5"/>
+  <text x="125" y="170" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">W25Q128 Flash</text>
+  <text x="125" y="190" fill="#e879f9" font-family="monospace" font-size="9" text-anchor="middle">16MB QSPI @ 133MHz</text>
+  <line x1="190" y1="177" x2="250" y2="177" stroke="#e879f9" stroke-width="2"/>
+
+  <rect x="60" y="250" width="130" height="74" rx="6" fill="#2e1065" stroke="#38bdf8" stroke-width="1.5"/>
+  <text x="125" y="280" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">Type-C 16P</text>
+  <text x="125" y="300" fill="#38bdf8" font-family="monospace" font-size="9" text-anchor="middle">USB 1.1 FS / Host</text>
+  <line x1="190" y1="287" x2="250" y2="287" stroke="#38bdf8" stroke-width="2"/>
+
+  <rect x="610" y="150" width="130" height="74" rx="6" fill="#2e1065" stroke="#eab308" stroke-width="1.5"/>
+  <text x="675" y="180" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">MPU-6050 IMU</text>
+  <text x="675" y="200" fill="#eab308" font-family="monospace" font-size="9" text-anchor="middle">6-Axis Gyro/Accel</text>
+  <line x1="550" y1="187" x2="610" y2="187" stroke="#eab308" stroke-width="2"/>
+
+  <rect x="610" y="260" width="130" height="70" rx="6" fill="#2e1065" stroke="#10b981" stroke-width="1.5"/>
+  <text x="675" y="290" fill="#f1f5f9" font-family="-apple-system, sans-serif" font-size="11" font-weight="bold" text-anchor="middle">WS2812B RGB</text>
+  <text x="675" y="310" fill="#10b981" font-family="monospace" font-size="9" text-anchor="middle">Single-Wire NeoPixel</text>
+  <line x1="550" y1="295" x2="610" y2="295" stroke="#10b981" stroke-width="2"/>
+</svg>`);
+
+const DEMO_PCB_SVG_RP2040 = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="100%" height="100%" fill="#0a0b0e"/>
+  <rect x="150" y="65" width="500" height="370" rx="12" fill="#130722" stroke="#a855f7" stroke-width="2"/>
+  <text x="400" y="100" fill="#c084fc" font-family="monospace" font-size="13" font-weight="bold" text-anchor="middle">4-LAYER CONTROLLED IMPEDANCE (RP2040 SENSOR MATRIX)</text>
+
+  <rect x="330" y="160" width="140" height="140" rx="4" fill="#3b0764" stroke="#d8b4fe" stroke-width="1.5"/>
+  <text x="400" y="235" fill="#f3e8ff" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">U1 RP2040</text>
+
+  <rect x="190" y="160" width="55" height="45" rx="3" fill="#2e1065" stroke="#e879f9" stroke-width="1"/>
+  <text x="217" y="187" fill="#f5d0fe" font-family="monospace" font-size="8.5" text-anchor="middle">QSPI</text>
+
+  <rect x="190" y="250" width="55" height="45" rx="3" fill="#2e1065" stroke="#38bdf8" stroke-width="1"/>
+  <text x="217" y="277" fill="#7dd3fc" font-family="monospace" font-size="8.5" text-anchor="middle">Type-C</text>
+
+  <rect x="550" y="160" width="55" height="45" rx="3" fill="#2e1065" stroke="#eab308" stroke-width="1"/>
+  <text x="577" y="187" fill="#fef08a" font-family="monospace" font-size="8.5" text-anchor="middle">MPU6050</text>
+
+  <circle cx="577" cy="272" r="14" fill="#2e1065" stroke="#10b981" stroke-width="1.5"/>
+  <text x="577" y="276" fill="#86efac" font-family="monospace" font-size="8" text-anchor="middle">RGB</text>
+
+  <line x1="245" y1="182" x2="330" y2="182" stroke="#e879f9" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="245" y1="272" x2="330" y2="272" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="470" y1="182" x2="550" y2="182" stroke="#eab308" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="470" y1="272" x2="563" y2="272" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
 </svg>`);
 
 const DEMO_3D_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
@@ -1848,6 +1972,52 @@ const DEMO_PROJECTS = {
         { net: '/I2C_SCL', points: ['U1.IO8', 'S1.SCL'] },
         { net: '/I2C_SDA', points: ['U1.IO9', 'S1.SDA'] }
       ]
+    },
+    result: {
+      run_id: 'demo_run_esp32_c3',
+      pcb: { drc_violations: 0 },
+      bom_cost: {
+        estimated_total_cost_cny: 18.22,
+        total_parts_cost_cny: 18.22,
+        total_parts_cost_usd: 2.52,
+        total_extended_fee_cny: 0.0,
+        extended_parts_count: 0,
+        total_components: 14,
+        matched_components: 14,
+        items: [
+          { designators: 'U1', is_basic: true, unit_price_cny: 12.50, stock: 45200 },
+          { designators: 'U2', is_basic: true, unit_price_cny: 0.65, stock: 128000 },
+          { designators: 'J1', is_basic: true, unit_price_cny: 1.20, stock: 89000 },
+          { designators: 'S1', is_basic: true, unit_price_cny: 3.50, stock: 32000 },
+          { designators: 'C1', is_basic: true, unit_price_cny: 0.15, stock: 540000 },
+          { designators: 'C2', is_basic: true, unit_price_cny: 0.08, stock: 960000 }
+        ]
+      },
+      senior_ee: {
+        score: 96,
+        grade: 'A+',
+        passed: true,
+        summary: '四维物理电气体检完成。0 DRC/ERC 违规，符合工业级生产基线。',
+        categories: {
+          power_integrity: { score: 98 },
+          signal_integrity: { score: 95 },
+          interface_compliance: { score: 100 },
+          dfm: { score: 96 }
+        },
+        metrics: { max_decoupling_distance_mm: 1.85, differential_skew_mm: 0.42 }
+      },
+      allocation: {
+        allocations: {
+          'I2C': { SCL: 'GPIO8', SDA: 'GPIO9' },
+          'UART': { TX: 'GPIO21', RX: 'GPIO20' },
+          'USB': { DP: 'GPIO19', DM: 'GPIO18' },
+        }
+      },
+      artifacts: {
+        preview_svg: DEMO_SCH_SVG_ESP32,
+        pcb_svg: DEMO_PCB_SVG_ESP32,
+        enclosure_preview: DEMO_3D_SVG
+      }
     }
   },
   'STM32F103': {
@@ -1855,20 +2025,144 @@ const DEMO_PROJECTS = {
     layers: 4,
     modules: ['can', 'rs485', 'usart', 'spi', 'ldo'],
     netlist: {
-      project: 'STM32 Industrial Controller',
+      project: 'STM32 Industrial Dual-Bus Controller',
       chip: 'STM32F103C8T6',
       modules: {
         U1: { kind: 'MCU', value: 'STM32F103C8T6', package: 'LQFP-48', lcsc: 'C8734' },
         U2: { kind: 'TRANSCEIVER', value: 'SN65HVD230DR', package: 'SOIC-8', lcsc: 'C39433' },
         U3: { kind: 'TRANSCEIVER', value: 'MAX485ESA+T', package: 'SOIC-8', lcsc: 'C39434' },
+        U4: { kind: 'REGULATOR', value: 'AMS1117-3.3', package: 'SOT-223', lcsc: 'C6186' },
+        J1: { kind: 'CONNECTOR', value: 'TB-5.08-6P', package: 'TERMINAL-6P', lcsc: 'C46231' },
         C1: { kind: 'CAPACITOR', value: '100nF', package: '0402', lcsc: 'C318884' }
       },
       connections: [
-        { net: '/3V3', points: ['U1.VDD', 'U2.VCC', 'U3.VCC', 'C1.1'] },
-        { net: '/GND', points: ['U1.VSS', 'U2.GND', 'U3.GND', 'C1.2'] },
+        { net: '/3V3', points: ['U1.VDD', 'U2.VCC', 'U3.VCC', 'U4.VOUT', 'C1.1'] },
+        { net: '/GND', points: ['U1.VSS', 'U2.GND', 'U3.GND', 'U4.GND', 'C1.2'] },
         { net: '/CAN_TX', points: ['U1.PB9', 'U2.D'] },
-        { net: '/CAN_RX', points: ['U1.PB8', 'U2.R'] }
+        { net: '/CAN_RX', points: ['U1.PB8', 'U2.R'] },
+        { net: '/RS485_TX', points: ['U1.PA2', 'U3.DI'] },
+        { net: '/RS485_RX', points: ['U1.PA3', 'U3.RO'] }
       ]
+    },
+    result: {
+      run_id: 'demo_run_stm32_industrial',
+      pcb: { drc_violations: 0 },
+      bom_cost: {
+        estimated_total_cost_cny: 32.40,
+        total_parts_cost_cny: 32.40,
+        total_parts_cost_usd: 4.48,
+        total_extended_fee_cny: 0.0,
+        extended_parts_count: 0,
+        total_components: 18,
+        matched_components: 18,
+        items: [
+          { designators: 'U1', is_basic: true, unit_price_cny: 14.50, stock: 78000 },
+          { designators: 'U2', is_basic: true, unit_price_cny: 4.80, stock: 45000 },
+          { designators: 'U3', is_basic: true, unit_price_cny: 3.20, stock: 62000 },
+          { designators: 'U4', is_basic: true, unit_price_cny: 0.85, stock: 150000 },
+          { designators: 'J1', is_basic: true, unit_price_cny: 2.40, stock: 28000 },
+          { designators: 'C1', is_basic: true, unit_price_cny: 0.08, stock: 890000 }
+        ]
+      },
+      senior_ee: {
+        score: 98,
+        grade: 'A+',
+        passed: true,
+        summary: '工业级双总线架构制造就绪。CAN-FD 120Ω 终端与 RS485 差分对时延均通过严苛校验。',
+        categories: {
+          power_integrity: { score: 99 },
+          signal_integrity: { score: 98 },
+          interface_compliance: { score: 100 },
+          dfm: { score: 98 }
+        },
+        metrics: { max_decoupling_distance_mm: 1.50, differential_skew_mm: 0.12 }
+      },
+      allocation: {
+        allocations: {
+          'CAN-FD': { TX: 'PB9', RX: 'PB8' },
+          'RS485': { TX: 'PA2 (USART2)', RX: 'PA3', DE_RE: 'PA4' },
+          'OSC': { OSC_IN: 'PD0', OSC_OUT: 'PD1' },
+          'POWER': { VDD: '3.3V', VSS: 'GND' }
+        }
+      },
+      artifacts: {
+        preview_svg: DEMO_SCH_SVG_STM32,
+        pcb_svg: DEMO_PCB_SVG_STM32,
+        enclosure_preview: DEMO_3D_SVG
+      }
+    }
+  },
+  'RP2040': {
+    chip: 'RP2040',
+    layers: 4,
+    modules: ['type_c', 'ldo', 'spi', 'i2c', 'pwm', 'buttons', 'leds'],
+    netlist: {
+      project: 'RP2040 Dual-Core Sensor Matrix',
+      chip: 'RP2040',
+      modules: {
+        U1: { kind: 'MCU', value: 'RP2040', package: 'QFN-56', lcsc: 'C2040' },
+        U2: { kind: 'FLASH', value: 'W25Q128JVS', package: 'SOIC-8', lcsc: 'C97521' },
+        U3: { kind: 'REGULATOR', value: 'RT9013-33GB', package: 'SOT-23-5', lcsc: 'C28343' },
+        S1: { kind: 'SENSOR', value: 'MPU-6050', package: 'QFN-24', lcsc: 'C24112' },
+        D1: { kind: 'LED', value: 'WS2812B-B', package: 'SMD-5050', lcsc: 'C114586' },
+        J1: { kind: 'CONNECTOR', value: 'TYPE-C-16P', package: 'TYPE-C-16P', lcsc: 'C205837' }
+      },
+      connections: [
+        { net: '/QSPI_CLK', points: ['U1.QSPI_SCLK', 'U2.CLK'] },
+        { net: '/QSPI_CS', points: ['U1.QSPI_SS', 'U2.CS'] },
+        { net: '/I2C_SDA', points: ['U1.GPIO6', 'S1.SDA'] },
+        { net: '/I2C_SCL', points: ['U1.GPIO7', 'S1.SCL'] },
+        { net: '/RGB_DIN', points: ['U1.GPIO16', 'D1.DIN'] },
+        { net: '/VBUS', points: ['J1.VBUS', 'U3.VIN'] },
+        { net: '/3V3', points: ['U3.VOUT', 'U1.IOVDD', 'U2.VCC', 'S1.VDD'] }
+      ]
+    },
+    result: {
+      run_id: 'demo_run_rp2040_matrix',
+      pcb: { drc_violations: 0 },
+      bom_cost: {
+        estimated_total_cost_cny: 23.60,
+        total_parts_cost_cny: 23.60,
+        total_parts_cost_usd: 3.26,
+        total_extended_fee_cny: 0.0,
+        extended_parts_count: 0,
+        total_components: 16,
+        matched_components: 16,
+        items: [
+          { designators: 'U1', is_basic: true, unit_price_cny: 6.80, stock: 120000 },
+          { designators: 'U2', is_basic: true, unit_price_cny: 3.80, stock: 95000 },
+          { designators: 'U3', is_basic: true, unit_price_cny: 0.85, stock: 160000 },
+          { designators: 'S1', is_basic: true, unit_price_cny: 6.50, stock: 34000 },
+          { designators: 'D1', is_basic: true, unit_price_cny: 0.65, stock: 240000 },
+          { designators: 'J1', is_basic: true, unit_price_cny: 1.20, stock: 89000 }
+        ]
+      },
+      senior_ee: {
+        score: 97,
+        grade: 'A+',
+        passed: true,
+        summary: '双核高速架构制造就绪。133MHz QSPI Flash 差分时延等长严格对齐 (ΔL < 0.25mm)。',
+        categories: {
+          power_integrity: { score: 97 },
+          signal_integrity: { score: 98 },
+          interface_compliance: { score: 100 },
+          dfm: { score: 96 }
+        },
+        metrics: { max_decoupling_distance_mm: 1.40, differential_skew_mm: 0.18 }
+      },
+      allocation: {
+        allocations: {
+          'QSPI_FLASH': { CS: 'QSPI_SS', CLK: 'QSPI_SCLK', D0: 'QSPI_SD0', D1: 'QSPI_SD1', D2: 'QSPI_SD2', D3: 'QSPI_SD3' },
+          'I2C_IMU': { SCL: 'GPIO7', SDA: 'GPIO6' },
+          'WS2812': { DIN: 'GPIO16' },
+          'USB': { DP: 'USB_DP', DM: 'USB_DM' }
+        }
+      },
+      artifacts: {
+        preview_svg: DEMO_SCH_SVG_RP2040,
+        pcb_svg: DEMO_PCB_SVG_RP2040,
+        enclosure_preview: DEMO_3D_SVG
+      }
     }
   }
 };
@@ -1943,35 +2237,38 @@ function renderModules() {
 }
 
 // 载入示例网表（纯前端内置工程）
-function loadExample() {
-  const chip = $('#chip').value || 'ESP32-C3';
+function loadExample(chipName) {
+  const chip = chipName || $('#chip').value || 'ESP32-C3';
+  $('#chip').value = chip;
+  updateFirmwareBadge(chip);
   const proj = DEMO_PROJECTS[chip] || DEMO_PROJECTS['ESP32-C3'];
   $('#netlist').value = JSON.stringify(proj.netlist, null, 2);
   state.modules = new Set(proj.modules || []);
   renderModules();
-  showToast(`已成功载入 ${chip} 示例网表`, 'ok');
+  if (proj.result) {
+    renderWorkbenchResults(proj.result, 200);
+  }
+  showToast(`已成功载入 ${chip} 示例工程`, 'ok');
 }
 
 // 亮点 1: 自然语言合成（纯前端静态演示模式）
 function triggerSynthesize(promptText) {
   const prompt = promptText || $('#nlPrompt').value.trim();
   if (!prompt) {
-    showToast('请输入一句话描述', 'err');
+    showToast('请输入一句话需求', 'err');
     return;
   }
   showToast('AI CircuitBlocks 语义积木转译中...', 'ok');
   setTimeout(() => {
-    const isStm32 = prompt.toUpperCase().includes('STM32');
-    const targetChip = isStm32 ? 'STM32F103' : 'ESP32-C3';
-    $('#chip').value = targetChip;
-    updateFirmwareBadge(targetChip);
-
-    const proj = DEMO_PROJECTS[targetChip] || DEMO_PROJECTS['ESP32-C3'];
-    $('#netlist').value = JSON.stringify(proj.netlist, null, 2);
-    state.modules = new Set(proj.modules);
-    renderModules();
-
-    showToast(`✨ [静态演示] 已自动合成 ${targetChip} 网表（含 ${proj.modules.length} 个电路积木）`, 'ok');
+    let targetChip = 'ESP32-C3';
+    if (prompt.toUpperCase().includes('STM32')) {
+      targetChip = 'STM32F103';
+    } else if (prompt.toUpperCase().includes('RP2040')) {
+      targetChip = 'RP2040';
+    }
+    loadExample(targetChip);
+    const proj = DEMO_PROJECTS[targetChip];
+    showToast(`✨ [静态演示] 已自动合成 ${targetChip} 网表与制造工程（含 ${proj.modules.length} 个电路积木）`, 'ok');
   }, 350);
 }
 
@@ -2017,13 +2314,13 @@ function startStepper() {
     $('#step2').className = 'step-row completed';
     $('#step2').querySelector('.step-indicator').textContent = '✓';
     $('#step3').className = 'step-row active';
-  }, 1100);
+  }, 600);
 
   setTimeout(() => {
     $('#step3').className = 'step-row completed';
     $('#step3').querySelector('.step-indicator').textContent = '✓';
     $('#step4').className = 'step-row active';
-  }, 2000);
+  }, 1000);
 
   stepperInterval = setInterval(() => {
     const elapsed = ((Date.now() - stepperStartTime) / 1000).toFixed(1);
@@ -2055,7 +2352,7 @@ function stopStepper(success = true) {
 
 // 核心生成执行调用 (/runs)
 async function run() {
-  const chip = $('#chip').value;
+  const chip = $('#chip').value || 'ESP32-C3';
   let netlist;
   try {
     netlist = JSON.parse($('#netlist').value);
@@ -2071,55 +2368,10 @@ async function run() {
     stopStepper(true);
     $('#run').disabled = false;
 
-    const mockResult = {
-      run_id: 'demo_run_2026',
-      pcb: { drc_violations: 0 },
-      bom_cost: {
-        estimated_total_cost_cny: 18.22,
-        total_parts_cost_cny: 18.22,
-        total_parts_cost_usd: 2.52,
-        total_extended_fee_cny: 0.0,
-        extended_parts_count: 0,
-        total_components: 14,
-        matched_components: 14,
-      },
-      lcsc: {
-        U1: { lcsc: 'C2364023', match_type: 'Basic', price_cny: 12.50 },
-        U2: { lcsc: 'C2924190', match_type: 'Basic', price_cny: 0.65 },
-        J1: { lcsc: 'C205837', match_type: 'Basic', price_cny: 1.20 },
-        S1: { lcsc: 'C533230', match_type: 'Basic', price_cny: 3.50 },
-        C1: { lcsc: 'C136653', match_type: 'Basic', price_cny: 0.15 },
-        C2: { lcsc: 'C318884', match_type: 'Basic', price_cny: 0.08 },
-      },
-      senior_ee: {
-        overall_score: 96,
-        grade: 'A+',
-        verdict_title: '工业级制造就绪 (Production Ready)',
-        verdict_summary: '0 DRC/ERC 违规，电源完整性符合 IPC-2152 导线温升标准，去耦电容与 ESD 保护闭环完备，无单源卡脖子料件。',
-        pillars: {
-          pi: { score: 98, status: 'PASS', summary: '电源轨均布置 100nF 陶瓷去耦，LDO 压差裕量充足 (1.7V > 0.3V)' },
-          si: { score: 95, status: 'PASS', summary: 'USB 90Ω 与 RF 50Ω 走线阻抗满足四层板设计公差 (IPC-2141A)' },
-          dfm: { score: 96, status: 'PASS', summary: '外层线宽 ≥ 0.127mm，过孔钻径 ≥ 0.2mm，无孤立锐角铜皮' },
-          supply: { score: 95, status: 'PASS', summary: '100% 选用嘉立创基础库元器件，无扩展库换料费，具备现货库存' },
-        },
-      },
-      allocation: {
-        allocations: {
-          'I2C': { SCL: 'GPIO8', SDA: 'GPIO9' },
-          'UART': { TX: 'GPIO21', RX: 'GPIO20' },
-          'USB': { DP: 'GPIO19', DM: 'GPIO18' },
-        },
-      },
-      artifacts: {
-        preview_svg: DEMO_SCH_SVG,
-        pcb_svg: DEMO_PCB_SVG,
-        enclosure_preview: DEMO_3D_SVG,
-      },
-    };
-
-    renderWorkbenchResults(mockResult, 200);
-    showToast('🎉 [静态演示] 全套设计工程展示已呈现！', 'ok');
-  }, 1000);
+    const proj = DEMO_PROJECTS[chip] || DEMO_PROJECTS['ESP32-C3'];
+    renderWorkbenchResults(proj.result, 200);
+    showToast(`🎉 [静态演示] ${chip} 全套设计工程展示已呈现！`, 'ok');
+  }, 800);
 }
 
 $('#run').onclick = run;
@@ -2484,11 +2736,14 @@ $('#btnSaveSettings').onclick = () => {
 };
 
 $('#probe').onclick = probe;
-$('#loadExample').onclick = loadExample;
-$('#btnQuickLoadHero').onclick = loadExample;
+$('#loadExample').onclick = () => loadExample($('#chip').value);
+if ($('#btnQuickLoadEsp32')) $('#btnQuickLoadEsp32').onclick = () => loadExample('ESP32-C3');
+if ($('#btnQuickLoadHero')) $('#btnQuickLoadHero').onclick = () => loadExample('STM32F103');
+if ($('#btnQuickLoadRp2040')) $('#btnQuickLoadRp2040').onclick = () => loadExample('RP2040');
 
 window.addEventListener('DOMContentLoaded', () => {
   probe();
+  setTimeout(() => loadExample('ESP32-C3'), 80);
 });
 </script>
 </body>

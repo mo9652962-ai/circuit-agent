@@ -1890,6 +1890,146 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 "content": [{"type": "text", "text": json.dumps(rep_drop.to_dict(), ensure_ascii=False, indent=2)}]
             }
 
+        if name == "solve_via_current_array":
+            from .via_current_solver import solve_via_current_array
+
+            rep_via = solve_via_current_array(
+                current_a=float(arguments.get("current_a", 3.0)),
+                via_drill_mm=float(arguments.get("via_drill_mm", 0.30)),
+                plating_um=float(arguments.get("plating_um", 25.0)),
+                is_filled=bool(arguments.get("is_filled", False)),
+                internal_layer=bool(arguments.get("internal_layer", False)),
+                max_delta_t_c=float(arguments.get("max_delta_t_c", 20.0)),
+                max_array_size=int(arguments.get("max_array_size", 8)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_via.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "budget_fab_order":
+            arts_arg = arguments.get("artifacts")
+            from .fab_order_client import budget_fab_order
+
+            budget = budget_fab_order(
+                layers=int(arguments.get("layers", 2)),
+                qty=int(arguments.get("qty", 5)),
+                board_w_mm=float(arguments.get("board_w_mm", 70.0)),
+                board_h_mm=float(arguments.get("board_h_mm", 50.0)),
+                surface_finish=str(arguments.get("surface_finish", "hasl_lead_free")),
+                include_smt=bool(arguments.get("include_smt", False)),
+                smt_parts=int(arguments.get("smt_parts", 0)),
+                shipping=str(arguments.get("shipping", "standard")),
+                lead_priority=str(arguments.get("lead_priority", "standard")),
+                artifacts=arts_arg if isinstance(arts_arg, dict) else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(budget.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_qfn_thermal_pad_stencil":
+            from .qfn_thermal_pad import calculate_qfn_thermal_pad_stencil
+
+            rep_qfn = calculate_qfn_thermal_pad_stencil(
+                pad_width_mm=float(arguments.get("pad_width_mm", 4.5)),
+                pad_height_mm=float(arguments.get("pad_height_mm", 4.5)),
+                target_coverage_pct=float(arguments.get("target_coverage_pct", 60.0)),
+                web_width_mm=float(arguments.get("web_width_mm", 0.20)),
+                has_unfilled_thermal_vias=bool(arguments.get("has_unfilled_thermal_vias", False)),
+                is_automotive_class3=bool(arguments.get("is_automotive_class3", False)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_qfn.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "audit_smt_tombstone_risk":
+            comps_arg = arguments.get("components")
+            from .tombstone_analyzer import audit_smt_tombstone_risk
+
+            rep_tomb = audit_smt_tombstone_risk(
+                components=comps_arg if isinstance(comps_arg, list) else None,
+                default_trace_width_mm=float(arguments.get("default_trace_width_mm", 0.20)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_tomb.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_castellated_pad_geometry":
+            from .castellated_pads import calculate_castellated_pad_geometry
+
+            rep_cas = calculate_castellated_pad_geometry(
+                hole_drill_diameter_mm=float(arguments.get("hole_drill_diameter_mm", 1.00)),
+                center_to_edge_offset_mm=float(arguments.get("center_to_edge_offset_mm", 0.00)),
+                pad_inward_length_mm=float(arguments.get("pad_inward_length_mm", 0.80)),
+                pad_width_mm=float(arguments.get("pad_width_mm", 0.80)),
+                pad_pitch_mm=float(arguments.get("pad_pitch_mm", 2.00)),
+                copper_plating_thickness_um=float(arguments.get("copper_plating_thickness_um", 25.0)),
+                solder_mask_clearance_mm=float(arguments.get("solder_mask_clearance_mm", 0.080)),
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_cas.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_pcb_bow_and_twist":
+            bow_h = arguments.get("measured_bow_height_mm")
+            twist_h = arguments.get("measured_twist_height_mm")
+            from .bow_and_twist import calculate_pcb_bow_and_twist
+
+            rep_warp = calculate_pcb_bow_and_twist(
+                board_length_mm=float(arguments.get("board_length_mm", 100.0)),
+                board_width_mm=float(arguments.get("board_width_mm", 80.0)),
+                board_thickness_mm=float(arguments.get("board_thickness_mm", 1.60)),
+                layer_count=int(arguments.get("layer_count", 4)),
+                has_smt_components=bool(arguments.get("has_smt_components", True)),
+                copper_balance_ratio_top_bottom=float(arguments.get("copper_balance_ratio_top_bottom", 1.0)),
+                dielectric_asymmetry_pct=float(arguments.get("dielectric_asymmetry_pct", 0.0)),
+                measured_bow_height_mm=float(bow_h) if bow_h is not None else None,
+                measured_twist_height_mm=float(twist_h) if twist_h is not None else None,
+            )
+            return {
+                "content": [{"type": "text", "text": json.dumps(rep_warp.to_dict(), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "audit_smt_nozzle_selection":
+            from .smt_nozzle_selector import audit_smt_nozzle_selection
+
+            rep_noz = audit_smt_nozzle_selection(
+                component_designator=str(arguments.get("component_designator", "U1")),
+                package_type=str(arguments.get("package_type", "0603")),
+                component_length_mm=float(arguments["component_length_mm"]) if "component_length_mm" in arguments and arguments["component_length_mm"] is not None else None,
+                component_width_mm=float(arguments["component_width_mm"]) if "component_width_mm" in arguments and arguments["component_width_mm"] is not None else None,
+                component_height_mm=float(arguments["component_height_mm"]) if "component_height_mm" in arguments and arguments["component_height_mm"] is not None else None,
+                component_mass_mg=float(arguments["component_mass_mg"]) if "component_mass_mg" in arguments and arguments["component_mass_mg"] is not None else None,
+                specified_nozzle_model=str(arguments["specified_nozzle_model"]) if "specified_nozzle_model" in arguments and arguments["specified_nozzle_model"] is not None else None,
+                vacuum_pressure_kpa=float(arguments.get("vacuum_pressure_kpa", 70.0)),
+                head_acceleration_g=float(arguments.get("head_acceleration_g", 3.5)),
+                friction_coefficient=float(arguments.get("friction_coefficient", 0.30)),
+                vendor_preference=str(arguments.get("vendor_preference", "Juki")),
+            )
+            import dataclasses
+            return {
+                "content": [{"type": "text", "text": json.dumps(dataclasses.asdict(rep_noz), ensure_ascii=False, indent=2)}]
+            }
+
+        if name == "calculate_trace_fusing_current":
+            from .trace_fusing_current import calculate_trace_fusing_current
+
+            fuse_r = arguments.get("upstream_fuse_rating_a")
+            fuse_i2t = arguments.get("upstream_fuse_i2t_a2s")
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(arguments.get("trace_width_mm", 0.50)),
+                copper_thickness_um=float(arguments.get("copper_thickness_um", 35.0)),
+                trace_layer=str(arguments.get("trace_layer", "external")),
+                fault_current_a=float(arguments.get("fault_current_a", 15.0)),
+                pulse_duration_s=float(arguments.get("pulse_duration_s", 0.10)),
+                ambient_temp_c=float(arguments.get("ambient_temp_c", 25.0)),
+                upstream_fuse_rating_a=float(fuse_r) if fuse_r is not None else None,
+                upstream_fuse_i2t_a2s=float(fuse_i2t) if fuse_i2t is not None else None,
+            )
+            import dataclasses
+            return {
+                "content": [{"type": "text", "text": json.dumps(dataclasses.asdict(rep_fuse), ensure_ascii=False, indent=2)}]
+            }
+
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: '{name}'"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"Tool execution error: {e}"}]}

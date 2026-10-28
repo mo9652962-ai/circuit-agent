@@ -1,0 +1,86 @@
+name: 'CircuitAgent ERC'
+description: 'AI hardware electrical rule check (ERC) and DFX gate in CI for KiCad & netlists'
+author: 'mo9652962-ai'
+
+branding:
+  icon: 'cpu'
+  color: 'blue'
+
+inputs:
+  netlist-file:
+    description: 'Path to netlist JSON file or hardware spec'
+    required: false
+    default: 'netlist.json'
+  severity-threshold:
+    description: 'Severity threshold to fail the gate: info / warning / error / blocking (default: error)'
+    required: false
+    default: 'error'
+  version:
+    description: 'circuit-agent-client version from PyPI'
+    required: false
+    default: '0.23.0'
+  output-dir:
+    description: 'Directory for ERC JSON reports and artifacts'
+    required: false
+    default: 'erc-out'
+  upload-artifact:
+    description: 'Whether to upload the ERC report as GitHub Action artifact'
+    required: false
+    default: 'true'
+
+outputs:
+  verdict:
+    description: 'ERC gate verdict: PASS / FAIL / INPUT_ERROR'
+  exit-code:
+    description: 'Gate exit code (0 pass / 1 fail / 2 input error)'
+  report-path:
+    description: 'Path to the generated JSON ERC report'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        enable-cache: true
+
+    - name: Install circuit-agent-client
+      shell: bash
+      env:
+        CAC_VERSION: ${{ inputs.version }}
+      run: |
+        uv venv .cac-venv --quiet
+        uv pip install --python .cac-venv "circuit-agent-client==$CAC_VERSION" --quiet
+        if [ -x .cac-venv/bin/python ]; then echo "CAC_PY=$PWD/.cac-venv/bin/python" >> "$GITHUB_ENV";
+        else echo "CAC_PY=$PWD/.cac-venv/Scripts/python.exe" >> "$GITHUB_ENV"; fi
+
+    - name: Run CircuitAgent ERC & DFX Gate
+      id: erc
+      shell: bash
+      env:
+        NETLIST_PATH: ${{ inputs.netlist-file }}
+        ERC_OUT: ${{ inputs.output-dir }}
+        ERC_THRESHOLD: ${{ inputs.severity-threshold }}
+      run: |
+        set +e
+        "$CAC_PY" -m client.cli_erc_gate "$NETLIST_PATH" --out "$ERC_OUT" --severity-threshold "$ERC_THRESHOLD"
+        RC=$?
+        set -e
+        echo "exit-code=$RC" >> "$GITHUB_OUTPUT"
+        echo "report-path=$ERC_OUT/erc-report.json" >> "$GITHUB_OUTPUT"
+        if [ "$RC" = "0" ]; then echo "verdict=PASS" >> "$GITHUB_OUTPUT"; else echo "verdict=FAIL" >> "$GITHUB_OUTPUT"; fi
+        exit 0
+
+    - name: Upload ERC artifacts
+      if: ${{ inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@4.4.3
+      with:
+        name: erc-artifacts
+        path: ${{ inputs.output-dir }}
+        if-no-files-found: ignore
+
+    - name: Enforce ERC gate
+      if: steps.erc.outputs.exit-code != '0'
+      shell: bash
+      run: |
+        echo "::error::CircuitAgent ERC Gate failed (Threshold: ${{ inputs.severity-threshold }}) — Report: ${{ steps.erc.outputs.report-path }}"
+        exit 1

@@ -3092,6 +3092,228 @@ AVAILABLE_TOOLS = [
             "openWorldHint": False,
         },
     },
+    {
+        "name": "solve_via_current_array",
+        "description": (
+            "IPC-2152 / IPC-2221 via barrel current capacity and stitching-array solver: computes the "
+            "annular barrel cross-section from drill and plating, applies the thermal formula with "
+            "internal/external k constants, 40% array current-sharing derate, and IPC-4761 Type VII "
+            "fill+cap credit, returning the minimum parallel via count for a rail current."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "current_a": {"type": "number", "description": "Rail current to carry in A (default: 3.0).", "default": 3.0},
+                "via_drill_mm": {"type": "number", "description": "Finished drill diameter in mm (default: 0.30).", "default": 0.30},
+                "plating_um": {"type": "number", "description": "Copper plating thickness in μm (default: 25.0).", "default": 25.0},
+                "is_filled": {"type": "boolean", "description": "IPC-4761 Type VII fill+cap via (default: False).", "default": False},
+                "internal_layer": {"type": "boolean", "description": "Transition between internal layers k=0.024 (default: False).", "default": False},
+                "max_delta_t_c": {"type": "number", "description": "Allowable barrel temperature rise °C (default: 20.0).", "default": 20.0},
+                "max_array_size": {"type": "integer", "description": "Stitching ceiling before recommending wider traces (default: 8).", "default": 8},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "budget_fab_order",
+        "description": (
+            "JLCPCB / PCBWay headless order cost budget and submission manifest builder: offline math over "
+            "public price ladders (layers, quantity, area, finish, SMT, shipping, lead priority), cross-vendor "
+            "recommendation, and a SHA-256 tamper-evident manifest over the manufacturing artifacts for CI "
+            "order staging — no network, no keys, stdlib-only (macOS laptop or Docker CI runner)."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "layers": {"type": "integer", "description": "2 / 4 / 6 layers (default: 2).", "default": 2},
+                "qty": {"type": "integer", "description": "Panel quantity: 5/10/30/100 ladder (default: 5).", "default": 5},
+                "board_w_mm": {"type": "number", "description": "Outline width mm (default: 70.0).", "default": 70.0},
+                "board_h_mm": {"type": "number", "description": "Outline height mm (default: 50.0).", "default": 50.0},
+                "surface_finish": {"type": "string", "description": "'hasl_lead_free' (default) | 'enig' | 'osp'.", "default": "hasl_lead_free"},
+                "include_smt": {"type": "boolean", "description": "Request PCBA assembly (default: False).", "default": False},
+                "smt_parts": {"type": "integer", "description": "Number of SMT placements (default: 0).", "default": 0},
+                "shipping": {"type": "string", "description": "'standard' (default) | 'dhl'.", "default": "standard"},
+                "lead_priority": {"type": "string", "description": "'economy' | 'standard' (default) | 'expedite'.", "default": "standard"},
+                "artifacts": {"type": "object", "description": "Manufacturing artifacts {filename: content} for the SHA-256 submission manifest."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_qfn_thermal_pad_stencil",
+        "description": (
+            "IPC-7093A / IPC-7525A QFN and BTC thermal slug window-pane stencil aperture solver: converts solid 100% "
+            "paste openings into an optimized matrix grid (50%~70% paste coverage, default 60%) separated by 0.15~0.25mm "
+            "bare copper web outgassing channels, preventing solder voiding (>35%), die floating, and perimeter bridging."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pad_width_mm": {"type": "number", "description": "Thermal slug width in mm (default: 4.5).", "default": 4.5},
+                "pad_height_mm": {"type": "number", "description": "Thermal slug height in mm (default: 4.5).", "default": 4.5},
+                "target_coverage_pct": {"type": "number", "description": "Target paste coverage percentage 50~70% (default: 60.0).", "default": 60.0},
+                "web_width_mm": {"type": "number", "description": "Outgassing web channel width in mm (default: 0.20).", "default": 0.20},
+                "has_unfilled_thermal_vias": {"type": "boolean", "description": "Whether open unfilled vias exist in the pad (default: False).", "default": False},
+                "is_automotive_class3": {"type": "boolean", "description": "Whether strict Class 3 / automotive voiding limit <=15% applies (default: False).", "default": False},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "audit_smt_tombstone_risk",
+        "description": (
+            "IPC-A-610G §8.3.2.9 / IPC-SM-782 SMT chip passive component thermal relief & tombstoning (Manhattan effect) "
+            "risk auditor: checks thermal connection width symmetry between opposite pads on 0201/0402/0603/0805 passives, "
+            "flagging direct solid plane connections without thermal relief spokes that create unbalanced wetting torque."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "type": "array",
+                    "items": {"type": "object"},
+                    "description": "List of passive component dicts ({ref, package, pad1_type, pad2_type, pad1_width_mm, pad2_width_mm}).",
+                },
+                "default_trace_width_mm": {"type": "number", "description": "Nominal signal trace width in mm (default: 0.20).", "default": 0.20},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_castellated_pad_geometry",
+        "description": (
+            "IPC-A-600J §2.9 / IPC-6012E §3.6.3 castellated hole (edge plating half-hole) manufacturability solver: "
+            "verifies minimum finished hole diameter (>=0.80mm), centerline routing cut offset (|delta| <= 0.05mm), "
+            "minimum inward pad extension (>=0.50mm), pitch (>=1.27mm), and barrel copper plating thickness (>=20μm) "
+            "to prevent copper barrel tearout and burrs during daughterboard depaneling."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "hole_drill_diameter_mm": {"type": "number", "description": "Finished drill diameter in mm (default: 1.00).", "default": 1.00},
+                "center_to_edge_offset_mm": {"type": "number", "description": "Cutter path offset from hole center in mm (default: 0.00).", "default": 0.00},
+                "pad_inward_length_mm": {"type": "number", "description": "Inward annular pad extension from board edge in mm (default: 0.80).", "default": 0.80},
+                "pad_width_mm": {"type": "number", "description": "Pad width along board perimeter in mm (default: 0.80).", "default": 0.80},
+                "pad_pitch_mm": {"type": "number", "description": "Center-to-center pitch between adjacent holes in mm (default: 2.00).", "default": 2.00},
+                "copper_plating_thickness_um": {"type": "number", "description": "Barrel copper plating thickness in μm (default: 25.0).", "default": 25.0},
+                "solder_mask_clearance_mm": {"type": "number", "description": "Solder mask relief opening margin in mm (default: 0.080).", "default": 0.080},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_pcb_bow_and_twist",
+        "description": (
+            "IPC-TM-650 2.4.22 / IPC-6012E §3.4.4 PCB bow and twist (warpage & flatness) analyzer: evaluates "
+            "residual bimetallic thermal curvature driven by dielectric stackup core/prepreg asymmetry and copper "
+            "density gradients, enforcing strict <=0.75% limit for SMT assemblies to prevent BGA Head-in-Pillow (HiP) "
+            "open defects and tombstoning."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "board_length_mm": {"type": "number", "description": "Board longest edge in mm (default: 100.0).", "default": 100.0},
+                "board_width_mm": {"type": "number", "description": "Board shortest edge in mm (default: 80.0).", "default": 80.0},
+                "board_thickness_mm": {"type": "number", "description": "Total PCB thickness in mm (default: 1.60).", "default": 1.60},
+                "layer_count": {"type": "integer", "description": "Total layer count (default: 4).", "default": 4},
+                "has_smt_components": {"type": "boolean", "description": "Whether assembly contains SMT parts <=0.75% (default: True).", "default": True},
+                "copper_balance_ratio_top_bottom": {"type": "number", "description": "Top-to-bottom copper volume ratio (default: 1.0).", "default": 1.0},
+                "dielectric_asymmetry_pct": {"type": "number", "description": "Dielectric core/prepreg thickness asymmetry % (default: 0.0).", "default": 0.0},
+                "measured_bow_height_mm": {"type": "number", "description": "Optional measured dial-gauge bow deflection in mm."},
+                "measured_twist_height_mm": {"type": "number", "description": "Optional measured corner lift in mm."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "audit_smt_nozzle_selection",
+        "description": (
+            "EIA-481 & Juki/Yamaha/Fuji/Panasonic SMT pick-and-place nozzle selector & vacuum audit: verifies "
+            "nozzle outer diameter (OD) clearances against tape pocket walls and component margins, inner diameter (ID) "
+            "vacuum seal against leakage, and dynamic inertial hold safety factor (SF >= 1.5) under 3G~5G head acceleration "
+            "to eliminate pick failure and fly-off."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "component_designator": {"type": "string", "description": "Component designator (default: 'U1').", "default": "U1"},
+                "package_type": {"type": "string", "description": "Package designation (e.g. '0402', '0603', 'SOT-23', 'QFN-32').", "default": "0603"},
+                "component_length_mm": {"type": "number", "description": "Component length in mm."},
+                "component_width_mm": {"type": "number", "description": "Component width in mm."},
+                "component_height_mm": {"type": "number", "description": "Component height in mm."},
+                "component_mass_mg": {"type": "number", "description": "Component mass in milligrams."},
+                "specified_nozzle_model": {"type": "string", "description": "Optional explicit nozzle model (e.g. 'Juki-502', 'Yamaha-302A')."},
+                "vacuum_pressure_kpa": {"type": "number", "description": "Factory vacuum pressure in kPa (default: 70.0).", "default": 70.0},
+                "head_acceleration_g": {"type": "number", "description": "Head acceleration in G (default: 3.5).", "default": 3.5},
+                "friction_coefficient": {"type": "number", "description": "Surface friction coefficient (default: 0.30).", "default": 0.30},
+                "vendor_preference": {"type": "string", "description": "Vendor preference ('Juki', 'Yamaha', 'Fuji').", "default": "Juki"},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
+    {
+        "name": "calculate_trace_fusing_current",
+        "description": (
+            "IPC-2152 §5.3 & Onderdonk equation short-time transient conductor fusing current and burnout solver: "
+            "computes adiabatic fusing current, time-to-melt, FR-4 resin delamination/blister threshold, and Joule action "
+            "integral (I²t) for internal/external traces, verifying upstream fuse/PTC protection coordination margin (>=2.0x) "
+            "against electrical fire."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "trace_width_mm": {"type": "number", "description": "Trace width in mm (default: 0.50).", "default": 0.50},
+                "copper_thickness_um": {"type": "number", "description": "Copper thickness in μm (default: 35.0 for 1oz).", "default": 35.0},
+                "trace_layer": {"type": "string", "description": "Layer type ('external' or 'internal') (default: 'external').", "default": "external"},
+                "fault_current_a": {"type": "number", "description": "Estimated short-circuit fault current in Amperes (default: 15.0).", "default": 15.0},
+                "pulse_duration_s": {"type": "number", "description": "Fault pulse duration in seconds (default: 0.10).", "default": 0.10},
+                "ambient_temp_c": {"type": "number", "description": "Initial ambient temperature in °C (default: 25.0).", "default": 25.0},
+                "upstream_fuse_rating_a": {"type": "number", "description": "Optional upstream fuse rated current in Amperes."},
+                "upstream_fuse_i2t_a2s": {"type": "number", "description": "Optional upstream fuse rated melting I²t in A²s."},
+            },
+        },
+        "annotations": {
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
+    },
 ]
 
 # --------------------------------------------------------------------------- #

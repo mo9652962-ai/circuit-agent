@@ -58,6 +58,8 @@
 - PRESS_FIT_PTH_TOLERANCE_VIOLATION (warning)：无焊压接鱼眼针过孔成品孔径偏离 0.94~1.09mm 或孔铜 < 25μm，机械开裂或微动磨损断路（IPC-9797 / IEC 60352-5）。
 - FAB_CAPABILITY_LIMIT_EXCEEDED (warning)：走线线宽、线距或过孔钻孔低于板厂基础制程能力下限，工程 CAM 预审驳回（IPC-6012）。
 - SILKSCREEN_OVER_EXPOSED_COPPER (warning)：丝印层文字/图形覆盖到裸露焊盘铜皮上，阻焊与润湿不良引发焊接虚焊缺陷（IPC-A-600J / IPC-7351B）。
+- SMT_PICK_AND_PLACE_NOZZLE_MISMATCH (warning)：贴片机吸嘴外径过大导致料带口袋/邻近器件碰撞或内孔过大真空泄漏飞件（EIA-481 & Juki/Yamaha 标准）。
+- CONDUCTOR_FUSING_BURNOUT_RISK (warning)：走线短路脉冲热能量突破 FR-4 爆板分层极限或与上游保险丝配合失调充当牺牲熔丝（IPC-2152 §5.3 / Onderdonk 方程）。
 
 用法（合成输出即输入）：
     from client.synthesizer import synthesize_from_prompt
@@ -1605,6 +1607,292 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                         "warning",
                         "JEDEC JESD22-B111 Board-Level Drop Test Method",
                         object_id=f"comp:{c.ref}",
+                    )
+                )
+
+    # 54. VIA_BARREL_CURRENT_OVERLOAD (warning)：大电流单过孔/阵列孔壁载流过载
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        via_current = props.get("via_current_a")
+        if via_current is None or float(via_current) <= 0:
+            continue
+        from .via_current_solver import solve_via_current_array
+
+        rep_via = solve_via_current_array(
+            current_a=float(via_current),
+            via_drill_mm=float(props.get("via_drill_mm", 0.30)),
+            plating_um=float(props.get("via_plating_um", 25.0)),
+            is_filled=bool(props.get("via_filled", False)),
+            internal_layer=bool(props.get("via_internal", False)),
+            max_delta_t_c=float(props.get("via_max_delta_t_c", 20.0)),
+            max_array_size=int(props.get("via_array_max", 8)),
+        )
+        if not rep_via.meets_requirement:
+            issues.append(
+                _issue(
+                    "VIA_BARREL_CURRENT_OVERLOAD",
+                    "过孔孔壁载流超出并联阵列容量",
+                    f"网络 {net_name} 过孔 {rep_via.via_drill_mm}mm/{rep_via.plating_um:.0f}μm 承载 "
+                    f"{via_current}A，{rep_via.array_size} 孔并联仅 {rep_via.array_capacity_a:.1f}A；"
+                    "孔壁焦耳热将烧毁树脂致断路。加宽走线/扩大端部铜泊/改用填铜过孔（IPC-2152）。",
+                    "warning",
+                    "IPC-2152 & IPC-2221 Via Current Capacity Formula",
+                    object_id=f"net:{net_name}",
+                )
+            )
+
+    # 55. FAB_ORDER_MANIFEST_INCOMPLETE (warning)：无头下单制造包缺失关键交付件
+    if "fabrication_order" in (modules.get("__meta__", {}) if modules else {}):
+        meta_fab = modules["__meta__"]["fabrication_order"]
+        required_artifacts = ("board-Edge_Cuts.gm1", "board-F_Cu.gtl", "board.drl", "bom.csv", "cpl.csv")
+        provided = meta_fab.get("artifacts", [])
+        missing = [a for a in required_artifacts if a not in provided]
+        if missing:
+            issues.append(
+                _issue(
+                    "FAB_ORDER_MANIFEST_INCOMPLETE",
+                    "无头下单制造交付包缺少关键文件",
+                    f"JLCPCB/PCBWay API 下单前制造包缺少: {', '.join(missing)}；"
+                    "提交前须补齐并重算 SHA-256 提交账本，否则厂商 CAM 预审将 EQ 拒单（headless CI 门禁）。",
+                    "warning",
+                    "JLCPCB Online API & PCBWay Partner API Submission Requirements",
+                    object_id="mfg:fab_order",
+                )
+            )
+
+    # 56. QFN_THERMAL_PAD_SOLID_PASTE_VOIDING_RISK (warning)：QFN/BTC 底部散热盘实心锡膏开孔气孔与倾斜风险
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        if any(b in pkg for b in ("QFN", "DFN", "POWERSTAGE", "WQFN")) or bool(m.get("has_exposed_thermal_slug", False)):
+            solid_paste = bool(m.get("solid_thermal_paste", False))
+            open_vias = bool(m.get("thermal_pad_open_vias", False))
+            if solid_paste or open_vias:
+                from .qfn_thermal_pad import calculate_qfn_thermal_pad_stencil
+
+                w_slug = float(m.get("thermal_pad_width_mm", 4.5))
+                h_slug = float(m.get("thermal_pad_height_mm", 4.5))
+                rep_qfn = calculate_qfn_thermal_pad_stencil(
+                    pad_width_mm=w_slug,
+                    pad_height_mm=h_slug,
+                    has_unfilled_thermal_vias=open_vias,
+                )
+                if solid_paste or not rep_qfn.is_coverage_compliant or open_vias:
+                    issues.append(
+                        _issue(
+                            "QFN_THERMAL_PAD_SOLID_PASTE_VOIDING_RISK",
+                            "QFN/BTC 散热盘实心开孔产生高气孔率与短路风险",
+                            f"器件 {ref} ({pkg}) 底部散热焊盘未做九宫格/窗口钢网开孔（预估回流焊空洞率达 "
+                            f"{rep_qfn.estimated_voiding_pct:.1f}%）；未逸出助焊剂蒸气将导致芯片漂移倾斜 "
+                            "并使锡膏挤出短路外圈引脚，须转为 50%~70% 矩阵网格开孔（IPC-7093A §4.5）。",
+                            "warning",
+                            "IPC-7093A Section 4.5 & IPC-7525A Stencil Window Guidelines",
+                            object_id=f"comp:{ref}",
+                        )
+                    )
+
+    # 57. SMT_PAD_THERMAL_IMBALANCE_TOMBSTONE_RISK (warning)：片式无源器件焊盘热不对称立碑风险
+    tomb_list = []
+    for ref, m in modules.items():
+        if ref == "__meta__":
+            continue
+        pkg = str(m.get("package", "")).upper()
+        if any(c in pkg for c in ("0201", "0402", "0603", "0805", "1206")):
+            p1_type = str(m.get("pad1_connection_type", "trace")).lower()
+            p2_type = str(m.get("pad2_connection_type", "trace")).lower()
+            if (p1_type == "solid_plane" and p2_type != "solid_plane") or (p2_type == "solid_plane" and p1_type != "solid_plane"):
+                tomb_list.append({"ref": ref, "package": pkg, "pad1_type": p1_type, "pad2_type": p2_type})
+    if tomb_list:
+        from .tombstone_analyzer import audit_smt_tombstone_risk
+
+        rep_tomb = audit_smt_tombstone_risk(tomb_list)
+        for comp_risk in rep_tomb.at_risk_components:
+            if comp_risk.risk_level == "high":
+                issues.append(
+                    _issue(
+                        "SMT_PAD_THERMAL_IMBALANCE_TOMBSTONE_RISK",
+                        "无源片式元件焊盘热惯量不对称立碑风险",
+                        f"器件 {comp_risk.ref_des} ({comp_risk.package}) 单端直连大铺铜未加十字花焊隔离 "
+                        f"(热失配比 R={comp_risk.thermal_imbalance_ratio:.1f})；回流时表面张力扭矩失衡将把元件拉起竖立，"
+                        "必须在直连端铺铜添加 2~4 条 0.20mm 热隔离花焊辐条 (IPC-A-610G §8.3)。",
+                        "warning",
+                        "IPC-A-610G Section 8.3.2.9 & IPC-SM-782 Thermal Balance",
+                        object_id=f"comp:{comp_risk.ref_des}",
+                    )
+                )
+
+    # 58. CASTELLATED_HOLE_FAB_VIOLATION (warning)：半孔包边镀铜孔径过小或环宽不足致撕铜
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        if bool(props.get("is_castellated", False)):
+            from .castellated_pads import calculate_castellated_pad_geometry
+
+            rep_cas = calculate_castellated_pad_geometry(
+                hole_drill_diameter_mm=float(props.get("castellated_drill_mm", 1.0)),
+                center_to_edge_offset_mm=float(props.get("centerline_offset_mm", 0.0)),
+                pad_inward_length_mm=float(props.get("pad_inward_length_mm", 0.8)),
+                pad_pitch_mm=float(props.get("pad_pitch_mm", 2.0)),
+                copper_plating_thickness_um=float(props.get("copper_plating_um", 25.0)),
+            )
+            if not rep_cas.is_manufacturable:
+                v_desc = "; ".join(rep_cas.violations)
+                issues.append(
+                    _issue(
+                        "CASTELLATED_HOLE_FAB_VIOLATION",
+                        "板边半孔包边镀铜孔径/内延环宽不满足加工标准",
+                        f"网络 {net_name} 邮票半孔存在加工缺陷风险: {v_desc}；"
+                        "成型铣刀铣削边缘时将撕脱孔壁铜皮或产生飞边短路（IPC-A-600J §2.9 & IPC-6012E §3.6.3）。",
+                        "warning",
+                        "IPC-A-600J §2.9 & IPC-6012E §3.6.3 Castellated Hole Rules",
+                        object_id=f"net:{net_name}",
+                    )
+                )
+
+    # 59. STACKUP_ASYMMETRY_WARPAGE_RISK (warning)：叠层与铺铜不对称导致回流焊板弯板翘超限
+    meta_warp = modules.get("__meta__", {}) if modules else {}
+    cu_ratio = meta_warp.get("copper_balance_ratio")
+    diel_asym = meta_warp.get("dielectric_asymmetry_pct")
+    if cu_ratio is not None or diel_asym is not None:
+        from .bow_and_twist import calculate_pcb_bow_and_twist
+
+        rep_warp = calculate_pcb_bow_and_twist(
+            board_length_mm=float(meta_warp.get("board_length_mm", 100.0)),
+            board_width_mm=float(meta_warp.get("board_width_mm", 80.0)),
+            board_thickness_mm=float(meta_warp.get("board_thickness_mm", 1.6)),
+            has_smt_components=bool(meta_warp.get("has_smt_components", True)),
+            copper_balance_ratio_top_bottom=float(cu_ratio or 1.0),
+            dielectric_asymmetry_pct=float(diel_asym or 0.0),
+        )
+        if not rep_warp.is_compliant:
+            issues.append(
+                _issue(
+                    "STACKUP_ASYMMETRY_WARPAGE_RISK",
+                    "PCB 叠层热机械不对称导致板弯板翘超限",
+                    f"预估板弯 Bow={rep_warp.calculated_bow_pct:.2f}%, 板翘 Twist={rep_warp.calculated_twist_pct:.2f}% "
+                    f"超出 IPC-6012E SMT 限值 ({rep_warp.max_allowable_pct:.2f}%)；"
+                    "260°C 回流冷却双金属热应力将导致 BGA 枕头效应 (HiP)、空焊与锡膏漏印（IPC-TM-650 2.4.22）。",
+                    "warning",
+                    "IPC-6012E §3.4.4 Table 3-3 & IPC-TM-650 2.4.22 Bow and Twist Limits",
+                    object_id="stackup:warpage",
+                )
+            )
+
+    # 60. SMT_PICK_AND_PLACE_NOZZLE_MISMATCH (warning)：贴片机吸嘴选型不匹配致抛料撞件或真空泄漏
+    from .smt_nozzle_selector import audit_smt_nozzle_selection
+
+    meta_nozzle = modules.get("__meta__", {}).get("smt_nozzle_audit") if modules else None
+    if meta_nozzle:
+        for n_item in (meta_nozzle if isinstance(meta_nozzle, list) else [meta_nozzle]):
+            rep_noz = audit_smt_nozzle_selection(
+                component_designator=n_item.get("designator", "U1"),
+                package_type=n_item.get("package", "0603"),
+                component_length_mm=n_item.get("length_mm"),
+                component_width_mm=n_item.get("width_mm"),
+                component_height_mm=n_item.get("height_mm"),
+                component_mass_mg=n_item.get("mass_mg"),
+                specified_nozzle_model=n_item.get("nozzle_model"),
+                vacuum_pressure_kpa=float(n_item.get("vacuum_kpa", 70.0)),
+                head_acceleration_g=float(n_item.get("acceleration_g", 3.5)),
+            )
+            if not rep_noz.is_suitable:
+                issues.append(
+                    _issue(
+                        "SMT_PICK_AND_PLACE_NOZZLE_MISMATCH",
+                        "SMT 贴片机吸嘴外径过大碰撞或内径过大真空泄漏",
+                        f"器件 {rep_noz.component_designator} ({rep_noz.package_type}) 吸嘴选型冲突: "
+                        f"{'; '.join(rep_noz.violations)} "
+                        f"(OD={rep_noz.nozzle_outer_diameter_mm}mm, ID={rep_noz.nozzle_inner_diameter_mm}mm, 动载SF={rep_noz.dynamic_safety_factor})；"
+                        "贴装将引发料带口袋撞件或转塔高速旋转甩料（EIA-481 & Juki/Yamaha 标准）。",
+                        "warning",
+                        "EIA-481 & Juki/Yamaha SMT Placement Nozzle Guidelines",
+                        object_id=f"part:{rep_noz.component_designator}",
+                    )
+                )
+    if modules:
+        for des, m_info in modules.items():
+            if des.startswith("__"):
+                continue
+            if not isinstance(m_info, dict):
+                continue
+            noz_model = m_info.get("nozzle_model") or m_info.get("specified_nozzle")
+            if noz_model:
+                rep_noz = audit_smt_nozzle_selection(
+                    component_designator=des,
+                    package_type=m_info.get("package", "0603"),
+                    component_length_mm=m_info.get("length_mm"),
+                    component_width_mm=m_info.get("width_mm"),
+                    component_height_mm=m_info.get("height_mm"),
+                    component_mass_mg=m_info.get("mass_mg"),
+                    specified_nozzle_model=noz_model,
+                )
+                if not rep_noz.is_suitable:
+                    issues.append(
+                        _issue(
+                            "SMT_PICK_AND_PLACE_NOZZLE_MISMATCH",
+                            "SMT 贴片机吸嘴外径过大碰撞或内径过大真空泄漏",
+                            f"器件 {des} 吸嘴选型冲突: {'; '.join(rep_noz.violations)}；"
+                            "高速下压与转塔旋转将引发飞料抛件（EIA-481）。",
+                            "warning",
+                            "EIA-481 & Juki/Yamaha SMT Placement Nozzle Guidelines",
+                            object_id=f"part:{des}",
+                        )
+                    )
+
+    # 61. CONDUCTOR_FUSING_BURNOUT_RISK (warning)：PCB 走线短路脉冲热能量超限起泡碳化与保险丝配合失调
+    from .trace_fusing_current import calculate_trace_fusing_current
+
+    meta_fuse = modules.get("__meta__", {}).get("trace_fusing_audit") if modules else None
+    if meta_fuse:
+        for f_item in (meta_fuse if isinstance(meta_fuse, list) else [meta_fuse]):
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(f_item.get("trace_width_mm", 0.5)),
+                copper_thickness_um=float(f_item.get("copper_thickness_um", 35.0)),
+                trace_layer=str(f_item.get("trace_layer", "external")),
+                fault_current_a=float(f_item.get("fault_current_a", 15.0)),
+                pulse_duration_s=float(f_item.get("pulse_duration_s", 0.1)),
+                upstream_fuse_rating_a=f_item.get("upstream_fuse_rating_a"),
+                upstream_fuse_i2t_a2s=f_item.get("upstream_fuse_i2t_a2s"),
+            )
+            if not rep_fuse.is_safe:
+                issues.append(
+                    _issue(
+                        "CONDUCTOR_FUSING_BURNOUT_RISK",
+                        "PCB 走线短路过流耐受不足致基材分层起泡或充当牺牲熔丝",
+                        f"网络走线短路故障热核算未通过: {'; '.join(rep_fuse.violations)} "
+                        f"(短时极限={rep_fuse.fr4_delamination_current_a:.1f}A, 动作积分 I²t={rep_fuse.action_integral_i2t_a2s:.2f}A²s)；"
+                        "短路时将引起基板碳化起火或铜箔爆裂开路（IPC-2152 §5.3 / Onderdonk 方程）。",
+                        "warning",
+                        "IPC-2152 §5.3 & Onderdonk Conductor Fusing Equation",
+                        object_id="trace:fusing",
+                    )
+                )
+    for conn in connections or []:
+        props = conn.get("properties") or {}
+        net_name = conn.get("net", "")
+        fault_cur = props.get("fault_current_a")
+        if fault_cur is not None:
+            rep_fuse = calculate_trace_fusing_current(
+                trace_width_mm=float(props.get("trace_width_mm", 0.3)),
+                copper_thickness_um=float(props.get("copper_thickness_um", 35.0)),
+                trace_layer=str(props.get("trace_layer", "external")),
+                fault_current_a=float(fault_cur),
+                pulse_duration_s=float(props.get("pulse_duration_s", 0.1)),
+                upstream_fuse_rating_a=props.get("upstream_fuse_rating_a"),
+                upstream_fuse_i2t_a2s=props.get("upstream_fuse_i2t_a2s"),
+            )
+            if not rep_fuse.is_safe:
+                issues.append(
+                    _issue(
+                        "CONDUCTOR_FUSING_BURNOUT_RISK",
+                        "PCB 走线短路过流耐受不足致基材分层起泡或充当牺牲熔丝",
+                        f"网络 {net_name} 短路过流热耐受不足: {'; '.join(rep_fuse.violations)}；"
+                        "强短路冲击下铜线将先于保险丝起火烧断（IPC-2152 §5.3）。",
+                        "warning",
+                        "IPC-2152 §5.3 & Onderdonk Conductor Fusing Equation",
+                        object_id=f"net:{net_name}",
                     )
                 )
 
