@@ -72,7 +72,7 @@ runs:
 
     - name: Upload ERC artifacts
       if: ${{ inputs.upload-artifact == 'true' }}
-      uses: actions/upload-artifact@4.4.3
+      uses: actions/upload-artifact@v7.0.2
       with:
         name: erc-artifacts
         path: ${{ inputs.output-dir }}
