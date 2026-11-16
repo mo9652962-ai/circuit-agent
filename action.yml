@@ -18,7 +18,7 @@ inputs:
   version:
     description: 'circuit-agent-client version from PyPI'
     required: false
-    default: '0.23.0'
+    default: '0.25.0'
   output-dir:
     description: 'Directory for ERC JSON reports and artifacts'
     required: false
