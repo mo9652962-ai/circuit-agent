@@ -41,7 +41,7 @@ CASES = [
             "    for net, worst_width in sorted(power_narrow.items()):",
             "    for net, worst_width in sorted(power_narrow.items()) * 3:",
         ),
-        "tests/test_pcb_drc_physical.py::TestReportUsability::test_width_findings_are_per_net",
+        "tests/test_pcb_drc_physical.py::TestReportUsability::test_width_findings_are_per_net_ses",
     ),
 ]
 
@@ -64,7 +64,7 @@ def main() -> int:
                 failures.append(label)
                 continue
             SRC.write_text(original.replace(old, new, 1), encoding="utf-8", newline="")
-            code = run([".venv/Scripts/python.exe", "-m", "pytest", test, "-q", "-x"])
+            code = run([sys.executable, "-m", "pytest", test, "-q", "-x"])
             SRC.write_text(original, encoding="utf-8", newline="")
             if code == 0:
                 print(f"  {label:45} NOT CAUGHT — test still passes")

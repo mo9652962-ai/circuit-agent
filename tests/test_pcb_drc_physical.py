@@ -24,6 +24,20 @@ from client.synthesizer import synthesize_from_prompt
 
 ENV_NODE = "ESP32-C3 环境监测节点，带 Type-C 供电、I2C 传感器插座、指示灯和2个按键"
 
+# Hand-written SES with a 0.150 mm GND trace: always exercises DRC-WID-02,
+# independent of what any router produces. See the test that uses it.
+SES_NARROW_GND = """(session "narrow-gnd"
+  (resolution mm 1000)
+  (routes
+    (net GND
+      (wire (path Top 150
+        10000 10000
+        30000 10000
+      ))
+    )
+  )
+)"""
+
 
 @pytest.fixture(scope="module")
 def env_node_report():
@@ -223,6 +237,22 @@ class TestReportUsability:
 
     def test_width_findings_are_per_net(self, env_node_report):
         width = [v for v in env_node_report.violations if v.rule_id in ("DRC-WID-01", "DRC-WID-02")]
+        nets = [v.net for v in width]
+        assert len(nets) == len(set(nets)), f"duplicate width findings per net: {nets}"
+
+    def test_width_findings_are_per_net_ses(self):
+        """Same per-net guarantee, on a router-independent SES fixture.
+
+        The shared board above only exercises DRC-WID-02 if the router
+        happens to route a power net narrower than 0.195 mm; when it does
+        not, the test passes vacuously and the width mutation case in
+        verify_drc_tests.py has nothing to catch. SES_NARROW_GND always
+        contains a 0.150 mm GND trace, so the finding always exists and a
+        per-segment regression always shows up as duplicate nets.
+        """
+        report = run_pcb_physical_drc({}, [], ses_text=SES_NARROW_GND, placements={})
+        width = [v for v in report.violations if v.rule_id in ("DRC-WID-01", "DRC-WID-02")]
+        assert width, "a 0.150 mm GND trace must produce a width finding"
         nets = [v.net for v in width]
         assert len(nets) == len(set(nets)), f"duplicate width findings per net: {nets}"
 

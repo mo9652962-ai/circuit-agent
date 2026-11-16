@@ -26,6 +26,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   as G36/G37 filled regions. Drill wander alone is allowed 0.075 mm, which on a
   0.6/0.3 via is the entire annular ring at the trace neck.
 
+- **DRC mutation verification in the test suite.** `verify_drc_tests.py`
+  reintroduces four historical `pcb_drc` defects one at a time and requires
+  the targeted test to fail for each. It previously ran only by hand and
+  hardcoded a Windows venv interpreter path; it now uses the running
+  interpreter and is wrapped by `tests/test_drc_mutation_verification.py`,
+  so CI runs it as part of the suite with no workflow change. Its width
+  case also has a new target, `test_width_findings_are_per_net_ses`: the
+  previous target only exercises DRC-WID-02 when the router happens to
+  route a power net narrower than 0.195 mm and otherwise passes
+  vacuously, while the new one drives the check with a hand-written SES
+  containing a 0.150 mm GND trace.
+
 ### Fixed
 
 - **Copper layers carried no via annular ring.** The drill file had the holes and
