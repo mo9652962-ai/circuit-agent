@@ -12,6 +12,7 @@ CircuitAgent is an open-source, deterministic AI hardware synthesis engine and M
 - **Test Runner**: `pytest tests/ -q` (Must pass all 240+ tests before submitting changes)
 - **Contract Guard**: `pytest tests/test_contract_sync.py` (Guards README badge counts, block lists, equations, and MCP tool catalogs against code drift)
 - **Linter**: `ruff check .`
+- **Type Check**: `mypy client/` (Must report no errors; config and stub overrides live in `pyproject.toml`)
 
 ## Directory Structure
 

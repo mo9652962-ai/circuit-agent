@@ -105,11 +105,12 @@ def calculate_smt_placement_clearance(
             continue
         h = _estimate_height(m)
         raw_pos = m.get("position")
-        placed = isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2
-        if placed:
+        if isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2:
+            placed = True
             x = float(raw_pos[0])
             y = float(raw_pos[1])
         else:
+            placed = False
             # No coordinates: keep the board-centre placeholder for the report's
             # placement list, but flag the part so the collision pass knows the
             # distance is unknown rather than zero.

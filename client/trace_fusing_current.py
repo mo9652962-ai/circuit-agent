@@ -152,13 +152,12 @@ def calculate_trace_fusing_current(
             recommendations.append(
                 f"走线与上游保险丝 I²t 配合裕量比为 {ratio:.2f}，略低于工业推荐值 2.00，建议提升走线截面。"
             )
-    elif upstream_fuse_rating_a is not None and upstream_fuse_rating_a > 0:
-        if upstream_fuse_rating_a >= i_delam:
-            coordination_margin_ok = False
-            violations.append(
-                f"上游保险丝额定电流 ({upstream_fuse_rating_a:.1f}A) 大于等于走线短时过流极限 ({i_delam:.1f}A)，"
-                "保护器件无法对走线提供有效热保护，走线可能充当牺牲熔丝！"
-            )
+    elif upstream_fuse_rating_a is not None and upstream_fuse_rating_a > 0 and upstream_fuse_rating_a >= i_delam:
+        coordination_margin_ok = False
+        violations.append(
+            f"上游保险丝额定电流 ({upstream_fuse_rating_a:.1f}A) 大于等于走线短时过流极限 ({i_delam:.1f}A)，"
+            "保护器件无法对走线提供有效热保护，走线可能充当牺牲熔丝！"
+        )
 
     if not violations:
         recommendations.append(

@@ -24,7 +24,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "ruff>=0.6", "jsonschema>=4", "freeroute>=2026.7.14"]
+dev = ["pytest>=7", "ruff>=0.6", "jsonschema>=4", "freeroute>=2026.7.14", "mypy>=1.10"]
 routing = ["freeroute>=2026.7.14"]
 
 [project.scripts]
@@ -50,3 +50,14 @@ ignore = [
   "BLE001",  # Do not catch blind exception - necessary for MCP stdio and LCSC network resiliency
   "S110",    # try-except-pass - cache layer fallback
 ]
+
+# Type checking gate: `mypy client/` must report no errors.
+[tool.mypy]
+python_version = "3.10"
+
+# Optional integrations that publish no type stubs: freeroute (Java-bridge
+# autorouter, routing extra) and jsonschema (dev/validation only). Treat
+# their imports as Any rather than failing the gate on a missing stub.
+[[tool.mypy.overrides]]
+module = ["freeroute.*", "jsonschema.*"]
+ignore_missing_imports = true

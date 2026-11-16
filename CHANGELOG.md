@@ -38,6 +38,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   vacuously, while the new one drives the check with a hand-written SES
   containing a 0.150 mm GND trace.
 
+- **Type checking gate.** `client/` now passes `mypy` with no errors
+  (41 baseline findings fixed in `erc`, `export_engine`, `mcp_server`,
+  `power_tree`, `smt_placement_clearance`, `trace_fusing_current`).
+  Every fix is annotation- or rename-only — narrowed Optional handling,
+  per-branch local names in the MCP dispatcher where one variable had
+  collected incompatible types, and boundary casts for tool arguments
+  typed as Literals — with no runtime behaviour change; the full suite
+  passes with a failure set identical to the pre-change baseline.
+  Config lives in `pyproject.toml` (`mypy` joins the dev extra), with
+  stub overrides only for the unstubbed optional integrations
+  (freeroute, jsonschema). AGENTS.md lists the command beside the
+  linter.
+
 ### Fixed
 
 - **Copper layers carried no via annular ring.** The drill file had the holes and

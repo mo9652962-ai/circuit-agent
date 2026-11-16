@@ -211,10 +211,10 @@ def analyze_power_tree(
     has_overload_risk = False
 
     for conv in converters:
-        vout_rail = rails_dict.get(conv.vout_net)
-        if vout_rail:
-            conv.load_typ_ma = vout_rail.total_typ_ma
-            conv.load_peak_ma = vout_rail.total_peak_ma
+        conv_rail = rails_dict.get(conv.vout_net)
+        if conv_rail:
+            conv.load_typ_ma = conv_rail.total_typ_ma
+            conv.load_peak_ma = conv_rail.total_peak_ma
             v_diff = max(conv.vin_v - conv.vout_v, 0.0)
             conv.power_loss_typ_mw = round(v_diff * conv.load_typ_ma, 1)
             conv.power_loss_peak_mw = round(v_diff * conv.load_peak_ma, 1)

@@ -64,7 +64,7 @@ DEFAULT_ROTATION_RULES: list[tuple[str, float]] = [
 
 def _extract_components_and_connections(raw_netlist: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Extract normalized components and connections from raw dictionary or wrapped netlist."""
-    nl = raw_netlist.get("netlist") if "netlist" in raw_netlist and isinstance(raw_netlist["netlist"], dict) else raw_netlist
+    nl: dict[str, Any] = raw_netlist["netlist"] if "netlist" in raw_netlist and isinstance(raw_netlist["netlist"], dict) else raw_netlist
     components = nl.get("components", [])
     if not components:
         src_modules = raw_netlist.get("modules") or nl.get("modules")
@@ -162,6 +162,12 @@ def _is_smt_component(ref: str, pkg: str) -> bool:
     )
 
 
+def _natural_ref_key(ref: str) -> tuple[str, int]:
+    """Natural designator order: R1 < R2 < R10 (prefix, then numeric part)."""
+    match = re.search(r"\d+", ref)
+    return re.sub(r"\d+", "", ref), int(match.group(0)) if match else 0
+
+
 def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
     """Generate JLCPCB-compliant production BOM CSV.
 
@@ -190,7 +196,7 @@ def export_jlcpcb_bom(netlist_data: dict[str, Any]) -> str:
 
     for (val, pkg, lcsc), refs in sorted(groups.items(), key=lambda x: x[0][0]):
         # Sort designators with natural numeric order: R1, R2, R10
-        sorted_refs = sorted(refs, key=lambda r: (re.sub(r"\d+", "", r), int(re.search(r"\d+", r).group(0)) if re.search(r"\d+", r) else 0))
+        sorted_refs = sorted(refs, key=_natural_ref_key)
         des_str = ",".join(sorted_refs)
         part_class = "Basic Part" if pkg in ("0603", "0805", "SOT-23", "SOT-223") and lcsc.startswith("C") else "Extended Part"
         writer.writerow([val, des_str, pkg, lcsc, part_class, len(refs)])
@@ -225,7 +231,7 @@ def export_jlcpcb_cpl(
         # Match the outline the caller used for the Gerber export, so the CPL
         # coordinates land inside the board the fab actually receives. A hardcoded
         # 70 x 50 here put every part outside the outline on any other board size.
-        placements = heuristic_place_components(modules, board_width_mm, board_height_mm)
+        placements: dict[str, Any] = heuristic_place_components(modules, board_width_mm, board_height_mm)
     else:
         placements = {c["ref"]: c for c in components}
 
@@ -261,12 +267,12 @@ def render_ascii_topology(netlist_data: dict[str, Any]) -> str:
     components, connections = _extract_components_and_connections(netlist_data)
     chip_id = netlist_data.get("chip_id", "Main MCU")
 
-    power_rails = sorted({c.get("net") for c in connections if any(p in c.get("net", "").upper() for p in ("VBUS", "VCC", "3.3V", "5V", "VBAT"))})
-    busses = sorted({c.get("net") for c in connections if any(b in c.get("net", "").upper() for b in ("SCL", "SDA", "TX", "RX", "CAN", "RS485"))})
+    power_rails = sorted({net for c in connections if (net := c.get("net")) and any(p in net.upper() for p in ("VBUS", "VCC", "3.3V", "5V", "VBAT"))})
+    busses = sorted({net for c in connections if (net := c.get("net")) and any(b in net.upper() for b in ("SCL", "SDA", "TX", "RX", "CAN", "RS485"))})
 
-    sensor_blocks = [c.get("ref") for c in components if any(s in c.get("ref", "").upper() for s in ("U_AHT", "U_MPU", "SENSOR"))]
-    comm_blocks = [c.get("ref") for c in components if any(s in c.get("ref", "").upper() for s in ("U_485", "U_CAN", "CH340", "USB"))]
-    prot_blocks = [c.get("ref") for c in components if any(s in c.get("ref", "").upper() for s in ("D_TVS", "D_REV", "FB_", "TP_"))]
+    sensor_blocks = [ref for c in components if (ref := c.get("ref")) and any(s in ref.upper() for s in ("U_AHT", "U_MPU", "SENSOR"))]
+    comm_blocks = [ref for c in components if (ref := c.get("ref")) and any(s in ref.upper() for s in ("U_485", "U_CAN", "CH340", "USB"))]
+    prot_blocks = [ref for c in components if (ref := c.get("ref")) and any(s in ref.upper() for s in ("D_TVS", "D_REV", "FB_", "TP_"))]
 
     lines = [
         "=======================================================================",
