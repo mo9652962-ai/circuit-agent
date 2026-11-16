@@ -26,8 +26,9 @@ import json
 import logging
 import math
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from .chip_rules import (
     list_supported_chips,
@@ -115,7 +116,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _get_catalog() -> list[dict[str, Any]]:
-    factories = [
+    factories: list[Callable[[], Any]] = [
         block_usb_c_power,
         block_power_ldo_3v3,
         block_crystal_clock,
@@ -572,30 +573,30 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 v_out = float(params.get("v_out_target", 3.3))
                 max_i = float(params.get("max_quiescent_current_ma", 1.0))
                 series = params.get("series", "E96")
-                res = solve_resistor_divider(v_in, v_out, max_quiescent_current_ma=max_i, series=series)
-                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+                div_res = solve_resistor_divider(v_in, v_out, max_quiescent_current_ma=max_i, series=series)
+                return {"content": [{"type": "text", "text": json.dumps(div_res.to_dict(), ensure_ascii=False, indent=2)}]}
 
             if p_type == "ldo_thermal":
                 v_in = float(params.get("v_in", 5.0))
                 v_out = float(params.get("v_out", 3.3))
                 i_load = float(params.get("i_load_a", 0.1))
                 pkg = params.get("package", "SOT-223")
-                res = calculate_ldo_thermal(v_in, v_out, i_load, package=pkg)
-                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+                ldo_res = calculate_ldo_thermal(v_in, v_out, i_load, package=pkg)
+                return {"content": [{"type": "text", "text": json.dumps(ldo_res.to_dict(), ensure_ascii=False, indent=2)}]}
 
             if p_type == "i2c_pullup":
                 v_cc = float(params.get("v_cc", 3.3))
                 c_bus = float(params.get("bus_capacitance_pf", 100.0))
                 mode = params.get("mode", "fast")
-                res = calculate_i2c_pullup(v_cc, bus_capacitance_pf=c_bus, mode=mode)
-                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+                i2c_res = calculate_i2c_pullup(v_cc, bus_capacitance_pf=c_bus, mode=mode)
+                return {"content": [{"type": "text", "text": json.dumps(i2c_res.to_dict(), ensure_ascii=False, indent=2)}]}
 
             if p_type == "rc_filter":
                 fc = float(params["cutoff_freq_hz"]) if "cutoff_freq_hz" in params else None
                 r = float(params["r_ohm"]) if "r_ohm" in params else None
                 c = float(params["c_f"]) if "c_f" in params else None
-                res = calculate_rc_filter(cutoff_freq_hz=fc, r_ohm=r, c_f=c)
-                return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+                rc_res = calculate_rc_filter(cutoff_freq_hz=fc, r_ohm=r, c_f=c)
+                return {"content": [{"type": "text", "text": json.dumps(rc_res.to_dict(), ensure_ascii=False, indent=2)}]}
 
             return {
                 "isError": True,
@@ -628,7 +629,7 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
         if name == "calculate_ipc2221_clearance":
             v = float(arguments.get("peak_voltage_v", 5.0))
-            ctype = str(arguments.get("conductor_type", "B2"))
+            ctype = cast(Literal["B1", "B2", "B4", "A6"], str(arguments.get("conductor_type", "B2")))
             from .parametric_equations import calculate_ipc2221_clearance
 
             res = calculate_ipc2221_clearance(v, ctype)
@@ -723,8 +724,8 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             h = float(arguments.get("height_mm", 0.100))
             from .differential_skew import solve_differential_pair_skew
 
-            res = solve_differential_pair_skew(dl, protocol=proto, dielectric_er=er, trace_width_mm=tw, height_mm=h)
-            return {"content": [{"type": "text", "text": json.dumps(res.to_dict(), ensure_ascii=False, indent=2)}]}
+            skew_res = solve_differential_pair_skew(dl, protocol=proto, dielectric_er=er, trace_width_mm=tw, height_mm=h)
+            return {"content": [{"type": "text", "text": json.dumps(skew_res.to_dict(), ensure_ascii=False, indent=2)}]}
 
         if name == "export_ipc_d356":
             modules = arguments.get("modules", {})
@@ -874,9 +875,9 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             }
 
         if name == "calculate_pcb_panel_rails":
-            bw = arguments.get("board_width_mm")
-            bh = arguments.get("board_height_mm")
-            if bw is None or bh is None:
+            bw_raw = arguments.get("board_width_mm")
+            bh_raw = arguments.get("board_height_mm")
+            if bw_raw is None or bh_raw is None:
                 return {
                     "isError": True,
                     "content": [
@@ -892,8 +893,8 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             from .panel_frame import calculate_pcb_panel_rails
 
             res_panel = calculate_pcb_panel_rails(
-                board_width_mm=float(bw),
-                board_height_mm=float(bh),
+                board_width_mm=float(bw_raw),
+                board_height_mm=float(bh_raw),
                 grid_x=gx,
                 grid_y=gy,
                 depaneling_method=depan,
@@ -966,9 +967,9 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             }
 
         if name == "calculate_copper_thieving_balance":
-            bw = arguments.get("board_width_mm")
-            bh = arguments.get("board_height_mm")
-            if bw is None or bh is None:
+            bw_raw = arguments.get("board_width_mm")
+            bh_raw = arguments.get("board_height_mm")
+            if bw_raw is None or bh_raw is None:
                 return {
                     "isError": True,
                     "content": [
@@ -982,8 +983,8 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             from .copper_thieving import calculate_copper_thieving_balance
 
             rep_cu = calculate_copper_thieving_balance(
-                board_width_mm=float(bw),
-                board_height_mm=float(bh),
+                board_width_mm=float(bw_raw),
+                board_height_mm=float(bh_raw),
                 top_copper_area_mm2=float(top_cu) if top_cu is not None else None,
                 bot_copper_area_mm2=float(bot_cu) if bot_cu is not None else None,
                 keepout_margin_mm=margin,
@@ -1062,9 +1063,9 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             }
 
         if name == "calculate_fiducial_layout":
-            bw = arguments.get("board_width_mm")
-            bh = arguments.get("board_height_mm")
-            if bw is None or bh is None:
+            bw_raw = arguments.get("board_width_mm")
+            bh_raw = arguments.get("board_height_mm")
+            if bw_raw is None or bh_raw is None:
                 return {
                     "isError": True,
                     "content": [
@@ -1077,8 +1078,8 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             from .fiducial_optimizer import calculate_fiducial_layout
 
             rep_fid = calculate_fiducial_layout(
-                board_width_mm=float(bw),
-                board_height_mm=float(bh),
+                board_width_mm=float(bw_raw),
+                board_height_mm=float(bh_raw),
                 fine_pitch_components=comps if isinstance(comps, list) else [],
                 edge_clearance_mm=edge,
                 fine_pitch_threshold_mm=thresh,
@@ -1192,9 +1193,9 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             }
 
         if name == "optimize_panel_grid":
-            bw = arguments.get("board_width_mm")
-            bh = arguments.get("board_height_mm")
-            if bw is None or bh is None:
+            bw_raw = arguments.get("board_width_mm")
+            bh_raw = arguments.get("board_height_mm")
+            if bw_raw is None or bh_raw is None:
                 return {
                     "isError": True,
                     "content": [
@@ -1207,8 +1208,8 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             from .panel_optimizer import optimize_panel_grid
 
             rep_opt = optimize_panel_grid(
-                board_width_mm=float(bw),
-                board_height_mm=float(bh),
+                board_width_mm=float(bw_raw),
+                board_height_mm=float(bh_raw),
                 max_grid=max_grid,
                 max_panel_mm=max_panel,
                 rail_width_mm=rail,
@@ -1431,7 +1432,7 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             bundle["bom.csv"] = _gate_bom(spec)
             bundle["cpl.csv"] = _gate_cpl(spec, board_width_mm=bw, board_height_mm=bh)
             report = _gate_validate(
-                artifacts_dict=bundle, modules=modules, job_name=j_name
+                artifacts_dict={**bundle}, modules=modules, job_name=j_name
             )
 
             blockers = list(report.errors)
@@ -1608,7 +1609,7 @@ def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
                 dielectric=str(arguments.get("dielectric", "X5R")),
                 ambient_c=float(arguments.get("ambient_c", 25.0)),
                 hours_in_service=float(arguments.get("hours_in_service", 1000.0)),
-                ac_level=str(arguments.get("ac_level", "small_signal")),
+                ac_level=cast(Literal["small_signal", "moderate", "large"], str(arguments.get("ac_level", "small_signal"))),
                 tolerance_pct=(
                     float(arguments["tolerance_pct"]) if arguments.get("tolerance_pct") is not None else None
                 ),
