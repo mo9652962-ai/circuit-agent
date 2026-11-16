@@ -1093,19 +1093,19 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
     for conn in connections or []:
         props = conn.get("properties") or {}
         net_name = conn.get("net", "")
-        v = float(props.get("voltage_v", 0.0) or 0.0)
+        net_v = float(props.get("voltage_v", 0.0) or 0.0)
         direct_dist = props.get("clearance_mm")
         has_slot = bool(props.get("has_isolation_slot", False))
-        if v >= 100.0 and direct_dist is not None:
+        if net_v >= 100.0 and direct_dist is not None:
             from .creepage_slot import get_required_creepage
 
-            req_c = get_required_creepage(v)
+            req_c = get_required_creepage(net_v)
             if float(direct_dist) < req_c and not has_slot:
                 issues.append(
                     _issue(
                         "CREEPAGE_DISTANCE_VIOLATION_WITHOUT_SLOT",
                         "高压爬电距离不足且未开防爬电隔离槽",
-                        f"高压网络 {net_name} ({v:g}V) 间距 {float(direct_dist):.2f}mm < 要求的 {req_c:.2f}mm，"
+                        f"高压网络 {net_name} ({net_v:g}V) 间距 {float(direct_dist):.2f}mm < 要求的 {req_c:.2f}mm，"
                         "且未规划贯通空气隔离铣槽；潮湿粉尘环境下表面漏电起痕将引发介质击穿（IPC-2221B Table 6-1 / IEC 62368-1）。",
                         "warning",
                         "IPC-2221B Table 6-1 & IEC 62368-1 High Voltage Creepage Requirements",
@@ -1148,15 +1148,15 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
     for conn in connections or []:
         props = conn.get("properties") or {}
         net_name = conn.get("net", "")
-        v = float(props.get("voltage_v", 0.0) or 0.0)
+        net_v = float(props.get("voltage_v", 0.0) or 0.0)
         cti = float(props.get("substrate_cti_v", 175.0))
         clr = props.get("actual_clearance_mm") or props.get("clearance_mm")
         pd = int(props.get("pollution_degree", 2))
-        if v >= 100.0 and clr is not None:
+        if net_v >= 100.0 and clr is not None:
             from .material_cti_evaluator import evaluate_material_cti_creepage
 
             rep_cti = evaluate_material_cti_creepage(
-                working_voltage_v=v,
+                working_voltage_v=net_v,
                 actual_clearance_mm=float(clr),
                 substrate_cti_v=cti,
                 pollution_degree=pd,
@@ -1167,7 +1167,7 @@ def run_erc(modules: dict[str, dict], connections: list[dict]) -> list[dict]:
                     _issue(
                         "POLLUTION_DEGREE_CREEPAGE_DEFICIT",
                         "污染等级下基材 CTI 爬电安全裕度不足",
-                        f"网络 {net_name} ({v:g}V) 在污染等级 {pd} 下要求爬电 {rep_cti.required_creepage_mm:.2f}mm，"
+                        f"网络 {net_name} ({net_v:g}V) 在污染等级 {pd} 下要求爬电 {rep_cti.required_creepage_mm:.2f}mm，"
                         f"当前基材 ({rep_cti.material_group}, CTI {cti:g}V) 间距 {float(clr):.2f}mm 不足；"
                         "建议升级选用 CTI ≥ 600V 高 CTI 覆铜板或增大间距（IEC 62368-1 / GB 4943.1）。",
                         "warning",
